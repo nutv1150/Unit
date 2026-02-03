@@ -4,7 +4,7 @@ class DataHashPage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
         
-        # เก็บสถานะปัจจุบัน
+        # เก็บสถานะปัจจุบัน 112233
         self.mode = "Decode"  # ค่าเริ่มต้นคือ Decode
         self.tab_buttons = {} # เก็บ object ของปุ่ม Tab
 
