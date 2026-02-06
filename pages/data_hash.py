@@ -11,7 +11,7 @@ class DataHashPage(ctk.CTkFrame):
         # Title
         ctk.CTkLabel(self, text="Data Hashing Encoding And Decoding", font=("Arial", 18, "bold")).pack(anchor="w", padx=20, pady=(20, 10))
 
-        # Top Control Bar
+        # Top Control Bar sdflhsodklf
         top_bar = ctk.CTkFrame(self, fg_color="transparent")
         top_bar.pack(fill="x", padx=20)
         
