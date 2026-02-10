@@ -4,7 +4,11 @@ class FileInspectionPage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
 
+<<<<<<< HEAD
         # Header Section 
+=======
+        # Header Section1235
+>>>>>>> origin/nut
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.pack(fill="x", padx=20, pady=15)
         ctk.CTkLabel(header_frame, text="📁 File Inspection", font=("Segoe UI", 20, "bold")).pack(side="left")
