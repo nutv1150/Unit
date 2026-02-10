@@ -1,4 +1,8 @@
+
 # ui/sidebar.py 8888
+
+# ui/sidebar.py 777777777775555
+
 import customtkinter as ctk
 
 class Sidebar(ctk.CTkFrame):
