@@ -4,11 +4,19 @@ class DataHashPage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
         
+<<<<<<< HEAD
         # เก็บสถานะปัจจุบัน nutcccvvttbbutv
         self.mode = "Decode"  # ค่าเริ่มต้นคือ Decode
         self.tab_buttons = {} # เก็บ object ของปุ่ม Tab
 
         # Title
+=======
+
+        self.mode = "Decode"  # ค่าเริ่มต้นคือ Decode
+        self.tab_buttons = {} # เก็บ object ของปุ่ม Tab
+
+        # Title 
+>>>>>>> main
         ctk.CTkLabel(self, text="Data Hashing Encoding And Decoding", font=("Arial", 18, "bold")).pack(anchor="w", padx=20, pady=(20, 10))
 
         # Top Control Bar sdflhsodklf
