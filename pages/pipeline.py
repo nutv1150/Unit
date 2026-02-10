@@ -6,7 +6,7 @@ class PipelinePage(ctk.CTkFrame):
 
         ctk.CTkLabel(self, text="⚙️ Pipeline", font=("Arial", 18, "bold")).pack(anchor="w", padx=20, pady=10)
 
-        # Control
+        # Control butt
         ctrl = ctk.CTkFrame(self, fg_color="transparent")
         ctrl.pack(fill="x", padx=20)
         ctk.CTkButton(ctrl, text="Browse", width=80).pack(side="left")
