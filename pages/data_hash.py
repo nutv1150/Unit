@@ -16,7 +16,7 @@ class DataHashPage(ctk.CTkFrame):
         top_bar.pack(fill="x", padx=20)
         
         # ปุ่มสลับโหมด Decode/Encode
-        self.mode_btn = ctk.CTkButton(top_bar, text="Decode 🔃", width=100, command=self.toggle_mode)
+        self.mode_btn = ctk.CTkButton(top_bar, text="Decode", width=100, command=self.toggle_mode)
         self.mode_btn.pack(side="left", padx=5)
         
         self.algo_menu = ctk.CTkOptionMenu(top_bar, values=["Auto Detect", "Base64", "Base32", "Hex"], width=200)
@@ -63,11 +63,11 @@ class DataHashPage(ctk.CTkFrame):
         """ สลับระหว่าง Decode และ Encode """
         if self.mode == "Decode":
             self.mode = "Encode"
-            self.mode_btn.configure(text="Encode 🔃")
+            self.mode_btn.configure(text="Encode")
             # คุณสามารถเพิ่ม Logic การทำงานของ Encode ตรงนี้ได้
         else:
             self.mode = "Decode"
-            self.mode_btn.configure(text="Decode 🔃")
+            self.mode_btn.configure(text="Decode")
             # คุณสามารถเพิ่ม Logic การทำงานของ Decode ตรงนี้ได้
         print(f"Current Mode: {self.mode}")
 
