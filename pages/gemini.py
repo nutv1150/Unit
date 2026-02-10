@@ -4,7 +4,7 @@ class GeminiPage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
 
-        # Styled Title (Simulating the Pixel Art Logo)
+        # Styled Title (Simulating the Pixel Art Logo)55555
         ctk.CTkLabel(self, text="GEMINI", font=("Impact", 80), text_color="#A9CCE3").pack(expand=True)
         
         # Version Tag
