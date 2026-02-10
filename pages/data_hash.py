@@ -19,7 +19,7 @@ class DataHashPage(ctk.CTkFrame):
         self.mode_btn = ctk.CTkButton(top_bar, text="Decode 🔃", width=100, command=self.toggle_mode)
         self.mode_btn.pack(side="left", padx=5)
         
-        self.algo_menu = ctk.CTkOptionMenu(top_bar, values=["Auto Detect", "Base64", "Base32", "Hex"], width=200)
+        self.algo_menu = ctk.CTkOptionMenu(top_bar, values=["Auto Detect", "Base64", "Base32", "Hex","Base85"], width=200)
         self.algo_menu.pack(side="left", padx=5)
 
         # Tab Selection Buttons
