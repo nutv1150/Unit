@@ -1,4 +1,4 @@
-# ui/app.py
+# ui/app.py 1522
 import customtkinter as ctk
 from sidebar import Sidebar
 from pages.data_hash import DataHashPage
