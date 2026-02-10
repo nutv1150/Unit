@@ -2,14 +2,14 @@ import customtkinter as ctk
 from Encode.base_encoder import encode_data
 from Decode.base_decoder import decode_data
 from Hashing.hash_utils import hash_data
+from tkinter import filedialog
 
 
 
 class DataHashPage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
-        self.encode_decode_algos = [
-            "Auto Detect",
+        self.encode_algos = [
             "Base64",
             "Base32",
             "Base85",
@@ -21,6 +21,19 @@ class DataHashPage(ctk.CTkFrame):
             "Base62",
         ]
 
+        # Decode ONLY (มี Auto Detect)
+        self.decode_algos = [
+            "Auto Detect",
+            "Base64",
+            "Base32",
+            "Base85",
+            "Hex",
+            "Binary",
+            "Octal",
+            "Decimal",
+            "Base58",
+            "Base62",
+        ]
         self.hash_algos = [
             "md5",
             "sha1",
@@ -53,10 +66,11 @@ class DataHashPage(ctk.CTkFrame):
         
         self.algo_menu = ctk.CTkOptionMenu(
             top_bar,
-            values=self.encode_decode_algos,
+            values=self.decode_algos,
             width=200,
             command=lambda _: self.process_data()
         )
+
         self.algo_menu.pack(side="left", padx=5)
 
         # Tab Selection Buttons
@@ -79,7 +93,7 @@ class DataHashPage(ctk.CTkFrame):
         input_header = ctk.CTkFrame(self, fg_color="transparent")
         input_header.pack(fill="x", padx=20)
         ctk.CTkLabel(input_header, text="INPUT", font=("Arial", 12, "bold")).pack(side="left")
-        ctk.CTkButton(input_header, text="Browse", width=60, height=24).pack(side="left", padx=10)
+        ctk.CTkButton(input_header, text="Browse", width=60, height=24, command=self.browse_file).pack(side="left", padx=10)
 
         self.input_box = ctk.CTkTextbox(self, height=150)
         self.input_box.pack(fill="x", padx=20, pady=(5, 15))
@@ -117,7 +131,6 @@ class DataHashPage(ctk.CTkFrame):
 
             elif self.mode == "Hash":
                 result = hash_data(data, algo)
-
             self.output_box.delete("1.0", "end")
             self.output_box.insert("1.0", result)
 
@@ -129,30 +142,32 @@ class DataHashPage(ctk.CTkFrame):
 
     
     def browse_file(self):
-        file_path = filedialog.askopenfilename()
+        file_path = filedialog.askopenfilename(
+            filetypes=[("Text Files", "*.txt *.json *.log *.py *.md"), ("All Files", "*.*")]
+        )
 
         if not file_path:
             return
 
-        with open(file_path, "rb") as f:
-            content = f.read()
-
         try:
-            content = content.decode()
-        except:
-            content = base64.b64encode(content).decode()
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
 
-        self.input_box.delete("1.0", "end")
-        self.input_box.insert("1.0", content)
+            self.input_box.delete("1.0", "end")
+            self.input_box.insert("1.0", content)
 
-        self.process_data()
+            self.process_data()
+
+        except Exception as e:
+            print("Read file error:", e)
 
     def toggle_mode(self):
         """ สลับระหว่าง Decode และ Encode """
         if self.mode == "Decode":
             self.mode = "Encode"
             self.mode_btn.configure(text="Encode")
-            self.algo_menu.configure(values=self.encode_decode_algos)
+            self.algo_menu.configure(values=self.encode_algos)
+            self.algo_menu.set("Base64")
 
         elif self.mode == "Encode":
             self.mode = "Hash"
@@ -163,8 +178,8 @@ class DataHashPage(ctk.CTkFrame):
         else:
             self.mode = "Decode"
             self.mode_btn.configure(text="Decode")
-            self.algo_menu.configure(values=self.encode_decode_algos)
-            self.algo_menu.set("Base64")
+            self.algo_menu.configure(values=self.decode_algos)
+            self.algo_menu.set("Auto Detect")
 
         self.update_output_label()
         self.process_data()
