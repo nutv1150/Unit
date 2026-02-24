@@ -15,15 +15,16 @@ class DataHashPage(ctk.CTkFrame):
         # Algorithm Lists
         # =========================
         self.encode_algos = [
-            "Base64", "Base32", "Base85",
-            "Hex", "Binary", "Octal",
-            "Decimal", "Base58", "Base62"
+            "Base64", "Base32", "Base45", "Base85",
+            "Base16", "Hex", "Binary",
+            "Octal", "Decimal", "Base58", "Base62"
         ]
-
         self.decode_algos = [
             "Auto Detect", "Base64", "Base32",
-            "Base85", "Hex", "Binary",
-            "Octal", "Decimal", "Base58", "Base62"
+            "Base45", "Base85",
+            "Base16", "Hex",
+            "Binary", "Octal", "Decimal",
+            "Base58", "Base62"
         ]
 
         self.hash_algos = [

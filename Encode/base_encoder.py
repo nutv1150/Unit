@@ -1,9 +1,8 @@
 import base64
 
-
 BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-
+BASE45 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:"
 
 def encode_data(text, algo="Base64"):
     raw = text.encode()
@@ -17,8 +16,11 @@ def encode_data(text, algo="Base64"):
     elif algo == "Base85":
         return base64.b85encode(raw).decode()
 
-    elif algo == "Hex":
-        return raw.hex()
+    elif algo in ("Hex", "Base16"):   # ✅ เพิ่ม Base16 alias
+        return base64.b16encode(raw).decode()
+
+    elif algo == "Base45":           # ✅ เพิ่ม Base45
+        return encode_base45(raw)
 
     elif algo == "Binary":
         return " ".join(format(b, "08b") for b in raw)
@@ -48,3 +50,28 @@ def encode_base_n(data, alphabet):
         encoded = alphabet[rem] + encoded
 
     return encoded or alphabet[0]
+
+
+# =========================
+# Base45 Encoder
+# =========================
+def encode_base45(data: bytes) -> str:
+    result = ""
+    i = 0
+
+    while i < len(data):
+        if i + 1 < len(data):
+            x = data[i] * 256 + data[i + 1]
+            e = x // (45 * 45)
+            d = (x // 45) % 45
+            c = x % 45
+            result += BASE45[c] + BASE45[d] + BASE45[e]
+            i += 2
+        else:
+            x = data[i]
+            d = x // 45
+            c = x % 45
+            result += BASE45[c] + BASE45[d]
+            i += 1
+
+    return result
