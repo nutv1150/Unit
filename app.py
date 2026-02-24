@@ -1,4 +1,3 @@
-# ui/app.py 1522352 12522
 import customtkinter as ctk
 from sidebar import Sidebar
 from pages.data_hash import DataHashPage
@@ -8,7 +7,6 @@ from pages.gemini import GeminiPage
 
 ctk.set_appearance_mode("Light")
 ctk.set_default_color_theme("blue")
-
 
 class UNITApp(ctk.CTk):
     def __init__(self):
@@ -41,9 +39,28 @@ class UNITApp(ctk.CTk):
     def switch_page(self, name):
         if self.current_page:
             self.current_page.grid_forget()
-        self.current_page = self.pages[name]
-        self.current_page.grid(row=0, column=0, sticky="nsew")
+        
+        if name in self.pages:
+            self.current_page = self.pages[name]
+            self.current_page.grid(row=0, column=0, sticky="nsew")
+            
+            # ⭐ สั่งให้ Sidebar ไฮไลท์ปุ่มให้ตรงกับชื่อหน้าที่เปลี่ยนไป
+            if hasattr(self, "sidebar"):
+                self.sidebar.update_button_styles(name)
 
+    def send_to_hashing(self, text):
+        """ ฟังก์ชันกลางสำหรับส่งข้อมูลข้ามหน้า """
+        # 1. เปลี่ยนหน้าไปยัง Data Hashing (ซึ่งจะเปลี่ยนไฮไลท์ Sidebar ให้อัตโนมัติ)
+        self.switch_page("Data Hashing")
+        
+        # 2. นำข้อมูลไปวางในช่อง Input
+        hashing_page = self.pages["Data Hashing"]
+        hashing_page.input_box.delete("1.0", "end")
+        hashing_page.input_box.insert("1.0", text)
+        
+        # 3. รันการประมวลผลทันที
+        if hasattr(hashing_page, "process_data"):
+            hashing_page.process_data()
 
 if __name__ == "__main__":
     app = UNITApp()
