@@ -116,7 +116,7 @@ class DataHashPage(ctk.CTkFrame):
         # ⭐ Key สำหรับ Bitwise
         self.key_entry = ctk.CTkEntry(
             self,
-            placeholder_text="Bitwise Key (ตัวเลข)"
+            placeholder_text="Bitwise Key (Number)"
         )
         self.key_entry.pack(fill="x", padx=20, pady=5)
 
