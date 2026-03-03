@@ -1,10 +1,17 @@
 import customtkinter as ctk
 import tkinter as tk
+from tkinter import filedialog
+from Pipeline.pipeline_engine import PipelineEngine
+import tempfile
+import os
+
 
 class PipelinePage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
         
+        self.engine = PipelineEngine()
+
         self.configure(fg_color="#ececec")
         self.nodes = []      # เก็บข้อมูล Node ทั้งหมด
         self.node_count = 0
@@ -27,7 +34,7 @@ class PipelinePage(ctk.CTkFrame):
         tool_categories = {
             "Steganography": ["steghide", "zsteg", "zbarimg"],
             "File Analysis": ["binwalk", "strings", "file"],
-            "Cryptography": ["Base 64", "md5sum", "unique", "grep"]
+            "Cryptography": ["base64_decode", "md5sum", "unique", "grep"]
         }
 
         for cat, tools in tool_categories.items():
@@ -37,7 +44,7 @@ class PipelinePage(ctk.CTkFrame):
                 lbl.pack(padx=15, anchor="w")
                 lbl.bind("<Button-1>", lambda e, t=tool: self.add_tool_node(t))
 
-        self.add_btn = ctk.CTkButton(self.tools_panel, text="+ Add Tools", fg_color="transparent", border_width=1, border_color="#ccc", text_color="black", hover_color="#eee")
+        self.add_btn = ctk.CTkButton(self.tools_panel,text="+ Add Tools",command=self.open_add_tool_window, fg_color="transparent", border_width=1, border_color="#ccc", text_color="black", hover_color="#eee")
         self.add_btn.pack(fill="x", padx=15, pady=20)
 
         # --- Work Area (ตรงกลาง) ---
@@ -55,9 +62,53 @@ class PipelinePage(ctk.CTkFrame):
         self.file_input.pack(side="left", fill="x", expand=True, padx=5)
 
         # ปุ่ม Browse, Run All, Stop, Clear (ครบถ้วน)
-        for btn_text in ["Browse", "Run All", "Stop", "Clear"]:
-            ctk.CTkButton(self.controls, text=btn_text, fg_color="#dcdcdc", text_color="black", width=80, hover_color="#ccc").pack(side="left", padx=2)
-        
+        # Browse
+        self.browse_btn = ctk.CTkButton(
+            self.controls,
+            text="Browse",
+            fg_color="#dcdcdc",
+            text_color="black",
+            width=80,
+            hover_color="#ccc",
+            command=self.browse_file
+        )
+        self.browse_btn.pack(side="left", padx=2)
+
+        # Run
+        self.run_btn = ctk.CTkButton(
+            self.controls,
+            text="Run All",
+            fg_color="#dcdcdc",
+            text_color="black",
+            width=80,
+            hover_color="#ccc",
+            command=self.run_pipeline
+        )
+        self.run_btn.pack(side="left", padx=2)
+
+        # Stop
+        self.stop_btn = ctk.CTkButton(
+            self.controls,
+            text="Stop",
+            fg_color="#dcdcdc",
+            text_color="black",
+            width=80,
+            hover_color="#ccc",
+            command=self.stop_pipeline
+        )
+        self.stop_btn.pack(side="left", padx=2)
+
+        # Clear
+        self.clear_btn = ctk.CTkButton(
+            self.controls,
+            text="Clear",
+            fg_color="#dcdcdc",
+            text_color="black",
+            width=80,
+            hover_color="#ccc",
+            command=self.clear_pipeline
+        )
+        self.clear_btn.pack(side="left", padx=2)
         self.template_opt = ctk.CTkOptionMenu(self.controls, values=["Templates"], fg_color="#dcdcdc", text_color="black", button_color="#ccc", width=100)
         self.template_opt.pack(side="left", padx=2)
 
@@ -104,22 +155,31 @@ class PipelinePage(ctk.CTkFrame):
         ctk.CTkLabel(self.panel_result, text="Intermediate Output (Step Result)", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=10, pady=5)
         self.result_text = ctk.CTkTextbox(self.panel_result, height=80, font=("monospace", 12))
         self.result_text.pack(fill="x", padx=10, pady=5)
-        ctk.CTkButton(self.panel_result, text="Send Highlighted To Next Node", fg_color="#6f63ff").pack(fill="x", padx=10, pady=5)
+        ctk.CTkButton(
+            self.panel_result,
+            text="Send Highlighted To Next Node",
+            fg_color="#6f63ff",
+            command=self.send_selected_text
+        ).pack(fill="x", padx=10, pady=5)
+
+    def send_selected_text(self):
+        try:
+            selected = self.result_text.get("sel.first", "sel.last")
+            self.file_input.delete(0, "end")
+            self.file_input.insert(0, selected.strip())
+        except:
+            pass
 
     def save_node_config(self):
-        # ดึงชื่อ Node ปัจจุบันจาก Title (หรือสร้างตัวแปรเก็บ current_node ไว้)
-            current_text = self.config_title.cget("text")
-            if "[None]" in current_text:
-                print("No node selected!")
-                return
-                
-            new_params = self.param_input.get()
-            # Logic สำหรับบันทึกค่าลงใน List ของ Nodes หรือ Object ที่เกี่ยวข้อง
-            print(f"Saved options for {current_text}: {new_params}")
-            
-            # แสดง Feedback เล็กน้อยว่าบันทึกแล้ว
-            self.confirm_btn.configure(text="Saved!", fg_color="#155724")
-            self.after(1000, lambda: self.confirm_btn.configure(text="Confirm Options", fg_color="#2eb85c"))
+        if not hasattr(self, "current_node"):
+            return
+
+        new_params = self.param_input.get()
+        self.current_node['params'] = new_params
+
+        self.confirm_btn.configure(text="Saved!", fg_color="#155724")
+        self.after(1000, lambda: self.confirm_btn.configure(
+            text="Confirm Options", fg_color="#2eb85c"))
             
     # --- ฟังก์ชันสลับโหมด ---
     def toggle_mode(self):
@@ -156,7 +216,11 @@ class PipelinePage(ctk.CTkFrame):
         ctk.CTkFrame(node, width=6, height=6, corner_radius=3, fg_color="#555").place(relx=0, rely=0.5, anchor="center")
         ctk.CTkFrame(node, width=6, height=6, corner_radius=3, fg_color="#6f63ff").place(relx=1, rely=0.5, anchor="center")
 
-        node_data = {'frame': node, 'name': tool_name}
+        node_data = {
+            'frame': node, 
+            'name': tool_name,
+            'params': "",
+        }
         self.nodes.append(node_data)
 
         # ทำให้ลากได้
@@ -167,6 +231,7 @@ class PipelinePage(ctk.CTkFrame):
         self.draw_connections()
 
     def on_node_press(self, event, node_data):
+        self.current_node = node_data
         self.config_title.configure(text=f"Node: {node_data['name']} [Configuration]")
         node_data['drag_data'] = {'x': event.x, 'y': event.y}
         node_data['frame'].lift()
@@ -203,3 +268,138 @@ class PipelinePage(ctk.CTkFrame):
                 x1, y1, x1 + dist, y1, x2 - dist, y2, x2, y2,
                 fill="#6f63ff", width=2, smooth=True, tags="line", arrow=tk.LAST
             )
+    def run_pipeline(self):
+
+        
+        if not self.nodes:
+            return
+
+        engine = self.engine
+
+        current_data = self.file_input.get()
+
+            # ถ้า node แรกเป็น TEXT TOOL → ต้องอ่านไฟล์ก่อน
+        if self.nodes and self.nodes[0]['name'] in self.engine.file_tools:
+            try:
+                with open(current_data, "rb") as f:
+                    current_data = f.read()
+            except Exception as e:
+                self.result_text.insert("end", str(e))
+                return
+        self.result_text.delete("1.0", "end")
+
+        for node in self.nodes:
+
+            tool = node['name']
+            params = node.get('params', "")
+
+            print("Running tool:", tool)
+            print("Params:", params)
+
+            if tool in engine.file_tools:
+                if isinstance(current_data, bytes):
+                    temp_path = self.write_temp_file(current_data)
+                    output = engine.run_file_tool(tool, temp_path, params)
+                    os.unlink(temp_path)
+                else:
+                    output = engine.run_file_tool(tool, current_data, params) 
+
+            elif tool in engine.text_tools:
+                output = engine.run_text_tool(tool, current_data, params)
+
+            else:
+                output = f"Tool {tool} not allowed"
+
+            self.result_text.insert("end", f"\n>>> {tool}\n")
+
+            if isinstance(output, bytes):
+                try:
+                    display = output.decode("utf-8")
+                except:
+                    display = output.decode("utf-8", errors="ignore")
+            else:
+                display = str(output)
+
+            self.result_text.insert("end", display + "\n")
+
+            flag = engine.check_flag(output)
+            if flag:
+                self.result_text.insert("end", f"\n🎉 FLAG FOUND: {flag}\n")
+                
+
+            if self.is_auto:
+                current_data = output
+            else:
+                break
+
+    # วางนอก __init__ นะ
+    def browse_file(self):
+        file_path = filedialog.askopenfilename()
+        if file_path:
+            self.file_input.delete(0, "end")
+            self.file_input.insert(0, file_path)
+
+    def stop_pipeline(self):
+        print("Stopping pipeline...")
+
+    def clear_pipeline(self):
+        print("Clearing pipeline...")
+        self.result_text.delete("1.0", "end")
+
+        for node in self.nodes:
+            node['frame'].destroy()
+
+        self.nodes.clear()
+        self.node_count = 0
+        self.line_canvas.delete("line")
+
+    def write_temp_file(self, data):
+        tmp = tempfile.NamedTemporaryFile(delete=False)
+        tmp.write(data)
+        tmp.close()
+        return tmp.name
+    
+    def open_add_tool_window(self):
+
+        win = ctk.CTkToplevel(self)
+        win.title("Add Tool")
+        win.geometry("300x250")
+
+        ctk.CTkLabel(win, text="Tool Name").pack(pady=5)
+        name_entry = ctk.CTkEntry(win)
+        name_entry.pack(pady=5)
+
+        ctk.CTkLabel(win, text="Linux Command").pack(pady=5)
+        cmd_entry = ctk.CTkEntry(win)
+        cmd_entry.pack(pady=5)
+
+        mode_var = ctk.StringVar(value="text")
+        ctk.CTkOptionMenu(
+            win,
+            values=["text", "file"],
+            variable=mode_var
+        ).pack(pady=5)
+
+        def save_tool():
+            name = name_entry.get()
+            cmd = cmd_entry.get()
+            mode = mode_var.get()
+
+            self.engine.add_tool(name, cmd, mode)
+            self.engine.save_custom_tool(name, cmd, mode)
+
+            lbl = ctk.CTkLabel(
+                self.tools_panel,
+                text=f"  • {name}",
+                cursor="hand2"
+            )
+            lbl.pack(anchor="w", padx=15)
+            lbl.bind("<Button-1>", lambda e, t=name: self.add_tool_node(t))
+
+            win.destroy()
+
+        ctk.CTkButton(win, text="Add Tool", command=save_tool).pack(pady=10)
+
+    
+            
+    
