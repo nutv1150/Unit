@@ -1,4 +1,6 @@
 import customtkinter as ctk
+from tkinterdnd2 import TkinterDnD  # ⭐ 1. Import ไลบรารีสำหรับ Drag & Drop
+
 from sidebar import Sidebar
 from pages.data_hash import DataHashPage
 from pages.file_inspection import FileInspectionPage
@@ -8,9 +10,13 @@ from pages.gemini import GeminiPage
 ctk.set_appearance_mode("Light")
 ctk.set_default_color_theme("blue")
 
-class UNITApp(ctk.CTk):
+# ⭐ 2. เพิ่ม TkinterDnD.DnDWrapper เข้ามาสืบทอดร่วมกับ ctk.CTk
+class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
     def __init__(self):
         super().__init__()
+
+        # ⭐ 3. บรรทัดนี้สำคัญมาก! เป็นการสั่งเปิดใช้งานระบบ Drag & Drop ของแอปหลัก
+        self.TkdndVersion = TkinterDnD._require(self)
 
         self.title("Unified Toolkit")
         self.geometry("1200x720")
