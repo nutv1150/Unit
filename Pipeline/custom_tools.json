@@ -1,17 +1,168 @@
-[
+{
+  "Steganography": [
     {
-        "name": "reverse",
-        "command": "rev",
-        "mode": "text"
+      "name": "zsteg",
+      "command": "zsteg",
+      "mode": "file"
     },
     {
-        "name": "reverse",
-        "command": "rev",
-        "mode": "text"
+      "name": "zbarimg",
+      "command": "zbarimg",
+      "mode": "file"
     },
     {
-        "name": "reverse",
-        "command": "rev",
-        "mode": "text"
+      "name": "steghide",
+      "command": "steghide",
+      "mode": "file"
     }
-]
+  ],
+
+  "Forensics": [
+    {
+      "name": "binwalk",
+      "command": "binwalk",
+      "mode": "file"
+    },
+    {
+      "name": "foremost",
+      "command": "foremost",
+      "mode": "file",
+      "params": ["-i"]
+    },
+    {
+      "name": "exiftool",
+      "command": "exiftool",
+      "mode": "file"
+    },
+    {
+      "name": "tshark",
+      "command": "tshark",
+      "mode": "file",
+      "params": ["-r"]
+    }
+  ],
+
+  "Cryptography": [
+    {
+      "name": "base64_decode",
+      "command": "base64",
+      "mode": "text",
+      "params": ["-d", "-i"]
+    },
+    {
+      "name": "base32_decode",
+      "command": "base32",
+      "mode": "text",
+      "params": ["-d"]
+    },
+    {
+      "name": "rot13",
+      "command": "tr",
+      "mode": "text",
+      "params": ["A-Za-z", "N-ZA-Mn-za-m"]
+    },
+    {
+      "name": "hex_decode",
+      "command": "xxd",
+      "mode": "text",
+      "params": ["-r", "-p"]
+    },
+    {
+      "name": "reverse",
+      "command": "rev",
+      "mode": "text"
+    }
+  ],
+
+  "Reverse Engineering": [
+    {
+      "name": "strings",
+      "command": "strings",
+      "mode": "file"
+    },
+    {
+      "name": "strings_long",
+      "command": "strings",
+      "mode": "file",
+      "params": ["-n", "10"]
+    },
+    {
+      "name": "xxd",
+      "command": "xxd",
+      "mode": "file"
+    },
+    {
+      "name": "hexdump",
+      "command": "hexdump",
+      "mode": "file",
+      "params": ["-C"]
+    },
+    {
+      "name": "objdump",
+      "command": "objdump",
+      "mode": "file",
+      "params": ["-d"]
+    },
+    {
+      "name": "readelf",
+      "command": "readelf",
+      "mode": "file",
+      "params": ["-a"]
+    }
+  ],
+
+  "Pwnable": [
+    {
+      "name": "checksec",
+      "command": "checksec",
+      "mode": "file"
+    },
+    {
+      "name": "file",
+      "command": "file",
+      "mode": "file"
+    },
+    {
+      "name": "md5sum",
+      "command": "md5sum",
+      "mode": "file"
+    }
+  ],
+
+  "Mobile Security": [
+    {
+      "name": "apktool",
+      "command": "apktool",
+      "mode": "file",
+      "params": ["d"]
+    },
+    {
+      "name": "jadx",
+      "command": "jadx",
+      "mode": "file"
+    },
+    {
+      "name": "dex_strings",
+      "command": "strings",
+      "mode": "file"
+    }
+  ],
+
+  "Programming": [
+    {
+      "name": "grep",
+      "command": "grep",
+      "mode": "text"
+    },
+    {
+      "name": "unique",
+      "command": "uniq",
+      "mode": "text"
+    },
+    {
+      "name": "sort",
+      "command": "sort",
+      "mode": "text"
+    }
+  ]
+}
