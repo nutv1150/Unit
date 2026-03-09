@@ -26,7 +26,7 @@ class DataHashPage(ctk.CTkFrame):
 
         self.decode_algos = [
             "Auto Detect", "Base64", "Base32",
-            "Base45", "Base85", "Base58", "Base62",
+            "Base45", "Base85", "Base58", "Base62","Ascii85",
             "Base16", "Hex",
             "Binary", "Octal", "Decimal",
             "URL Decode",

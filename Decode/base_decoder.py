@@ -13,31 +13,45 @@ def is_printable(text):
 
 
 def auto_detect_decode(data):
-    candidates = [
-        ("URL Decode", lambda d: urllib.parse.unquote(d.decode()).encode()),   # NEW
-        ("HTML Entity", lambda d: html.unescape(d.decode()).encode()),         # NEW
-        ("Unicode Escape", lambda d: codecs.decode(d.decode(), "unicode_escape").encode()),  # NEW
 
-        ("Base64", lambda d: base64.b64decode(d)),
+    text = data.decode(errors="ignore")
+
+    candidates = [
+
+        # Base encodings ก่อน
+        ("Base64", lambda d: base64.b64decode(d, validate=True)),
         ("Base32", lambda d: base64.b32decode(d)),
-        ("Base45", lambda d: decode_base45(d.decode()).encode()),
         ("Base85", lambda d: base64.b85decode(d)),
+        ("Ascii85", lambda d: base64.a85decode(d)),
         ("Base16", lambda d: base64.b16decode(d)),
-        ("Hex", lambda d: bytes.fromhex(d.decode())),
-        ("Base58", lambda d: decode_base_n(d.decode(), BASE58).encode()),
-        ("Base62", lambda d: decode_base_n(d.decode(), BASE62).encode()),
-        ("Binary", lambda d: bytes(int(x, 2) for x in d.decode().split())),
-        ("Octal", lambda d: bytes(int(x, 8) for x in d.decode().split())),
-        ("Decimal", lambda d: bytes(int(x) for x in d.decode().split())),
+
+        ("Hex", lambda d: bytes.fromhex(text)),
+
+        ("Base45", lambda d: decode_base45(text).encode()),
+
+        ("Base58", lambda d: decode_base_n(text, BASE58).encode()),
+        ("Base62", lambda d: decode_base_n(text, BASE62).encode()),
+
+        ("Binary", lambda d: bytes(int(x, 2) for x in text.split())),
+        ("Octal", lambda d: bytes(int(x, 8) for x in text.split())),
+        ("Decimal", lambda d: bytes(int(x) for x in text.split())),
+
+        # escape encodings ทีหลัง
+        ("URL Decode", lambda d: urllib.parse.unquote(text).encode()),
+        ("HTML Entity", lambda d: html.unescape(text).encode()),
+        ("Unicode Escape", lambda d: codecs.decode(text, "unicode_escape").encode()),
     ]
 
     for name, func in candidates:
+
         try:
             decoded = func(data)
             decoded_text = decoded.decode(errors="ignore")
 
             if decoded_text and is_printable(decoded_text):
-                return name, decoded_text
+
+                if decoded_text != text:   # สำคัญมาก
+                    return name, decoded_text
 
         except Exception:
             pass
@@ -68,6 +82,9 @@ def decode_data(text, algo="Base64"):
 
     elif algo == "Base85":
         return base64.b85decode(text).decode(errors="ignore")
+    
+    elif algo == "Ascii85":
+        return base64.a85decode(text).decode(errors="ignore")
 
     elif algo in ("Hex", "Base16"):
         return base64.b16decode(text).decode(errors="ignore")
