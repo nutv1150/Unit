@@ -1,4 +1,7 @@
 import base64
+import urllib.parse   # NEW
+import html           # NEW
+import codecs         # NEW
 
 BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -11,6 +14,10 @@ def is_printable(text):
 
 def auto_detect_decode(data):
     candidates = [
+        ("URL Decode", lambda d: urllib.parse.unquote(d.decode()).encode()),   # NEW
+        ("HTML Entity", lambda d: html.unescape(d.decode()).encode()),         # NEW
+        ("Unicode Escape", lambda d: codecs.decode(d.decode(), "unicode_escape").encode()),  # NEW
+
         ("Base64", lambda d: base64.b64decode(d)),
         ("Base32", lambda d: base64.b32decode(d)),
         ("Base45", lambda d: decode_base45(d.decode()).encode()),
@@ -18,7 +25,7 @@ def auto_detect_decode(data):
         ("Base16", lambda d: base64.b16decode(d)),
         ("Hex", lambda d: bytes.fromhex(d.decode())),
         ("Base58", lambda d: decode_base_n(d.decode(), BASE58).encode()),
-        ("Base62", lambda d: decode_base_n(d.decode(), BASE62).encode()),  # ✅ เพิ่มตรงนี้
+        ("Base62", lambda d: decode_base_n(d.decode(), BASE62).encode()),
         ("Binary", lambda d: bytes(int(x, 2) for x in d.decode().split())),
         ("Octal", lambda d: bytes(int(x, 8) for x in d.decode().split())),
         ("Decimal", lambda d: bytes(int(x) for x in d.decode().split())),
@@ -39,9 +46,19 @@ def auto_detect_decode(data):
 
 
 def decode_data(text, algo="Base64"):
+
     if algo == "Auto Detect":
         name, result = auto_detect_decode(text.encode())
         return result
+
+    elif algo == "URL Decode":                     # NEW
+        return urllib.parse.unquote(text)
+
+    elif algo == "HTML Entity":                    # NEW
+        return html.unescape(text)
+
+    elif algo == "Unicode Escape":                 # NEW
+        return codecs.decode(text, "unicode_escape")
 
     elif algo == "Base64":
         return base64.b64decode(text).decode(errors="ignore")

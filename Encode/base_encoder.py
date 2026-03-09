@@ -1,8 +1,11 @@
 import base64
+import urllib.parse
+import html
 
 BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 BASE45 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:"
+
 
 def encode_data(text, algo="Base64"):
     raw = text.encode()
@@ -16,10 +19,10 @@ def encode_data(text, algo="Base64"):
     elif algo == "Base85":
         return base64.b85encode(raw).decode()
 
-    elif algo in ("Hex", "Base16"):   # ✅ เพิ่ม Base16 alias
+    elif algo in ("Hex", "Base16"):
         return base64.b16encode(raw).decode()
 
-    elif algo == "Base45":           # ✅ เพิ่ม Base45
+    elif algo == "Base45":
         return encode_base45(raw)
 
     elif algo == "Binary":
@@ -36,6 +39,22 @@ def encode_data(text, algo="Base64"):
 
     elif algo == "Base62":
         return encode_base_n(raw, BASE62)
+
+    # =========================
+    # NEW Encoding
+    # =========================
+
+    elif algo == "URL Encode":
+        return urllib.parse.quote(text)
+
+    elif algo == "URL-safe Base64":
+        return base64.urlsafe_b64encode(raw).decode()
+
+    elif algo == "HTML Entity":
+        return html.escape(text)
+
+    elif algo == "Unicode Escape":
+        return text.encode("unicode_escape").decode()
 
     return text
 
