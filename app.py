@@ -50,6 +50,10 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
             self.current_page = self.pages[name]
             self.current_page.grid(row=0, column=0, sticky="nsew")
             
+            # แจ้งหน้านั้นว่าถูกแสดงแล้ว (ถ้ามี on_show)
+            if hasattr(self.current_page, "on_show"):
+                self.current_page.on_show()
+
             # ⭐ สั่งให้ Sidebar ไฮไลท์ปุ่มให้ตรงกับชื่อหน้าที่เปลี่ยนไป
             if hasattr(self, "sidebar"):
                 self.sidebar.update_button_styles(name)

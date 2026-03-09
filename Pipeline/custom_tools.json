@@ -1,19 +1,26 @@
 {
+
   "Steganography": [
     {
       "name": "zsteg",
       "command": "zsteg",
-      "mode": "file"
+      "mode": "file",
+      "description": "Detect hidden data in PNG and BMP",
+      "options": []
     },
     {
       "name": "zbarimg",
       "command": "zbarimg",
-      "mode": "file"
+      "mode": "file",
+      "description": "Scan barcodes or QR codes in images",
+      "options": []
     },
     {
       "name": "steghide",
       "command": "steghide",
-      "mode": "file"
+      "mode": "file",
+      "description": "Extract hidden data from stego files",
+      "options": []
     }
   ],
 
@@ -21,24 +28,42 @@
     {
       "name": "binwalk",
       "command": "binwalk",
-      "mode": "file"
+      "mode": "file",
+      "description": "Analyze binary files for embedded data",
+      "options": []
     },
     {
       "name": "foremost",
       "command": "foremost",
       "mode": "file",
-      "params": ["-i"]
+      "description": "Recover files using headers",
+      "options": [
+        {
+          "flag": "-i",
+          "type": "file",
+          "description": "Input file"
+        }
+      ]
     },
     {
       "name": "exiftool",
       "command": "exiftool",
-      "mode": "file"
+      "mode": "file",
+      "description": "Read metadata from files",
+      "options": []
     },
     {
       "name": "tshark",
       "command": "tshark",
       "mode": "file",
-      "params": ["-r"]
+      "description": "Analyze packet capture files",
+      "options": [
+        {
+          "flag": "-r",
+          "type": "file",
+          "description": "Read packet capture file"
+        }
+      ]
     }
   ],
 
@@ -47,67 +72,64 @@
       "name": "base64_decode",
       "command": "base64",
       "mode": "text",
-      "params": ["-d", "-i"]
+      "description": "Decode Base64 data",
+      "options": [
+        {
+          "flag": "-d",
+          "type": "checkbox",
+          "description": "Decode mode"
+        },
+        {
+          "flag": "-i",
+          "type": "checkbox",
+          "description": "Ignore invalid characters"
+        }
+      ]
     },
     {
       "name": "base32_decode",
       "command": "base32",
       "mode": "text",
-      "params": ["-d"]
+      "description": "Decode Base32 data",
+      "options": [
+        {
+          "flag": "-d",
+          "type": "checkbox",
+          "description": "Decode mode"
+        }
+      ]
     },
     {
       "name": "rot13",
       "command": "tr",
       "mode": "text",
-      "params": ["A-Za-z", "N-ZA-Mn-za-m"]
+      "description": "ROT13 transformation",
+      "options": []
     },
     {
       "name": "hex_decode",
       "command": "xxd",
       "mode": "text",
-      "params": ["-r", "-p"]
+      "description": "Decode hex to binary",
+      "options": [
+        {
+          "flag": "-r",
+          "type": "checkbox",
+          "description": "Reverse hex dump"
+        },
+        {
+          "flag": "-p",
+          "type": "checkbox",
+          "description": "Plain hex format"
+        }
+      ]
     },
     {
       "name": "reverse",
       "command": "rev",
-      "mode": "text"
-    }
-  ],
-
-  "Reverse Engineering": [
-    {
-      "name": "strings",
-      "command": "strings",
-      "mode": "file"
-    },
-    {
-      "name": "strings_long",
-      "command": "strings",
-      "mode": "file",
-      "params": ["-n", "10"]
-    },
-    {
-      "name": "xxd",
-      "command": "xxd",
-      "mode": "file"
-    },
-    {
-      "name": "hexdump",
-      "command": "hexdump",
-      "mode": "file",
-      "params": ["-C"]
-    },
-    {
-      "name": "objdump",
-      "command": "objdump",
-      "mode": "file",
-      "params": ["-d"]
-    },
-    {
-      "name": "readelf",
-      "command": "readelf",
-      "mode": "file",
-      "params": ["-a"]
+      "mode": "text",
+      "description": "Reverse text lines",
+      "options": []
     }
   ],
 
@@ -115,17 +137,23 @@
     {
       "name": "checksec",
       "command": "checksec",
-      "mode": "file"
+      "mode": "file",
+      "description": "Check binary security protections",
+      "options": []
     },
     {
       "name": "file",
       "command": "file",
-      "mode": "file"
+      "mode": "file",
+      "description": "Determine file type",
+      "options": []
     },
     {
       "name": "md5sum",
       "command": "md5sum",
-      "mode": "file"
+      "mode": "file",
+      "description": "Generate MD5 hash",
+      "options": []
     }
   ],
 
@@ -134,17 +162,28 @@
       "name": "apktool",
       "command": "apktool",
       "mode": "file",
-      "params": ["d"]
+      "description": "Reverse engineer Android APK",
+      "options": [
+        {
+          "flag": "d",
+          "type": "checkbox",
+          "description": "Decode APK"
+        }
+      ]
     },
     {
       "name": "jadx",
       "command": "jadx",
-      "mode": "file"
+      "mode": "file",
+      "description": "Decompile Android APK",
+      "options": []
     },
     {
       "name": "dex_strings",
       "command": "strings",
-      "mode": "file"
+      "mode": "file",
+      "description": "Extract strings from DEX file",
+      "options": []
     }
   ],
 
@@ -152,17 +191,41 @@
     {
       "name": "grep",
       "command": "grep",
-      "mode": "text"
-    },
+      "mode": "text",
+      "description": "Search text using patterns",
+      "options": [
+        {
+          "flag": "-n",
+          "type": "checkbox",
+          "description": "Show line numbers"
+        },
+        {
+          "flag": "-v",
+          "type": "checkbox",
+          "description": "Invert match"
+        },
+        {
+          "flag": "",
+          "type": "text",
+          "placeholder": "Search pattern"
+        }
+      ]
+    }
+  ],
+
+  "Reverse Engineering": [
     {
-      "name": "unique",
-      "command": "uniq",
-      "mode": "text"
-    },
-    {
-      "name": "sort",
-      "command": "sort",
-      "mode": "text"
+      "name": "strings",
+      "command": "strings",
+      "mode": "file",
+      "description": "Extract printable strings from binaries",
+      "options": [
+        {
+          "flag": "-n",
+          "type": "text",
+          "placeholder": "Minimum string length"
+        }
+      ]
     }
   ]
 }

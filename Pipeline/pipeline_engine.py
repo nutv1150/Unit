@@ -3,21 +3,18 @@ import re
 import json
 import os
 
-
 class PipelineEngine:
-
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     CUSTOM_TOOL_FILE = os.path.join(BASE_DIR, "custom_tools.json")
-
     FLAG_PATTERN = r"TCTT\{.*?\}|flag\{.*?\}"
 
     def __init__(self):
-
         self.file_tools = {}
         self.text_tools = {}
-
+        self.tool_descriptions = {} # เพิ่มเพื่อเก็บคำอธิบาย
+        self.tool_options = {}
         self.load_custom_tools()
-
+        
 
     def load_custom_tools(self):
 
@@ -29,17 +26,30 @@ class PipelineEngine:
 
         for category in data:
 
+            if not isinstance(data[category], list):
+                continue
+
             for tool in data[category]:
 
                 name = tool["name"]
                 command = tool["command"]
                 mode = tool["mode"]
+
                 params = tool.get("params", [])
+
+                # description
+                self.tool_descriptions[name] = tool.get(
+                    "description",
+                    "No description available"
+                )
+
+                # options (สำคัญ)
+                self.tool_options[name] = tool.get("options", [])
 
                 if mode == "file":
 
                     self.file_tools[name] = lambda f, p=None, c=command, pa=params: \
-                        [c] + pa + (p.split() if p else []) + [f]
+                        [c] + pa + (p.split() if p else []) + ([f] if f else [])
 
                 else:
 
@@ -96,13 +106,11 @@ class PipelineEngine:
             self.text_tools[name] = lambda p=None, c=command: \
                 [c] + (p.split() if p else [])
             
-    def save_custom_tool(self, name, command, mode, category):
-
+    def save_custom_tool(self, name, command, mode, category, description=""):
+        # ปรับปรุงให้บันทึก description ลง JSON ด้วย
         if os.path.exists(self.CUSTOM_TOOL_FILE):
-
             with open(self.CUSTOM_TOOL_FILE, "r") as f:
                 data = json.load(f)
-
         else:
             data = {}
 
@@ -112,7 +120,9 @@ class PipelineEngine:
         data[category].append({
             "name": name,
             "command": command,
-            "mode": mode
+            "mode": mode,
+            "description": description, # คำอธิบายจากระบบ
+            "user_description": ""      # เว้นว่างไว้สำหรับรอให้ User มาเติมใน Pipeline
         })
 
         with open(self.CUSTOM_TOOL_FILE, "w") as f:
