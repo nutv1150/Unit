@@ -42,11 +42,37 @@ class PipelinePage(ctk.CTkFrame):
         tool_categories = self.load_tools_from_json()
 
         for cat, tools in tool_categories.items():
-            ctk.CTkLabel(self.tools_panel, text=cat, font=ctk.CTkFont(size=13, weight="bold")).pack(padx=15, anchor="w", pady=(5,0))
+
+            ctk.CTkLabel(
+                self.tools_panel,
+                text=cat,
+                font=ctk.CTkFont(size=13, weight="bold")
+            ).pack(padx=15, anchor="w", pady=(5,0))
+
             for tool in tools:
-                lbl = ctk.CTkLabel(self.tools_panel, text=f"  • {tool}", font=ctk.CTkFont(size=12), cursor="hand2")
+
+                lbl = ctk.CTkLabel(
+                    self.tools_panel,
+                    text=f"  • {tool}",
+                    font=ctk.CTkFont(size=12),
+                    cursor="hand2"
+                )
+
                 lbl.pack(padx=15, anchor="w")
-                lbl.bind("<Button-1>", lambda e, t=tool: self.add_tool_node(t))
+
+                if cat == "Saved Pipelines":
+
+                    lbl.bind(
+                        "<Button-1>",
+                        lambda e, name=tool: self.load_saved_pipeline_to_canvas(name)
+                    )
+
+                else:
+
+                    lbl.bind(
+                        "<Button-1>",
+                        lambda e, t=tool: self.add_tool_node(t)
+                    )
 
         self.add_btn = ctk.CTkButton(self.tools_panel,text="+ Add Tools",command=self.open_add_tool_window, fg_color="transparent", border_width=1, border_color="#ccc", text_color="black", hover_color="#eee")
         self.add_btn.pack(fill="x", padx=15, pady=20)
@@ -280,7 +306,7 @@ class PipelinePage(ctk.CTkFrame):
 
         win = ctk.CTkToplevel(self)
         win.title(f"{tool_name} Step")
-        win.geometry("900x460")
+        win.geometry("1000x620")
 
         container = ctk.CTkFrame(win)
         container.pack(fill="both", expand=True, padx=10, pady=10)
@@ -295,6 +321,31 @@ class PipelinePage(ctk.CTkFrame):
 
         output_box = ctk.CTkTextbox(left)
         output_box.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # --- Context Menu (Right Click) ---
+
+        def send_selected_to_input():
+            try:
+                selected = output_box.get("sel.first", "sel.last")
+                input_entry.delete(0, "end")
+                input_entry.insert(0, selected.strip())
+            except:
+                pass
+
+        context_menu = tk.Menu(output_box, tearoff=0)
+
+        context_menu.add_command(
+            label="Send to Input",
+            command=send_selected_to_input
+        )
+
+        def show_context_menu(event):
+            try:
+                context_menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                context_menu.grab_release()
+
+        output_box.bind("<Button-3>", show_context_menu)
 
         result = {"output": None}
 
@@ -384,6 +435,41 @@ class PipelinePage(ctk.CTkFrame):
 
         tool_options = node.get("options") or self.engine.tool_options.get(tool_name,[])
 
+        def update_preview():
+
+            params_list = []
+
+            for flag,var in option_vars:
+                if var.get():
+                    params_list.append(flag)
+
+
+
+            params = " ".join(params_list)
+
+            inp = input_entry.get().strip()
+
+            before_path = " ".join(params_list)
+
+            after_tool = after_tool_entry.get().strip()
+            after_input = after_input_entry.get().strip()
+
+            cmd = tool_name
+
+            if after_tool:
+                cmd += f" {after_tool}"
+
+            if before_path:
+                cmd += f" {before_path}"
+
+            if inp:
+                cmd += f" {inp}"
+
+            if after_input:
+                cmd += f" {after_input}"
+
+            preview_label.configure(text=cmd)
+
         for opt in tool_options:
 
             if opt["type"] == "checkbox":
@@ -393,20 +479,61 @@ class PipelinePage(ctk.CTkFrame):
                 ctk.CTkCheckBox(
                     options_frame,
                     text=f'{opt["flag"]} {opt.get("description","")}',
-                    variable=var
+                    variable=var,
+                    command=update_preview
                 ).pack(anchor="w", pady=2)
 
                 option_vars.append((opt["flag"],var))
+        
+        # -------- Parameters After Tool --------
 
-        # -------- Manual Params --------
-        ctk.CTkLabel(right,text="Manual Parameters").pack(anchor="w", padx=20)
-
-        manual_param_entry = ctk.CTkEntry(
+        ctk.CTkLabel(
             right,
-            placeholder_text="example: -n 5  OR  flag"
+            text="Parameters After Tool"
+        ).pack(anchor="w", padx=20)
+
+        after_tool_entry = ctk.CTkEntry(
+            right,
+            placeholder_text="example: -a -t x"
         )
 
-        manual_param_entry.pack(fill="x", padx=20, pady=5)
+        after_tool_entry.pack(fill="x", padx=20, pady=5)
+
+
+
+        # -------- Parameters After Input --------
+
+        ctk.CTkLabel(
+            right,
+            text="Parameters After Input"
+        ).pack(anchor="w", padx=20)
+
+        after_input_entry = ctk.CTkEntry(
+            right,
+            placeholder_text="example: -T fields -e data"
+        )
+
+        after_input_entry.pack(fill="x", padx=20, pady=5)
+
+        
+        
+
+        # -------- Command Preview --------
+        ctk.CTkLabel(
+            right,
+            text="Command Preview",
+            font=ctk.CTkFont(size=12, weight="bold")
+        ).pack(anchor="w", padx=20, pady=(10,0))
+
+        preview_label = ctk.CTkLabel(
+            right,
+            text=tool_name,
+            text_color="gray",
+            wraplength=320
+        )
+
+        preview_label.pack(anchor="w", padx=20)
+        update_preview()
 
         # -------- Description --------
         desc = node.get("user_description","")
@@ -425,6 +552,8 @@ class PipelinePage(ctk.CTkFrame):
                 wraplength=300
             ).pack(anchor="w", padx=20)
 
+        
+
         # -------- Run Tool --------
         def run_tool():
 
@@ -434,12 +563,15 @@ class PipelinePage(ctk.CTkFrame):
                 if var.get():
                     params_list.append(flag)
 
-            manual = manual_param_entry.get().strip()
+            
 
-            if manual:
-                params_list.append(manual)
+            params_before = " ".join(params_list)
 
-            params = " ".join(params_list)
+            after_tool = after_tool_entry.get().strip()
+            after_input = after_input_entry.get().strip()
+
+            params = " ".join(filter(None,[after_tool, params_before, after_input]))
+            update_preview()
 
             user_input = input_entry.get().strip()
 
@@ -982,22 +1114,81 @@ class PipelinePage(ctk.CTkFrame):
             print(f"Error saving pipeline: {e}")
 
     def load_saved_pipeline_to_canvas(self, pipeline_name):
-        save_path = os.path.join(os.path.dirname(__file__), "..", "Pipeline", "saved_pipelines.json")
+
+        save_path = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "Pipeline",
+            "saved_pipelines.json"
+        )
+
         save_path = os.path.abspath(save_path)
-        
-        if not os.path.exists(save_path): return
+
+        if not os.path.exists(save_path):
+            return
 
         with open(save_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-            for p in data.get("saved_pipelines", []):
-                if p["pipeline_name"] == pipeline_name:
-                    self.clear_pipeline() # ล้างหน้าจอเดิมก่อน
-                    for step in p["steps"]:
-                        self.add_tool_node(step["name"], user_desc=step.get("user_description", ""))
 
-                        self.nodes[-1]["params"] = step.get("params", "")
-                        self.nodes[-1]["options"] = step.get("options", [])
-                    break
+        for p in data.get("saved_pipelines", []):
+
+            if p["pipeline_name"] == pipeline_name:
+
+                self.clear_pipeline()
+
+                x = 80
+                y = 120
+
+                for step in p["steps"]:
+
+                    self.node_count += 1
+
+                    node = ctk.CTkFrame(
+                        self.line_canvas,
+                        fg_color="#333333",
+                        corner_radius=4,
+                        border_width=1,
+                        border_color="#6f63ff",
+                        width=110,
+                        height=35
+                    )
+
+                    node.place(x=x, y=y)
+
+                    lbl = ctk.CTkLabel(
+                        node,
+                        text=step["name"],
+                        font=ctk.CTkFont(size=11, weight="bold"),
+                        text_color="white"
+                    )
+
+                    lbl.place(relx=0.5, rely=0.5, anchor="center")
+
+                    node_data = {
+                        "frame": node,
+                        "name": step["name"],
+                        "params": step.get("params", ""),
+                        "user_description": step.get("user_description", ""),
+                        "options": step.get("options", [])
+                    }
+
+                    self.nodes.append(node_data)
+
+                    for item in [node, lbl]:
+                        item.bind(
+                            "<Button-1>",
+                            lambda e, n=node_data: self.on_node_press(e, n)
+                        )
+                        item.bind(
+                            "<B1-Motion>",
+                            lambda e, n=node_data: self.on_node_drag(e, n)
+                        )
+
+                    x += 160
+
+                self.draw_connections()
+
+                break
 
     def open_add_tool_window(self):
 

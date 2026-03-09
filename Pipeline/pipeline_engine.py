@@ -46,15 +46,20 @@ class PipelineEngine:
                 # options (สำคัญ)
                 self.tool_options[name] = tool.get("options", [])
 
+                def make_file_tool(command, params):
+                    def tool(file_path, p=None):
+                        return [command] + params + (p.split() if p else []) + ([file_path] if file_path else [])
+                    return tool
+
+                def make_text_tool(command, params):
+                    def tool(p=None):
+                        return [command] + params + (p.split() if p else [])
+                    return tool
+                
                 if mode == "file":
-
-                    self.file_tools[name] = lambda f, p=None, c=command, pa=params: \
-                        [c] + pa + (p.split() if p else []) + ([f] if f else [])
-
+                    self.file_tools[name] = make_file_tool(command, params)
                 else:
-
-                    self.text_tools[name] = lambda p=None, c=command, pa=params: \
-                        [c] + pa + (p.split() if p else [])
+                    self.text_tools[name] = make_text_tool(command, params)
 
     def run_text_tool(self, tool, input_data, params=None):
 
@@ -63,13 +68,21 @@ class PipelineEngine:
 
         cmd = self.text_tools[tool](params)
 
-        result = subprocess.run(
-            cmd,
-            input=input_data,
-            capture_output=True
-        )
+        try:
+            result = subprocess.run(
+                cmd,
+                input=input_data,
+                capture_output=True,
+                timeout=30
+            )
 
-        return result.stdout + result.stderr
+            return result.stdout + result.stderr
+
+        except FileNotFoundError:
+            return b"Command not found"
+
+        except subprocess.TimeoutExpired:
+            return b"Command timeout"
 
     def run_file_tool(self, tool, file_path, params=None):
 
@@ -78,13 +91,21 @@ class PipelineEngine:
 
         cmd = self.file_tools[tool](file_path, params)
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            check=False
-        )
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                check=False,
+                timeout=30
+            )
 
-        return result.stdout + result.stderr
+            return result.stdout + result.stderr
+
+        except FileNotFoundError:
+            return b"Command not found"
+
+        except subprocess.TimeoutExpired:
+            return b"Command timeout"
     def check_flag(self, text):
 
         if isinstance(text, bytes):

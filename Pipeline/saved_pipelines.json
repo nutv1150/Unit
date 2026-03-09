@@ -1,91 +1,27 @@
 {
     "saved_pipelines": [
         {
-            "pipeline_name": "string rot 64",
+            "pipeline_name": "hide",
             "steps": [
                 {
                     "name": "strings",
                     "params": "",
                     "user_description": "",
-                    "options": []
-                },
-                {
-                    "name": "rot13",
-                    "params": "",
-                    "user_description": "",
-                    "options": []
-                },
-                {
-                    "name": "base64_decode",
-                    "params": "",
-                    "user_description": "",
                     "options": [
                         {
-                            "flag": "-d",
-                            "type": "checkbox",
-                            "description": "decode"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "pipeline_name": "rot 64",
-            "steps": [
-                {
-                    "name": "rot13",
-                    "params": "",
-                    "user_description": "",
-                    "options": [
-                        {
-                            "flag": "13",
-                            "type": "checkbox",
-                            "description": "13"
-                        }
-                    ]
-                },
-                {
-                    "name": "base64_decode",
-                    "params": "",
-                    "user_description": "",
-                    "options": [
-                        {
-                            "flag": "-d",
-                            "type": "checkbox",
-                            "description": "decode"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "pipeline_name": "str",
-            "steps": [
-                {
-                    "name": "strings",
-                    "params": "",
-                    "user_description": "strigggggg",
-                    "options": []
-                },
-                {
-                    "name": "hex_decode",
-                    "params": "",
-                    "user_description": "hex",
-                    "options": [
-                        {
-                            "flag": "-m",
+                            "flag": "-n",
                             "type": "checkbox",
                             "description": ""
                         }
                     ]
                 },
                 {
-                    "name": "tshark",
+                    "name": "base64_decode",
                     "params": "",
-                    "user_description": "shark",
+                    "user_description": "",
                     "options": [
                         {
-                            "flag": "-t",
+                            "flag": "-d",
                             "type": "checkbox",
                             "description": ""
                         }
