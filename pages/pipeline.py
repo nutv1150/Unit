@@ -426,212 +426,173 @@ class PipelinePage(ctk.CTkFrame):
                 pass
 
         # -------- Options --------
-        ctk.CTkLabel(right,text="Options").pack(anchor="w", padx=20)
+        # -------- Options --------
+        ctk.CTkLabel(right, text="Options").pack(anchor="w", padx=20)
 
-        options_frame = ctk.CTkFrame(right)
+        options_frame = ctk.CTkFrame(right, fg_color="transparent")
         options_frame.pack(fill="x", padx=20, pady=5)
 
         option_vars = []
+        tool_options = node.get("options") or self.engine.tool_options.get(tool_name, [])
 
-        tool_options = node.get("options") or self.engine.tool_options.get(tool_name,[])
-
-        def update_preview():
-
+        def update_preview(*args): # ใส่ *args เผื่อเวลากล่อง text มีการพิมพ์
             params_list = []
 
-            for flag,var in option_vars:
-                if var.get():
-                    params_list.append(flag)
+            for flag, var, opt_type in option_vars:
+                if opt_type == "checkbox":
+                    if var.get():
+                        params_list.append(flag)
+                elif opt_type in ["text", "file"]:
+                    val = var.get().strip()
+                    if val:
+                        params_list.append(f"{flag} {val}") # เอา flag กับค่าที่พิมพ์มาต่อกัน
 
-
-
-            params = " ".join(params_list)
-
+            params_before = " ".join(params_list)
             inp = input_entry.get().strip()
-
-            before_path = " ".join(params_list)
-
             after_tool = after_tool_entry.get().strip()
             after_input = after_input_entry.get().strip()
 
             cmd = tool_name
-
             if after_tool:
                 cmd += f" {after_tool}"
-
-            if before_path:
-                cmd += f" {before_path}"
-
+            if params_before:
+                cmd += f" {params_before}"
             if inp:
                 cmd += f" {inp}"
-
             if after_input:
                 cmd += f" {after_input}"
 
             preview_label.configure(text=cmd)
 
+        # วาด UI ตามประเภทของ Option (วาดได้ทั้ง checkbox และ text)
         for opt in tool_options:
+            flag = opt["flag"]
+            desc = opt.get("description", "")
+            opt_type = opt["type"]
 
-            if opt["type"] == "checkbox":
+            row = ctk.CTkFrame(options_frame, fg_color="transparent")
+            row.pack(fill="x", pady=2)
 
+            if opt_type == "checkbox":
                 var = tk.BooleanVar()
+                chk = ctk.CTkCheckBox(row, text=f"{flag} ({desc})", variable=var, command=update_preview)
+                chk.pack(anchor="w")
+                option_vars.append((flag, var, "checkbox"))
+                
+            elif opt_type in ["text", "file"]:
+                # ถ้าเป็น text ให้โชว์ชื่อ Flag แล้วสร้างกล่อง Textbox ให้พิมพ์ค่า
+                ctk.CTkLabel(row, text=f"{flag} ({desc}):").pack(side="left", padx=(0, 5))
+                var = tk.StringVar()
+                var.trace_add("write", update_preview) # ให้พรีวิวอัปเดตทันทีที่พิมพ์ข้อความ
+                ent = ctk.CTkEntry(row, textvariable=var, width=120)
+                ent.pack(side="left", fill="x", expand=True)
+                option_vars.append((flag, var, "text"))
 
-                ctk.CTkCheckBox(
-                    options_frame,
-                    text=f'{opt["flag"]} {opt.get("description","")}',
-                    variable=var,
-                    command=update_preview
-                ).pack(anchor="w", pady=2)
-
-                option_vars.append((opt["flag"],var))
+        # -------- Parameters After Tool (เปลี่ยนชื่อตามที่อาจารย์แนะนำ) --------
+        # -------- สวิตช์เปิด/ปิด Manual Options (Before Input) --------
+        switch_before_var = ctk.BooleanVar(value=False)
         
-        # -------- Parameters After Tool --------
+        def toggle_before():
+            if switch_before_var.get():
+                # ถ้าเปิดสวิตช์ ให้โชว์ช่องกรอกข้อความ
+                after_tool_entry.pack(after=switch_before, fill="x", padx=20, pady=(0, 5))
+            else:
+                # ถ้าปิด ให้ซ่อน และลบข้อความทิ้ง
+                after_tool_entry.pack_forget()
+                after_tool_entry.delete(0, 'end') 
+            update_preview()
 
-        ctk.CTkLabel(
-            right,
-            text="Parameters After Tool"
-        ).pack(anchor="w", padx=20)
-
-        after_tool_entry = ctk.CTkEntry(
-            right,
-            placeholder_text="example: -a -t x"
-        )
-
-        after_tool_entry.pack(fill="x", padx=20, pady=5)
-
-
-
-        # -------- Parameters After Input --------
-
-        ctk.CTkLabel(
-            right,
-            text="Parameters After Input"
-        ).pack(anchor="w", padx=20)
-
-        after_input_entry = ctk.CTkEntry(
-            right,
-            placeholder_text="example: -T fields -e data"
-        )
-
-        after_input_entry.pack(fill="x", padx=20, pady=5)
-
+        switch_before = ctk.CTkSwitch(right, text="Add Manual Options (Before Input)", 
+                                      variable=switch_before_var, command=toggle_before, progress_color="#2eb85c")
+        switch_before.pack(anchor="w", padx=20, pady=(15, 5))
         
+        after_tool_entry = ctk.CTkEntry(right, placeholder_text="example: -a -t x")
+        after_tool_entry.bind("<KeyRelease>", update_preview)
+
+
+        # -------- สวิตช์เปิด/ปิด Additional Arguments (After Input) --------
+        switch_after_var = ctk.BooleanVar(value=False)
+
+        def toggle_after():
+            if switch_after_var.get():
+                # ถ้าเปิดสวิตช์ ให้โชว์ช่องกรอกข้อความ
+                after_input_entry.pack(after=switch_after, fill="x", padx=20, pady=(0, 5))
+            else:
+                # ถ้าปิด ให้ซ่อน และลบข้อความทิ้ง
+                after_input_entry.pack_forget()
+                after_input_entry.delete(0, 'end')
+            update_preview()
+
+        switch_after = ctk.CTkSwitch(right, text="Add Additional Arguments (After Input)", 
+                                     variable=switch_after_var, command=toggle_after, progress_color="#2eb85c")
+        switch_after.pack(anchor="w", padx=20, pady=(10, 5))
         
+        after_input_entry = ctk.CTkEntry(right, placeholder_text="example: -T fields -e data")
+        after_input_entry.bind("<KeyRelease>", update_preview)
 
         # -------- Command Preview --------
-        ctk.CTkLabel(
-            right,
-            text="Command Preview",
-            font=ctk.CTkFont(size=12, weight="bold")
-        ).pack(anchor="w", padx=20, pady=(10,0))
+        preview_header = ctk.CTkFrame(right, fg_color="transparent")
+        preview_header.pack(fill="x", padx=20, pady=(15, 0))
 
+        ctk.CTkLabel(
+            preview_header, 
+            text="Command Preview", 
+            font=ctk.CTkFont(size=12, weight="bold")
+        ).pack(side="left")
+
+        # เพิ่มปุ่ม Show Command ตามที่คุณต้องการ
+        ctk.CTkButton(
+            preview_header,
+            text="Show Command",
+            width=100,
+            height=24,
+            fg_color="#f39c12",
+            hover_color="#e67e22",
+            command=update_preview
+        ).pack(side="right")
+
+        # เปลี่ยนสีตัวหนังสือ Preview ให้เป็นสีเขียว (สไตล์ Command Line)
         preview_label = ctk.CTkLabel(
-            right,
-            text=tool_name,
-            text_color="gray",
+            right, 
+            text=tool_name, 
+            text_color="#2eb85c", 
+            font=("Courier", 13, "italic"),
             wraplength=320
         )
-
-        preview_label.pack(anchor="w", padx=20)
+        preview_label.pack(anchor="w", padx=20, pady=5)
+        
+        # ผูกให้ช่อง Input (ถ้ามีการพิมพ์หรือลบ) อัปเดต Command ด้วย
+        input_entry.bind("<KeyRelease>", update_preview)
+        
+        # รันพรีวิวครั้งแรก
         update_preview()
 
         # -------- Description --------
         desc = node.get("user_description","")
-
         if desc:
-
-            ctk.CTkLabel(
-                right,
-                text="Description",
-            ).pack(anchor="w", padx=20, pady=(5,0))
-
-            ctk.CTkLabel(
-                right,
-                text=desc,
-                text_color="gray",
-                wraplength=300
-            ).pack(anchor="w", padx=20)
-
-        
+            ctk.CTkLabel(right, text="Description", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=20, pady=(10,0))
+            ctk.CTkLabel(right, text=desc, text_color="gray", wraplength=300).pack(anchor="w", padx=20)
 
         # -------- Run Tool --------
         def run_tool():
-
             params_list = []
-
-            for flag,var in option_vars:
-                if var.get():
-                    params_list.append(flag)
-
             
+            # ต้องแก้การดึงค่าตอนรันด้วย ให้รองรับทั้ง checkbox และ text
+            for flag, var, opt_type in option_vars:
+                if opt_type == "checkbox":
+                    if var.get():
+                        params_list.append(flag)
+                elif opt_type in ["text", "file"]:
+                    val = var.get().strip()
+                    if val:
+                        params_list.append(f"{flag} {val}")
 
             params_before = " ".join(params_list)
-
             after_tool = after_tool_entry.get().strip()
             after_input = after_input_entry.get().strip()
 
             params = " ".join(filter(None,[after_tool, params_before, after_input]))
             update_preview()
-
-            user_input = input_entry.get().strip()
-
-            if user_input and os.path.isfile(user_input):
-
-                if tool_name in self.engine.text_tools:
-                    with open(user_input,"rb") as f:
-                        input_data = f.read()
-                else:
-                    input_data = user_input
-
-            elif user_input:
-                input_data = user_input.encode()
-
-            else:
-                input_data = previous_output
-
-            engine = self.engine
-
-            if tool_name in engine.text_tools:
-
-                if isinstance(input_data,str):
-                    input_data = input_data.encode()
-
-                output = engine.run_text_tool(
-                    tool_name,
-                    input_data,
-                    params
-                )
-
-            else:
-
-                if isinstance(input_data,bytes):
-
-                    temp = self.write_temp_file(input_data)
-
-                    output = engine.run_file_tool(
-                        tool_name,
-                        temp,
-                        params
-                    )
-
-                    os.remove(temp)
-
-                else:
-
-                    output = engine.run_file_tool(
-                        tool_name,
-                        input_data,
-                        params
-                    )
-
-            result["output"] = output
-
-            text = output.decode(errors="ignore")[:5000]
-
-            output_box.insert("end",f"\n>>> {tool_name}\n")
-            output_box.insert("end",text+"\n")
-
-            output_box.see("end")
 
         # buttons
         ctk.CTkButton(
@@ -851,222 +812,206 @@ class PipelinePage(ctk.CTkFrame):
         wizard.geometry("520x650")
         wizard.attributes("-topmost", True)
 
-        # Scroll container
         main_frame = ctk.CTkScrollableFrame(wizard)
         main_frame.pack(fill="both", expand=True)
 
-        # --- ส่วนตั้งชื่อ Pipeline (แสดงเฉพาะ Step 1) ---
+        # 1. ส่วนตั้งชื่อ Pipeline
         name_entry = None
         if current_step == 1:
             ctk.CTkLabel(main_frame, text="Pipeline Name:", font=("Arial", 13, "bold")).pack(anchor="w", padx=40, pady=(15, 0))
             name_entry = ctk.CTkEntry(main_frame, placeholder_text="ตั้งชื่อ Pipeline ของคุณที่นี่...")
             name_entry.pack(fill="x", padx=40, pady=10)
-            self.current_pipeline_name = "" # ล้างค่าชื่อเก่าออกก่อนเริ่มใหม่
+            self.current_pipeline_name = "" 
 
-        ctk.CTkLabel(
-            main_frame,
-            text=f"Step {current_step}: Command Builder",
-            font=("Arial", 18, "bold")
-        ).pack(pady=20)
-        # --- เลือกเครื่องมือ ---
+        ctk.CTkLabel(main_frame, text=f"Step {current_step}: Command Builder", font=("Arial", 18, "bold")).pack(pady=20)
+
+        # 2. Dropdown เลือกเครื่องมือ
         ctk.CTkLabel(main_frame, text="Choose Tool:").pack(anchor="w", padx=40)
         all_categories = self.load_tools_from_json()
         all_tools_list = []
         for cat in all_categories:
-            # กรองหมวด Saved Pipelines ออกเพื่อไม่ให้เลือกซ้ำซ้อน
             if cat != "Saved Pipelines":
                 all_tools_list.extend(all_categories[cat])
             
+        all_tools_list.append("Custom")
+            
         tool_var = ctk.StringVar(value=all_tools_list[0] if all_tools_list else "None")
         tool_menu = ctk.CTkOptionMenu(main_frame, values=all_tools_list, variable=tool_var)
-        tool_menu.pack(fill="x", padx=40, pady=10)
+        tool_menu.pack(fill="x", padx=40, pady=(5, 10))
 
-        # --- Input Source ---
-        ctk.CTkLabel(main_frame, text="Input Source").pack(anchor="w", padx=40)
+        # 3. ช่องกรอก Custom Tool
+        custom_tool_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        custom_tool_entry = ctk.CTkEntry(custom_tool_frame, placeholder_text="พิมพ์คำสั่ง Custom Tool ของคุณที่นี่...")
+        custom_tool_entry.pack(fill="x")
 
-        input_type = ctk.StringVar(value="previous")
+        # 4. System Info Label
+        desc_label = ctk.CTkLabel(main_frame, text="System Info: Select a tool", text_color="gray", wraplength=400)
+        desc_label.pack(pady=10)
 
-        def update_input_mode():
+        # 5. Checkbox และปุ่ม Add Option
+        has_option_var = ctk.BooleanVar(value=False)
+        has_option_checkbox = ctk.CTkCheckBox(main_frame, text="มี option ต่อไหม?", variable=has_option_var)
+        add_option_btn = ctk.CTkButton(main_frame, text="+ Add Option", fg_color="#4f87ff")
 
-            mode = input_type.get()
-
-            if mode == "previous":
-                input_entry.configure(state="disabled")
-                browse_btn.configure(state="disabled")
-
-            elif mode == "text":
-                input_entry.configure(state="normal")
-                browse_btn.configure(state="disabled")
-
-            elif mode == "file":
-                input_entry.configure(state="normal")
-                browse_btn.configure(state="normal")
-
-        ctk.CTkRadioButton(main_frame,
-            text="Previous Step",
-            variable=input_type,
-            value="previous",
-            command=update_input_mode
-        ).pack(anchor="w", padx=60)
-
-        ctk.CTkRadioButton(main_frame,
-            text="Text Input",
-            variable=input_type,
-            value="text",
-            command=update_input_mode
-        ).pack(anchor="w", padx=60)
-
-        ctk.CTkRadioButton(main_frame,
-            text="Browse File",
-            variable=input_type,
-            value="file",
-            command=update_input_mode
-        ).pack(anchor="w", padx=60)
-
-        
-
-        # --- Input Value ---
-        ctk.CTkLabel(main_frame, text="Input Value").pack(anchor="w", padx=40)
-
-        input_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        input_frame.pack(fill="x", padx=40, pady=5)
-
-        input_entry = ctk.CTkEntry(input_frame)
-        input_entry.pack(side="left", fill="x", expand=True)
-
-        def browse_file():
-            file_path = filedialog.askopenfilename()
-            if file_path:
-                input_entry.delete(0, "end")
-                input_entry.insert(0, file_path)
-
-        browse_btn = ctk.CTkButton(
-            input_frame,
-            text="Browse",
-            width=80,
-            command=browse_file
-        )
-
-        browse_btn.pack(side="right", padx=5)
-
-        update_input_mode()
-
-       
-
-        # --- Option Builder ---
-        ctk.CTkLabel(main_frame, text="Add Options (Optional):").pack(anchor="w", padx=40)
-
-        options_frame = ctk.CTkFrame(main_frame)
-        options_frame.pack(fill="x", padx=40, pady=5)
-
-        options_list = []
-
-        def add_option():
-
-            row = ctk.CTkFrame(options_frame)
-            row.pack(fill="x", pady=2)
-
-            flag_entry = ctk.CTkEntry(row, width=80, placeholder_text="-n")
-            flag_entry.pack(side="left", padx=5)
-
-            desc_entry = ctk.CTkEntry(row, placeholder_text="description")
-            desc_entry.pack(side="left", fill="x", expand=True, padx=5)
-
-            opt_type = ctk.CTkOptionMenu(row, values=["checkbox", "text"])
-            opt_type.pack(side="left", padx=5)
-
-            options_list.append((flag_entry, desc_entry, opt_type))
-
-
-        ctk.CTkButton(
-            main_frame,
-            text="+ Add Option",
-            command=add_option
-        ).pack(pady=5)
-
-        add_option()
-
-        # --- Note (โน้ตส่วนตัว) ---
-        ctk.CTkLabel(main_frame, text="Note / Description").pack(anchor="w", padx=40, pady=(10, 0))
+        # 6. Note / Description
+        ctk.CTkLabel(main_frame, text="Note / Description").pack(anchor="w", padx=40, pady=(15, 0))
         user_desc_entry = ctk.CTkEntry(main_frame, placeholder_text="..........")
-        user_desc_entry.pack(fill="x", padx=40, pady=10)
+        user_desc_entry.pack(fill="x", padx=40, pady=(5, 10))
 
-        # ส่วนแสดงคำอธิบายระบบ (System Info จาก Engine)
-        self.desc_label = ctk.CTkLabel(main_frame, text="System Info: Select a tool", text_color="gray", wraplength=400)
-        self.desc_label.pack(pady=10)
+        # ==========================================
+        # Popup Add Option (แบบเลือกประเภท Param ได้)
+        # ==========================================
+        self.temp_options_list = []
 
-        def update_description(selection):
-            desc = self.engine.tool_descriptions.get(selection, "No info available")
-            self.desc_label.configure(text=f"System Info: {desc}")
-        
-        tool_menu.configure(command=update_description)
+        def open_add_option_popup():
+            popup = ctk.CTkToplevel(wizard)
+            popup.title("Add Custom Option")
+            popup.geometry("620x350") # ขยายขนาดให้พอดีกับปุ่มใหม่
+            popup.attributes("-topmost", True)
+            
+            ctk.CTkLabel(popup, text="Add Custom Option", font=("Arial", 14, "bold")).pack(pady=(10, 0))
+            
+            preview_label = ctk.CTkLabel(popup, text="Preview: ...", text_color="#2eb85c", font=("Courier", 13, "italic"))
+            preview_label.pack(pady=(5, 10))
+            
+            options_container = ctk.CTkScrollableFrame(popup, fg_color="transparent", height=150)
+            options_container.pack(fill="both", expand=True, padx=10)
+            
+            option_rows = [] 
 
-        # เฟรมสำหรับปุ่มกดด้านล่าง
+            def preview_command():
+                base_tool = tool_var.get()
+                if base_tool == "Custom":
+                    base_tool = custom_tool_entry.get().strip() or "custom_tool"
+                
+                flags = []
+                for flag_e, desc_e, opt_type in option_rows:
+                    f = flag_e.get().strip()
+                    if f:
+                        if opt_type == "checkbox":
+                            flags.append(f)
+                        else:
+                            flags.append(f"{f} <value>") # ถ้ามี Param ให้ใส่ <value> โชว์ใน Preview
+                
+                cmd = f"{base_tool} {' '.join(flags)}"
+                preview_label.configure(text=f"Preview: {cmd}")
+
+            # ฟังก์ชันรับค่าประเภท Option มาสร้างแถว
+            def add_option_row(opt_type="checkbox"):
+                row = ctk.CTkFrame(options_container, fg_color="transparent")
+                row.pack(fill="x", pady=5)
+                
+                flag_entry = ctk.CTkEntry(row, width=80, placeholder_text="-n")
+                flag_entry.pack(side="left", padx=5)
+
+                desc_entry = ctk.CTkEntry(row, placeholder_text="description")
+                desc_entry.pack(side="left", fill="x", expand=True, padx=5)
+
+                # โชว์เป็น Label สีทึบแทน Dropdown เพื่อให้ User รู้ว่าอันนี้คือแบบไหน
+                type_text = "ไม่มี Param" if opt_type == "checkbox" else "มี Param (text)"
+                type_color = "#3498db" if opt_type == "checkbox" else "#9b59b6"
+                type_label = ctk.CTkLabel(row, text=type_text, width=100, fg_color=type_color, text_color="white", corner_radius=4)
+                type_label.pack(side="left", padx=5)
+
+                row_data = (flag_entry, desc_entry, opt_type)
+                option_rows.append(row_data)
+
+                def delete_this_row():
+                    if row_data in option_rows:
+                        option_rows.remove(row_data)
+                    row.destroy()
+                    preview_command()
+
+                del_btn = ctk.CTkButton(row, text="X", width=30, fg_color="#e74c3c", hover_color="#c0392b", command=delete_this_row)
+                del_btn.pack(side="left", padx=5)
+
+            def save_option_from_popup():
+                for flag_e, desc_e, opt_type in option_rows:
+                    flag = flag_e.get().strip()
+                    desc = desc_e.get().strip()
+                    if flag:
+                        self.temp_options_list.append({"flag": flag, "type": opt_type, "description": desc})
+                        print(f"Added Option: {flag} ({opt_type})")
+                popup.destroy()
+
+            btn_row = ctk.CTkFrame(popup, fg_color="transparent")
+            btn_row.pack(fill="x", pady=15, padx=20)
+            
+            # ปุ่มเพิ่ม Option 2 แบบ
+            ctk.CTkButton(btn_row, text="+ ไม่มี Param", command=lambda: add_option_row("checkbox"), width=100, fg_color="#3498db", hover_color="#2980b9").pack(side="left", padx=5)
+            ctk.CTkButton(btn_row, text="+ มี Param", command=lambda: add_option_row("text"), width=100, fg_color="#9b59b6", hover_color="#8e44ad").pack(side="left", padx=5)
+            
+            ctk.CTkButton(btn_row, text="Preview", command=preview_command, fg_color="#f39c12", hover_color="#e67e22", width=80).pack(side="left", padx=5)
+            ctk.CTkButton(btn_row, text="Save & Close", command=save_option_from_popup, fg_color="#2eb85c", hover_color="#27ae60", width=110).pack(side="right", padx=5)
+
+        add_option_btn.configure(command=open_add_option_popup)
+        # ==========================================
+
+
+        # --- ฟังก์ชันอัปเดต UI เมื่อเลือก Tool ---
+        def update_tool_selection(choice):
+            if choice == "Custom":
+                custom_tool_frame.pack(after=tool_menu, fill="x", padx=40, pady=(0, 10))
+                desc_label.configure(text="System Info: Custom Tool Mode")
+            else:
+                custom_tool_frame.pack_forget()
+                desc = self.engine.tool_descriptions.get(choice, "No info available")
+                desc_label.configure(text=f"System Info: {desc}")
+            
+            has_option_checkbox.pack(before=user_desc_entry.master.winfo_children()[-2], anchor="w", padx=40, pady=5)
+            has_option_var.set(False)
+            add_option_btn.pack_forget()
+
+        def toggle_add_option_btn():
+            if has_option_var.get():
+                add_option_btn.pack(after=has_option_checkbox, pady=5, padx=40, anchor="w")
+            else:
+                add_option_btn.pack_forget()
+
+        has_option_checkbox.configure(command=toggle_add_option_btn)
+        tool_menu.configure(command=update_tool_selection)
+        update_tool_selection(tool_var.get())
+
+        # --- ปุ่มควบคุมด้านล่าง (Finish & Save) ---
         btn_frame = ctk.CTkFrame(wizard, fg_color="transparent")
         btn_frame.pack(side="bottom", pady=30, fill="x", padx=40)
 
         def add_next_tool():
-            # ดึงชื่อจาก Entry เฉพาะใน Step 1 และเก็บเข้า self ทันที
             if current_step == 1 and name_entry:
                 self.current_pipeline_name = name_entry.get()
             
-            opt_list = []
+            selected_tool = tool_var.get()
+            if selected_tool == "Custom":
+                selected_tool = custom_tool_entry.get()
 
-            for flag_entry, desc_entry, opt_type in options_list:
-
-                flag = flag_entry.get()
-                desc = desc_entry.get()
-                typ = opt_type.get()
-
-                if flag:
-                    opt_list.append({
-                        "flag": flag,
-                        "type": typ,
-                        "description": desc
-                    })
-
-            selected_tool = {
-                "name": tool_var.get(),
+            node_data = {
+                "name": selected_tool,
                 "params": "",
                 "user_description": user_desc_entry.get(),
-                "options": opt_list
+                "options": self.temp_options_list
             }
-            pipeline_data.append(selected_tool)
+            pipeline_data.append(node_data)
             wizard.destroy()
-            # เรียก Wizard ขั้นถัดไป
             self.open_pipeline_wizard(current_step + 1, pipeline_data)
 
         def finish_pipeline():
             if current_step == 1 and name_entry:
                 self.current_pipeline_name = name_entry.get()
             
-            # ใช้ชื่อจาก self ที่เก็บไว้ หรือถ้าว่างให้ใช้ Untitled
             pipeline_name = self.current_pipeline_name if getattr(self, "current_pipeline_name", "") else "Untitled"
             
-            opt_list = []
+            selected_tool = tool_var.get()
+            if selected_tool == "Custom":
+                selected_tool = custom_tool_entry.get()
 
-            for flag_entry, desc_entry, opt_type in options_list:
-
-                flag = flag_entry.get()
-                desc = desc_entry.get()
-                typ = opt_type.get()
-
-                if flag:
-                    opt_list.append({
-                        "flag": flag,
-                        "type": typ,
-                        "description": desc
-                    })
-
-            selected_tool = {
-                "name": tool_var.get(),
+            node_data = {
+                "name": selected_tool,
                 "params": "",
                 "user_description": user_desc_entry.get(),
-                "options": opt_list
+                "options": self.temp_options_list
             }
-            pipeline_data.append(selected_tool)
+            pipeline_data.append(node_data)
             wizard.destroy()
-            # จบการทำงานและส่งไปบันทึก/วาด Node
             self.finalize_wizard_pipeline(pipeline_data, pipeline_name)
 
         ctk.CTkButton(btn_frame, text="+ Add Another Tool", fg_color="#6f63ff", command=add_next_tool).pack(side="left", expand=True, padx=5)
