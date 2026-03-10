@@ -21,7 +21,7 @@ class DataHashPage(ctk.CTkFrame):
             "URL Encode",
             "URL-safe Base64",
             "HTML Entity",
-            "Unicode Escape"
+            "Unicode Escape","Reverse","ROT13"
         ]
 
         self.decode_algos = [
@@ -32,7 +32,7 @@ class DataHashPage(ctk.CTkFrame):
             "URL Decode",
             "URL-safe Base64",
             "HTML Entity",
-            "Unicode Escape"
+            "Unicode Escape","Reverse","ROT13"
         ]
 
         self.hash_algos = [

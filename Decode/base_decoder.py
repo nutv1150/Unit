@@ -40,6 +40,7 @@ def auto_detect_decode(data):
         ("URL Decode", lambda d: urllib.parse.unquote(text).encode()),
         ("HTML Entity", lambda d: html.unescape(text).encode()),
         ("Unicode Escape", lambda d: codecs.decode(text, "unicode_escape").encode()),
+        ("ROT13", lambda d: codecs.decode(text, "rot_13").encode()),
     ]
 
     for name, func in candidates:
@@ -106,7 +107,13 @@ def decode_data(text, algo="Base64"):
 
     elif algo == "Base62":
         return decode_base_n(text, BASE62)
+    
+    elif algo == "Reverse":
+        return text[::-1]
 
+    elif algo == "ROT13":
+        return codecs.decode(text, "rot_13")
+    
     return text
 
 

@@ -187,6 +187,10 @@
       "command": "tr",
       "mode": "text",
       "description": "ROT13 transformation",
+      "params": [
+        "A-Za-z",
+        "N-ZA-Mn-za-m"
+      ],
       "options": []
     },
     {

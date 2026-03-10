@@ -67,6 +67,7 @@ class PipelineEngine:
             return b"Unknown text tool"
 
         cmd = self.text_tools[tool](params)
+        print("RUN CMD:", cmd)
 
         try:
             result = subprocess.run(

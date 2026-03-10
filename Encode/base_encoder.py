@@ -1,6 +1,7 @@
 import base64
 import urllib.parse
 import html
+import codecs
 
 BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -39,6 +40,16 @@ def encode_data(text, algo="Base64"):
 
     elif algo == "Base62":
         return encode_base_n(raw, BASE62)
+    elif algo == "Reverse":
+        return text[::-1]
+    
+    elif algo == "ROT13":
+        return raw.decode(errors="ignore").translate(
+            str.maketrans(
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
+                "NOPQRSTUVWXYZABCDEFGHIJKLMnopqrstuvwxyzabcdefghijklm"
+            )
+        )
 
     # =========================
     # NEW Encoding

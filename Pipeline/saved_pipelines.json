@@ -28,6 +28,81 @@
                     ]
                 }
             ]
+        },
+        {
+            "pipeline_name": "mm",
+            "steps": [
+                {
+                    "name": "strings",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                },
+                {
+                    "name": "base64_decode",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-d",
+                            "type": "checkbox",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "pipeline_name": "rot",
+            "steps": [
+                {
+                    "name": "strings",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                },
+                {
+                    "name": "reverse",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                },
+                {
+                    "name": "rot13",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                },
+                {
+                    "name": "base32_decode",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                }
+            ]
+        },
+        {
+            "pipeline_name": "rr",
+            "steps": [
+                {
+                    "name": "reverse",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                },
+                {
+                    "name": "rot13",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                },
+                {
+                    "name": "base32_decode",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                }
+            ]
         }
     ]
 }
