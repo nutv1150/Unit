@@ -43,36 +43,47 @@ class PipelinePage(ctk.CTkFrame):
 
         for cat, tools in tool_categories.items():
 
+            # 1. สร้าง Frame แบบใสเพื่อจัดให้อยู่บรรทัดเดียวกัน
+            header_frame = ctk.CTkFrame(self.tools_panel, fg_color="transparent")
+            header_frame.pack(fill="x", padx=15, pady=(10, 0))
+
+            # 2. ใส่ชื่อหมวดหมู่ไว้ด้านซ้าย
             ctk.CTkLabel(
-                self.tools_panel,
+                header_frame,
                 text=cat,
                 font=ctk.CTkFont(size=13, weight="bold")
-            ).pack(padx=15, anchor="w", pady=(5,0))
+            ).pack(side="left")
 
+            # 3. ถ้าเป็นหมวด Pipelines ให้เพิ่มปุ่ม + เล็กๆ ไว้ต่อท้าย
+            if cat == "Pipelines":
+                ctk.CTkButton(
+                    header_frame,
+                    text="+",
+                    width=24,
+                    height=24,
+                    corner_radius=5,
+                    fg_color="#2eb85c",
+                    hover_color="#279e4f",
+                    font=ctk.CTkFont(size=16, weight="bold"),
+                    command=self.open_pipeline_wizard
+                ).pack(side="left", padx=(8, 0))
+
+            # 4. วนลูปแสดงรายชื่อ Tool ตามปกติ
             for tool in tools:
-
                 lbl = ctk.CTkLabel(
                     self.tools_panel,
                     text=f"  • {tool}",
                     font=ctk.CTkFont(size=12),
                     cursor="hand2"
                 )
-
                 lbl.pack(padx=15, anchor="w")
 
-                if cat == "Saved Pipelines":
-
-                    lbl.bind(
-                        "<Button-1>",
-                        lambda e, name=tool: self.load_saved_pipeline_to_canvas(name)
-                    )
-
+                if cat == "Pipelines":
+                    lbl.bind("<Button-1>", lambda e, name=tool: self.load_saved_pipeline_to_canvas(name))
                 else:
-
-                    lbl.bind(
-                        "<Button-1>",
-                        lambda e, t=tool: self.add_tool_node(t)
-                    )
+                    lbl.bind("<Button-1>", lambda e, t=tool: self.add_tool_node(t))
+            
+            # (ไม่ต้องมีปุ่ม + แบบเก่าโผล่มาตรงนี้แล้ว โค้ดจะจบแค่นี้เลยครับ)
 
         self.add_btn = ctk.CTkButton(self.tools_panel,text="+ Add Tools",command=self.open_add_tool_window, fg_color="transparent", border_width=1, border_color="#ccc", text_color="black", hover_color="#eee")
         self.add_btn.pack(fill="x", padx=15, pady=20)
@@ -114,6 +125,18 @@ class PipelinePage(ctk.CTkFrame):
             command=self.clear_pipeline
         )
         self.clear_btn.pack(side="left", padx=2)
+
+        # -------- โค้ดที่ต้องเพิ่ม (ปุ่ม Import JSON) --------
+        self.import_btn = ctk.CTkButton(
+            self.controls,
+            text="Import JSON",
+            fg_color="#4f87ff",
+            width=90,
+            command=self.import_json
+        )
+        self.import_btn.pack(side="left", padx=2)
+        # --------------------------------------------------
+
         self.template_opt = ctk.CTkOptionMenu(
             self.controls,
             values=[
@@ -141,6 +164,47 @@ class PipelinePage(ctk.CTkFrame):
         self.placeholder.place(relx=0.5, rely=0.5, anchor="center")
 
         self.bind("<Visibility>", self.on_show_page)
+
+    def import_json(self):
+        # เปิดหน้าต่างให้เลือกไฟล์ JSON
+        file_path = filedialog.askopenfilename(
+            title="Import Pipeline JSON",
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+        )
+        
+        if not file_path:
+            return
+            
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                
+            steps = []
+            # เอาชื่อไฟล์มาตั้งเป็นชื่อ Pipeline เผื่อในไฟล์ไม่มีชื่อระบุไว้
+            pipeline_name = os.path.basename(file_path).replace(".json", "") 
+            
+            # เช็คโครงสร้างไฟล์ JSON ว่าเป็นแบบไหนเพื่อดึงข้อมูลให้ถูกต้อง
+            if isinstance(data, dict) and "steps" in data:
+                steps = data["steps"]
+                pipeline_name = data.get("pipeline_name", pipeline_name)
+            elif isinstance(data, list):
+                steps = data
+            elif isinstance(data, dict) and "saved_pipelines" in data:
+                # ถ้าบังเอิญ import ไฟล์ saved_pipelines.json เข้ามาทั้งก้อน ให้ดึงอันแรก
+                if data["saved_pipelines"]:
+                    steps = data["saved_pipelines"][0]["steps"]
+                    pipeline_name = data["saved_pipelines"][0].get("pipeline_name", pipeline_name)
+                    
+            if not steps:
+                print("ไม่พบข้อมูล Pipeline ในไฟล์ JSON นี้")
+                return
+                
+            # นำข้อมูลที่โหลดมา ส่งไปเซฟเข้าระบบและวาดลง Canvas เลย
+            self.finalize_wizard_pipeline(steps, pipeline_name)
+            print(f"Imported '{pipeline_name}' successfully!")
+            
+        except Exception as e:
+            print(f"Error importing JSON: {e}")
 
     def on_show_page(self, event):
         # ตรวจสอบว่ามีโหนดอยู่แล้วหรือไม่ เพื่อไม่ให้วิซาดเด้งซ้ำถ้าผู้ใช้สร้างไปแล้ว
@@ -672,7 +736,8 @@ class PipelinePage(ctk.CTkFrame):
                 print(f"Error loading saved pipelines: {e}")
 
         # 3. รวมหมวดหมู่
-        categories = {}
+        # 3. รวมหมวดหมู่
+        categories = {"Saved Pipelines": []} # <--- แก้ให้โชว์หมวดนี้เสมอแม้จะยังไม่มีไฟล์เซฟ
         
         # แทรก Saved Pipelines ไว้ด้านบนสุด
         if saved_list:
@@ -697,24 +762,42 @@ class PipelinePage(ctk.CTkFrame):
 
         for cat, tools in tool_categories.items():
 
+            # 1. สร้าง Frame แบบใส
+            header_frame = ctk.CTkFrame(self.tools_panel, fg_color="transparent")
+            header_frame.pack(fill="x", padx=15, pady=(10, 0))
+
+            # 2. ใส่ชื่อหมวดหมู่
             ctk.CTkLabel(
-                self.tools_panel,
+                header_frame,
                 text=cat,
                 font=ctk.CTkFont(size=13, weight="bold")
-            ).pack(anchor="w", padx=15)
+            ).pack(side="left")
 
+            # 3. ปุ่ม + เล็กๆ ต่อท้าย
+            if cat == "Pipelines":
+                ctk.CTkButton(
+                    header_frame,
+                    text="+",
+                    width=24,
+                    height=24,
+                    corner_radius=5,
+                    fg_color="#2eb85c",
+                    hover_color="#279e4f",
+                    font=ctk.CTkFont(size=16, weight="bold"),
+                    command=self.open_pipeline_wizard
+                ).pack(side="left", padx=(8, 0))
+
+            # 4. แสดงรายชื่อ Tool
             for tool in tools:
-
                 lbl = ctk.CTkLabel(
                     self.tools_panel,
                     text=f"  • {tool}",
+                    font=ctk.CTkFont(size=12),
                     cursor="hand2"
                 )
-
                 lbl.pack(anchor="w", padx=15)
 
-                # ในฟังก์ชัน refresh_tools_panel ตรงลูปที่สร้าง lbl ให้แก้เป็น:
-                if cat == "Saved Pipelines":
+                if cat == "Pipelines":
                     lbl.bind("<Button-1>", lambda e, name=tool: self.load_saved_pipeline_to_canvas(name))
                 else:
                     lbl.bind("<Button-1>", lambda e, t=tool: self.add_tool_node(t))

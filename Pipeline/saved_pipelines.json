@@ -93,6 +93,17 @@
                     ]
                 }
             ]
+        },
+        {
+            "pipeline_name": "dfsef",
+            "steps": [
+                {
+                    "name": "xxd",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                }
+            ]
         }
     ]
 }
