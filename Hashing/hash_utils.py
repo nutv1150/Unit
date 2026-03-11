@@ -1,7 +1,6 @@
 import hashlib
 
-
-def hash_data(text, algo="sha256"):
+def hash_data(text, algo="sha256", length=32):
     raw = text.encode()
 
     algos = {
@@ -17,6 +16,19 @@ def hash_data(text, algo="sha256"):
         "sha3_512": hashlib.sha3_512,
         "blake2b": hashlib.blake2b,
         "blake2s": hashlib.blake2s,
+        # เพิ่ม SHAKE เข้ามา
+        "shake_128": hashlib.shake_128,
+        "shake_256": hashlib.shake_256,
     }
 
-    return algos[algo](raw).hexdigest()
+    if algo not in algos:
+        return "Unsupported algorithm"
+
+    # สร้างออบเจกต์ของ Hash
+    h = algos[algo](raw)
+
+    # เช็คว่าเป็นตระกูล SHAKE หรือเปล่า ถ้าใช่ต้องบังคับใส่ length
+    if algo.startswith("shake_"):
+        return h.hexdigest(length)
+    else:
+        return h.hexdigest()

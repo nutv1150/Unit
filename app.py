@@ -6,6 +6,7 @@ from pages.data_hash import DataHashPage
 from pages.file_inspection import FileInspectionPage
 from pages.pipeline import PipelinePage
 from pages.gemini import GeminiPage
+from pages.dashboard import DashboardPage
 
 ctk.set_appearance_mode("Light")
 ctk.set_default_color_theme("blue")
@@ -32,7 +33,9 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.container.grid_rowconfigure(0, weight=1)
         self.container.grid_columnconfigure(0, weight=1)
 
+        # ---------------- จุดที่ 1: เพิ่ม Dashboard เข้าไประบบ Pages ----------------
         self.pages = {
+            "Dashboard": DashboardPage(self.container), # <--- เพิ่มบรรทัดนี้
             "Data Hashing": DataHashPage(self.container),
             "File Inspection": FileInspectionPage(self.container),
             "Pipeline": PipelinePage(self.container),
@@ -40,7 +43,9 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         }
 
         self.current_page = None
-        self.switch_page("Data Hashing")
+        
+        # ---------------- จุดที่ 2: เปลี่ยนหน้าเริ่มต้นเป็น Dashboard ----------------
+        self.switch_page("Dashboard")
 
     def switch_page(self, name):
         if self.current_page:

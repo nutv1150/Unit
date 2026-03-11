@@ -1,70 +1,30 @@
 {
     "saved_pipelines": [
         {
-            "pipeline_name": "888",
-            "steps": [
-                {
-                    "name": "strings",
-                    "params": "",
-                    "user_description": "",
-                    "options": [
-                        {
-                            "flag": "-n",
-                            "type": "text",
-                            "description": ""
-                        },
-                        {
-                            "flag": "-n",
-                            "type": "text",
-                            "description": ""
-                        }
-                    ]
-                }
-            ]
-        },
-        {
             "pipeline_name": "Untitled",
             "steps": [
                 {
                     "name": "strings",
                     "params": "",
                     "user_description": "",
-                    "options": []
-                }
-            ]
-        },
-        {
-            "pipeline_name": "str",
-            "steps": [
-                {
-                    "name": "strings",
-                    "params": "",
-                    "user_description": "",
                     "options": [
                         {
-                            "flag": "-n 5",
-                            "type": "checkbox",
-                            "description": "ไม่ขึ้นบรรทัดใหม่ (no newline) หรือ แสดงตัวเลขบรรทัด (number) ขึ้นอยู่กับคำสั่ง"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "pipeline_name": "Untitled",
-            "steps": [
-                {
-                    "name": "xxd",
-                    "params": "",
-                    "user_description": "",
-                    "options": [
+                            "flag": "-d",
+                            "type": "text",
+                            "description": ""
+                        },
                         {
-                            "flag": "-l",
+                            "flag": "-n",
                             "type": "checkbox",
                             "description": ""
                         },
                         {
                             "flag": "-n",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-d",
                             "type": "text",
                             "description": ""
                         }
@@ -73,35 +33,24 @@
             ]
         },
         {
-            "pipeline_name": "Untitled",
+            "pipeline_name": "123",
             "steps": [
                 {
-                    "name": "ls",
+                    "name": "exiftool",
                     "params": "",
                     "user_description": "",
                     "options": [
                         {
-                            "flag": "-l",
+                            "flag": "-n",
                             "type": "checkbox",
                             "description": ""
                         },
                         {
-                            "flag": "-n",
+                            "flag": "-b",
                             "type": "text",
                             "description": ""
                         }
                     ]
-                }
-            ]
-        },
-        {
-            "pipeline_name": "dfsef",
-            "steps": [
-                {
-                    "name": "xxd",
-                    "params": "",
-                    "user_description": "",
-                    "options": []
                 }
             ]
         }

@@ -21,18 +21,18 @@ class DataHashPage(ctk.CTkFrame):
             "URL Encode",
             "URL-safe Base64",
             "HTML Entity",
-            "Unicode Escape","Reverse","ROT13"
+            "Unicode Escape", "Reverse", "ROT13"
         ]
 
         self.decode_algos = [
             "Auto Detect", "Base64", "Base32",
-            "Base45", "Base85", "Base58", "Base62","Ascii85",
+            "Base45", "Base85", "Base58", "Base62", "Ascii85",
             "Base16", "Hex",
             "Binary", "Octal", "Decimal",
             "URL Decode",
             "URL-safe Base64",
             "HTML Entity",
-            "Unicode Escape","Reverse","ROT13"
+            "Unicode Escape", "Reverse", "ROT13"
         ]
 
         self.hash_algos = [
@@ -40,7 +40,8 @@ class DataHashPage(ctk.CTkFrame):
             "sha384", "sha512",
             "sha3_224", "sha3_256",
             "sha3_384", "sha3_512",
-            "blake2b", "blake2s"
+            "blake2b", "blake2s",
+            "shake_128", "shake_256"  # ⭐ เพิ่มตระกูล SHAKE เข้ามาที่นี่
         ]
 
         # ⭐ Bitwise algorithms จาก Tools
@@ -122,12 +123,14 @@ class DataHashPage(ctk.CTkFrame):
         self.input_box = ctk.CTkTextbox(self, height=150)
         self.input_box.pack(fill="x", padx=20, pady=(5, 10))
 
-        # ⭐ Key สำหรับ Bitwise
+        # ⭐ Key สำหรับ Bitwise และระบุ Length สำหรับ SHAKE
         self.key_entry = ctk.CTkEntry(
             self,
-            placeholder_text="Bitwise Key (Number)"
+            placeholder_text="Optional Input (Key / Length)"
         )
         self.key_entry.pack(fill="x", padx=20, pady=5)
+        # ผูก event เพื่อให้เวลาพิมพ์ความยาว SHAKE แล้วอัปเดต Hash ทันที
+        self.key_entry.bind("<KeyRelease>", self.process_data)
 
         # =========================
         # OUTPUT SECTION
@@ -168,16 +171,25 @@ class DataHashPage(ctk.CTkFrame):
     # Process Main Logic
     # =========================
     def process_data(self, event=None):
-
         data = self.input_box.get("1.0", "end").strip()
         algo = self.algo_menu.get()
+
+        # ==========================================
+        # Dynamic Placeholder (อัปเดตคำใบ้ในกล่องตามโหมด)
+        # ==========================================
+        if self.mode == "Bitwise":
+            self.key_entry.configure(placeholder_text="Bitwise Key (Number)")
+        elif self.mode == "Hash" and algo.startswith("shake_"):
+            self.key_entry.configure(placeholder_text="SHAKE Output Length (Bytes) - Default: 32")
+        else:
+            self.key_entry.configure(placeholder_text="Not used for this algorithm")
+        # ==========================================
 
         if not data:
             self.output_box.delete("1.0", "end")
             return
 
         try:
-
             if self.mode == "Encode":
                 result = encode_data(data, algo)
 
@@ -185,24 +197,26 @@ class DataHashPage(ctk.CTkFrame):
                 result = decode_data(data, algo)
 
             elif self.mode == "Hash":
-                result = hash_data(data, algo)
+                # ⭐ ตรวจสอบว่าเป็น SHAKE หรือไม่ ถ้าใช่ให้ดึงค่า Length มาใช้
+                if algo.startswith("shake_"):
+                    length_str = self.key_entry.get().strip()
+                    # ถ้าใส่เลขให้ใช้เลขนั้น ถ้าว่างหรือพิมพ์ผิดให้ใช้ 32
+                    length = int(length_str) if length_str.isdigit() and int(length_str) > 0 else 32
+                    result = hash_data(data, algo, length=length)
+                else:
+                    result = hash_data(data, algo)
 
-            # ⭐ Bitwise จาก Tools
             elif self.mode == "Bitwise":
-
                 key = self.key_entry.get()
                 if not key:
-                    raise ValueError("กรุณาใส่ Key")
+                    raise ValueError("Please provide a Key")
 
                 if algo == "XOR Mask":
                     result = bitwise_mask(data, key, "xor")
-
                 elif algo == "XOR Unmask":
                     result = bitwise_unmask(data, key)
-
                 elif algo == "OR Mask":
                     result = bitwise_mask(data, key, "or")
-
                 elif algo == "AND Mask":
                     result = bitwise_mask(data, key, "and")
 
@@ -215,6 +229,10 @@ class DataHashPage(ctk.CTkFrame):
 
         self.update_output_label()
 
+    def select_tab(self, name):
+        # โค้ดยังว่างไว้สำหรับฟังก์ชัน select_tab ของคุณ
+        pass
+
     # =========================
     # Highlight Output
     # =========================
@@ -225,7 +243,6 @@ class DataHashPage(ctk.CTkFrame):
     # Browse File
     # =========================
     def browse_file(self):
-
         file_path = filedialog.askopenfilename(
             filetypes=[("Text Files", "*.txt *.json *.log *.py *.md"), ("All Files", "*.*")]
         )
@@ -248,7 +265,6 @@ class DataHashPage(ctk.CTkFrame):
     # Toggle Mode
     # =========================
     def toggle_mode(self):
-
         if self.mode == "Decode":
             self.mode = "Encode"
             self.algo_menu.configure(values=self.encode_algos)
