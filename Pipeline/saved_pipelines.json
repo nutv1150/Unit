@@ -1,56 +1,36 @@
 {
     "saved_pipelines": [
+        
         {
-            "pipeline_name": "Untitled",
+            "pipeline_name": "Reverse",
             "steps": [
                 {
-                    "name": "strings",
+                    "name": "xxd",
                     "params": "",
                     "user_description": "",
-                    "options": [
-                        {
-                            "flag": "-d",
-                            "type": "text",
-                            "description": ""
-                        },
-                        {
-                            "flag": "-n",
-                            "type": "checkbox",
-                            "description": ""
-                        },
-                        {
-                            "flag": "-n",
-                            "type": "checkbox",
-                            "description": ""
-                        },
-                        {
-                            "flag": "-d",
-                            "type": "text",
-                            "description": ""
-                        }
-                    ]
+                    "options": []
                 }
             ]
         },
         {
-            "pipeline_name": "123",
+            "pipeline_name": "Crypto",
             "steps": [
                 {
-                    "name": "exiftool",
+                    "name": "xxd",
                     "params": "",
                     "user_description": "",
-                    "options": [
-                        {
-                            "flag": "-n",
-                            "type": "checkbox",
-                            "description": ""
-                        },
-                        {
-                            "flag": "-b",
-                            "type": "text",
-                            "description": ""
-                        }
-                    ]
+                    "options": []
+                }
+            ]
+        },
+        {
+            "pipeline_name": "Programming",
+            "steps": [
+                {
+                    "name": "xxd",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
                 }
             ]
         }

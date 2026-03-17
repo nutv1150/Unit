@@ -19,7 +19,6 @@ class DataHashPage(ctk.CTkFrame):
             "Base16", "Base58", "Base62",
             "Hex", "Binary", "Octal", "Decimal",
             "URL Encode",
-            "URL-safe Base64",
             "HTML Entity",
             "Unicode Escape", "Reverse", "ROT13"
         ]
@@ -30,7 +29,6 @@ class DataHashPage(ctk.CTkFrame):
             "Base16", "Hex",
             "Binary", "Octal", "Decimal",
             "URL Decode",
-            "URL-safe Base64",
             "HTML Entity",
             "Unicode Escape", "Reverse", "ROT13"
         ]
