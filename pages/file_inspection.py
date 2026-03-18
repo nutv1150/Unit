@@ -7,7 +7,7 @@ import re
 import subprocess
 import threading
 import hashlib
-import mmap
+import mmap  # ⭐ นำเข้า mmap สำหรับจัดการไฟล์ขนาดใหญ่
 
 # --- ⭐ คลาสหน้าต่าง Popup สำหรับเลือก Regex ---
 class RegexSelectionPopup(ctk.CTkToplevel):
@@ -400,10 +400,10 @@ class FileInspectionPage(ctk.CTkFrame):
             self.safe_log(f"[✔] Result: {res}")
         except: pass
 
+    # ⭐ ฟังก์ชันเวอร์ชันใหม่ แก้ไขปัญหา RAM เต็มและ UI ค้าง
     def extract_all_strings(self):
         p = self.regex_var.get()
         try:
-            # เช็คก่อนว่าไฟล์ว่างเปล่าหรือไม่ ป้องกัน mmap error
             file_size = os.path.getsize(self.selected_file_path)
             if file_size == 0:
                 self.safe_log("[!] File is empty.")
@@ -411,21 +411,13 @@ class FileInspectionPage(ctk.CTkFrame):
 
             mc = 0
             display_count = 0
-            MAX_DISPLAY = 3000  #  จำกัดบรรทัดแสดงผล เพื่อไม่ให้ Tkinter ค้าง
+            MAX_DISPLAY = 3000
 
             with open(self.selected_file_path, "rb") as f:
-                # ⭐ 1. ใช้ mmap แมปไฟล์แทนการใช้ f.read() (แก้ปัญหา RAM เต็ม)
                 with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
-                    
-                    # ⭐ 2. ใช้ finditer แทน findall เพื่อดึงข้อมูลทีละบรรทัด ไม่สร้าง List ก้อนใหญ่
                     found_iter = re.finditer(rb"[ -~]{4,}", mm)
                     
                     for match in found_iter:
-                        # ⭐ 3. หยุดแสดงผลถ้าเกินลิมิต ป้องกันหน้าจอ GUI ค้าง
-                        if display_count >= MAX_DISPLAY:
-                            self.safe_log(f"\n[⚠️] File is very large. Showing top {MAX_DISPLAY} results to prevent UI freeze...", "error")
-                            break
-
                         s = match.group()
                         line = s.decode(errors="ignore")
                         
@@ -434,20 +426,27 @@ class FileInspectionPage(ctk.CTkFrame):
                             if matches:
                                 mc += len(matches)
                                 
-                                self.safe_log("🚩 [MATCH]: ", newline=False)
-                                
-                                lp = 0
-                                for m in matches: 
-                                    st, en = m.span()
-                                    self.safe_log(line[lp:st], newline=False)
-                                    self.safe_log(line[st:en], "found", newline=False)
-                                    lp = en
-                                self.safe_log(line[lp:])
-                                display_count += 1
+                                if display_count < MAX_DISPLAY:
+                                    self.safe_log("🚩 [MATCH]: ", newline=False)
+                                    lp = 0
+                                    for m in matches: 
+                                        st, en = m.span()
+                                        self.safe_log(line[lp:st], newline=False)
+                                        self.safe_log(line[st:en], "found", newline=False)
+                                        lp = en
+                                    self.safe_log(line[lp:])
+                                    display_count += 1
+                                elif display_count == MAX_DISPLAY:
+                                    self.safe_log(f"\n[⚠️] Reached display limit of {MAX_DISPLAY}. Still counting remaining matches in background...", "error")
+                                    display_count += 1 
                         else: 
-                            self.safe_log(f"  {line}")
-                            display_count += 1
-                            
+                            if display_count < MAX_DISPLAY:
+                                self.safe_log(f"  {line}")
+                                display_count += 1
+                            else:
+                                self.safe_log(f"\n[⚠️] File is very large. Showing top {MAX_DISPLAY} strings to prevent UI freeze.", "error")
+                                break
+                                
             if p: 
                 self.after(0, lambda: self.warning_label.configure(text=f"🚩 Found {mc} matches", text_color="#2ECC71"))
         except Exception as e: 
