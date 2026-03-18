@@ -74,13 +74,13 @@ class RegexSelectionPopup(ctk.CTkToplevel):
 
     def create_preview_radio(self, p):
         n = self.smart_db.get(p, p)
-        # ⭐ เพิ่ม text_color="white" เข้าไปตรงนี้ครับ
+        # ตัวอักษรสีขาวเพื่อให้อ่านง่ายบนพื้นหลังสีเทาเข้ม
         rb = ctk.CTkRadioButton(
             self.scroll_frame, 
             text=n, 
             variable=self.regex_var, 
             value=p, 
-            text_color="white"  # <--- โค้ดที่เพิ่มเข้ามา
+            text_color="white"
         )
         rb.pack(anchor="w", padx=15, pady=5)
         rb.bind("<Enter>", lambda e, p=p: self.show_preview(p))
@@ -188,7 +188,8 @@ class FileInspectionPage(ctk.CTkFrame):
         action_frame = ctk.CTkFrame(self, fg_color="#2C3E50", corner_radius=8)
         action_frame.grid(row=3, column=0, sticky="ew", padx=20, pady=10)
 
-        self.tool_menu = ctk.CTkOptionMenu(action_frame, values=["Magic Check", "Executable Check", "Strings", "zsteg Analysis"], width=180, state="disabled", command=self.toggle_regex_button)
+        # ⭐ เปลี่ยนชื่อจาก Magic Check เป็น Header Check
+        self.tool_menu = ctk.CTkOptionMenu(action_frame, values=["Header Check", "Executable Check", "Strings", "zsteg Analysis"], width=180, state="disabled", command=self.toggle_regex_button)
         self.tool_menu.pack(side="left", padx=15, pady=10)
 
         self.btn_analyze = ctk.CTkButton(action_frame, text="Analyze", width=100, fg_color="#E67E22", state="disabled", command=self.start_analysis_thread)
@@ -323,12 +324,30 @@ class FileInspectionPage(ctk.CTkFrame):
         threading.Thread(target=self._run_analysis_logic, args=(choice,), daemon=True).start()
 
     def _run_analysis_logic(self, choice):
-        if choice == "Magic Check": self.inspect_file_header()
+        # ⭐ เปลี่ยนเงื่อนไขให้ตรงกับชื่อใหม่ "Header Check"
+        if choice == "Header Check": self.inspect_file_header()
         elif choice == "Executable Check": self.check_if_executable()
         elif choice == "Strings": self.extract_all_strings()
         elif choice == "zsteg Analysis": self.run_zsteg_analysis()
 
         self.after(0, self.finish_analysis)
+
+    def check_if_executable(self):
+        try:
+            with open(self.selected_file_path, 'rb') as f: 
+                h = f.read(4)
+            
+            # ตรวจสอบจาก Magic Bytes ของไฟล์
+            if h == b'\x7fELF':
+                res = "Linux ELF (Executable)"
+            elif h[:2] == b'MZ':
+                res = "Windows EXE (Executable)"
+            else:
+                res = "Data File (Non-Executable)"
+                
+            self.safe_log(f"[✔] Result: {res}")
+        except Exception as e:
+            self.safe_log(f"[!] Executable Check Error: {str(e)}", "error")
 
     def finish_analysis(self):
         self.progress_bar.stop()
@@ -400,12 +419,7 @@ class FileInspectionPage(ctk.CTkFrame):
         info_window.lift()
         info_window.focus_force()
 
-    def check_if_executable(self):
-        try:
-            with open(self.selected_file_path, 'rb') as f: h = f.read(4)
-            res = "Linux ELF" if h == b'\x7fELF' else "Windows EXE" if h[:2] == b'MZ' else "Data File"
-            self.safe_log(f"[✔] Result: {res}")
-        except: pass
+    
 
     # ⭐ ฟังก์ชันเวอร์ชันใหม่ แก้ไขปัญหา RAM เต็มและ UI ค้าง
     def extract_all_strings(self):
