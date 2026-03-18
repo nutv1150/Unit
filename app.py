@@ -35,7 +35,7 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # ---------------- จุดที่ 1: เพิ่ม Dashboard เข้าไประบบ Pages ----------------
         self.pages = {
-            "Dashboard": DashboardPage(self.container), # <--- เพิ่มบรรทัดนี้
+            "Dashboard": DashboardPage(self.container),
             "Data Hashing": DataHashPage(self.container),
             "File Inspection": FileInspectionPage(self.container),
             "Pipeline": PipelinePage(self.container),
@@ -47,35 +47,38 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         # ---------------- จุดที่ 2: เปลี่ยนหน้าเริ่มต้นเป็น Dashboard ----------------
         self.switch_page("Dashboard")
 
+    # ⭐ แก้ไขฟังก์ชันนี้ใหม่ทั้งหมด
     def switch_page(self, name):
-        if self.current_page:
-            self.current_page.grid_forget()
+        # 1. ปริ้นท์เช็คเลยว่า Sidebar ส่งคำว่าอะไรมา (ดูใน Terminal สีดำตอนรันโปรแกรม)
+        print(f"[DEBUG] ปุ่มที่กดส่งค่ามาคือ: '{name}'")
+
+        # 2. สั่งซ่อนทุกหน้าที่มี
+        for page_name, page_frame in self.pages.items():
+            page_frame.grid_forget()
         
-        if name in self.pages:
-            self.current_page = self.pages[name]
+        # 3. ค้นหาหน้าแบบ Case-insensitive (แปลงเป็นตัวเล็กให้หมดแล้วเทียบกัน)
+        # วิธีนี้จะแก้ปัญหา "Dashboard" กับ "dashboard" ไม่ตรงกันได้ 100%
+        target_page_key = None
+        for key in self.pages.keys():
+            if key.strip().lower() == name.strip().lower():
+                target_page_key = key
+                break
+                
+        # 4. โชว์หน้าที่หาเจอ
+        if target_page_key:
+            self.current_page = self.pages[target_page_key]
             self.current_page.grid(row=0, column=0, sticky="nsew")
             
-            # แจ้งหน้านั้นว่าถูกแสดงแล้ว (ถ้ามี on_show)
             if hasattr(self.current_page, "on_show"):
                 self.current_page.on_show()
 
-            # ⭐ สั่งให้ Sidebar ไฮไลท์ปุ่มให้ตรงกับชื่อหน้าที่เปลี่ยนไป
             if hasattr(self, "sidebar"):
-                self.sidebar.update_button_styles(name)
-
-    def send_to_hashing(self, text):
-        """ ฟังก์ชันกลางสำหรับส่งข้อมูลข้ามหน้า """
-        # 1. เปลี่ยนหน้าไปยัง Data Hashing (ซึ่งจะเปลี่ยนไฮไลท์ Sidebar ให้อัตโนมัติ)
-        self.switch_page("Data Hashing")
-        
-        # 2. นำข้อมูลไปวางในช่อง Input
-        hashing_page = self.pages["Data Hashing"]
-        hashing_page.input_box.delete("1.0", "end")
-        hashing_page.input_box.insert("1.0", text)
-        
-        # 3. รันการประมวลผลทันที
-        if hasattr(hashing_page, "process_data"):
-            hashing_page.process_data()
+                self.sidebar.update_button_styles(target_page_key)
+                
+            print(f"[DEBUG] เปลี่ยนหน้าสำเร็จ -> '{target_page_key}'")
+        else:
+            # ถ้ายังพังอีก มันจะปริ้นท์บอกชัดเจนเลยว่าหาไม่เจอ
+            print(f"[ERROR] ❌ เปลี่ยนหน้าไม่ได้! ไม่พบ '{name}' ในระบบเลย")
 
 if __name__ == "__main__":
     app = UNITApp()
