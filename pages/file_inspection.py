@@ -209,7 +209,17 @@ class FileInspectionPage(ctk.CTkFrame):
         self.warning_label = ctk.CTkLabel(action_frame, text="⚠️ Ready", text_color="#E67E22", font=("Segoe UI", 13, "bold"))
         self.warning_label.pack(side="right", padx=(10, 20))
 
-        self.regex_status_label = ctk.CTkLabel(action_frame, text="Regex: None", font=("Segoe UI", 11, "italic"), text_color="#3498db")
+        # ⭐ แก้ไข UI ตรงนี้: ทำเป็นป้าย Badge สีพื้นหลังเข้มเพื่อให้เด่นชัด
+        self.regex_status_label = ctk.CTkLabel(
+            action_frame, 
+            text=" 🔍 Regex: None ", 
+            font=("Segoe UI", 12, "bold"), 
+            fg_color="#1A252C", 
+            text_color="#95A5A6", 
+            corner_radius=6,
+            padx=10,
+            pady=4
+        )
         self.regex_status_label.pack(side="right", padx=10)
 
         # 5. Output Header & Terminal
@@ -300,11 +310,29 @@ class FileInspectionPage(ctk.CTkFrame):
     def update_selected_regex(self, new_regex):
         self.regex_var.set(new_regex)
         name = self.smart_db.get(new_regex, new_regex if new_regex else "None")
-        self.regex_status_label.configure(text=f"Regex: {name}", text_color="#F1C40F" if new_regex else "#3498db")
+        
+        # ⭐ อัปเดตสี Badge ให้สว่างและเด่นขึ้นเวลาเลือก Regex แล้ว
+        if new_regex:
+            self.regex_status_label.configure(
+                text=f" 🎯 Filter: {name} ", 
+                fg_color="#1F6FEB",   # สีน้ำเงินเข้ม สไตล์ GitHub
+                text_color="#FFFFFF"
+            )
+        else:
+            self.regex_status_label.configure(
+                text=" 🔍 Regex: None ", 
+                fg_color="#1A252C", 
+                text_color="#95A5A6"
+            )
 
     def clear_main_regex(self):
         self.regex_var.set("")
-        self.regex_status_label.configure(text="Regex: None", text_color="#3498db")
+        # ⭐ คืนค่าสี Badge กลับเป็นแบบตอนไม่เลือก
+        self.regex_status_label.configure(
+            text=" 🔍 Regex: None ", 
+            fg_color="#1A252C", 
+            text_color="#95A5A6"
+        )
         self.safe_log("[*] Regex pattern cleared.")
 
     # --- 🚀 Threading & Loading State ---
@@ -418,8 +446,6 @@ class FileInspectionPage(ctk.CTkFrame):
         info_window.deiconify()
         info_window.lift()
         info_window.focus_force()
-
-    
 
     # ⭐ ฟังก์ชันเวอร์ชันใหม่ แก้ไขปัญหา RAM เต็มและ UI ค้าง
     def extract_all_strings(self):
