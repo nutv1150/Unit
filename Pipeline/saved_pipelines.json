@@ -1,6 +1,5 @@
 {
     "saved_pipelines": [
-        
         {
             "pipeline_name": "Reverse",
             "steps": [
@@ -28,6 +27,58 @@
             "steps": [
                 {
                     "name": "xxd",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                }
+            ]
+        },
+        {
+            "pipeline_name": "hide",
+            "steps": [
+                {
+                    "name": "strings",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                },
+                {
+                    "name": "grep",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-E",
+                            "type": "text",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "pipeline_name": "Untitled",
+            "steps": [
+                {
+                    "name": "strings",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                },
+                {
+                    "name": "grep",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-E",
+                            "type": "text",
+                            "description": ""
+                        }
+                    ]
+                },
+                {
+                    "name": "base64_decode",
                     "params": "",
                     "user_description": "",
                     "options": []

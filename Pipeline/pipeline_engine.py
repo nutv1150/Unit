@@ -4,35 +4,38 @@ import json
 import os
 
 class PipelineEngine:
+    # path ของไฟล์นี้
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    # path ของไฟล์เก็บ tool
     CUSTOM_TOOL_FILE = os.path.join(BASE_DIR, "custom_tools.json")
-    FLAG_PATTERN = r"TCTT\{.*?\}|flag\{.*?\}"
+    # regex สำหรับหา flag
+    FLAG_PATTERN = r"THCTT\{.*?\}|flag\{.*?\}"
 
     def __init__(self):
-        self.file_tools = {}
-        self.text_tools = {}
-        self.tool_descriptions = {} # เพิ่มเพื่อเก็บคำอธิบาย
-        self.tool_options = {}
-        self.load_custom_tools()
+        self.file_tools = {} # tool ที่ใช้กับไฟล์
+        self.text_tools = {} # tool ที่ใช้กับ text
+        self.tool_descriptions = {} 
+        self.tool_options = {} # เก็บ options ของ tool
+        self.load_custom_tools() # โหลด tool จาก JSON
         
 
     def load_custom_tools(self):
 
         if not os.path.exists(self.CUSTOM_TOOL_FILE):
-            return
+            return # ถ้าไม่มีไฟล์ก็จบ
 
         with open(self.CUSTOM_TOOL_FILE) as f:
-            data = json.load(f)
+            data = json.load(f) # อ่าน JSON
 
-        for category in data:
+        for category in data: # วนทุกหมวด
 
             if not isinstance(data[category], list):
                 continue
 
             for tool in data[category]:
 
-                name = tool["name"]
-                command = tool["command"]
+                name = tool["name"] # ชื่อ tool
+                command = tool["command"] 
                 mode = tool["mode"]
 
                 params = tool.get("params", [])
@@ -46,6 +49,7 @@ class PipelineEngine:
                 # options (สำคัญ)
                 self.tool_options[name] = tool.get("options", [])
 
+                #command + params + input → กลายเป็น list command
                 def make_file_tool(command, params):
                     def tool(file_path, p=None):
                         return [command] + params + (p.split() if p else []) + ([file_path] if file_path else [])
@@ -66,13 +70,13 @@ class PipelineEngine:
         if tool not in self.text_tools:
             return b"Unknown text tool"
 
-        cmd = self.text_tools[tool](params)
+        cmd = self.text_tools[tool](params) # สร้าง command
         print("RUN CMD:", cmd)
 
         try:
             result = subprocess.run(
                 cmd,
-                input=input_data,
+                input=input_data, # ส่ง input เข้า command
                 capture_output=True,
                 timeout=30
             )

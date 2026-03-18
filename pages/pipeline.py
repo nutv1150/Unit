@@ -11,7 +11,7 @@ class PipelinePage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
         self.run_logs = []
-        self.engine = PipelineEngine()
+        self.engine = PipelineEngine() #เชื่อมกับ backend
 
         self.configure(fg_color="#ececec")
         self.nodes = []      # เก็บข้อมูล Node ทั้งหมด
@@ -145,12 +145,12 @@ class PipelinePage(ctk.CTkFrame):
         self.placeholder.place(relx=0.5, rely=0.5, anchor="center")
 
         self.bind("<Visibility>", self.on_show_page)
-
+    # ใช้เช็คว่ามี pipeline หรือยัง
     def on_show_page(self, event):
         if not self.nodes:
             self.check_pipeline_status()
         self.unbind("<Visibility>")
-            
+    # สลับโหมด Auto / Step-by-Step
     def toggle_mode(self):
         self.is_auto = not self.is_auto
         if self.is_auto:
@@ -159,7 +159,7 @@ class PipelinePage(ctk.CTkFrame):
         else:
             self.step_btn.configure(text="Step-by-Step", fg_color="#4f87ff")
             print("Switched to Step-by-Step Mode")
-
+    # เพิ่ม node (tool) ลง canvas
     def add_tool_node(self, tool_name, user_desc=""): 
         if self.node_count == 0:
             self.placeholder.place_forget()
@@ -193,7 +193,7 @@ class PipelinePage(ctk.CTkFrame):
             item.bind("<B1-Motion>", lambda e, n=node_data: self.on_node_drag(e, n))
 
         self.draw_connections()
-
+    # เริ่มลาก node
     def on_node_press(self, event, node_data):
         self.current_node = node_data
         node_data['drag_data'] = {
@@ -201,7 +201,7 @@ class PipelinePage(ctk.CTkFrame):
             'y': event.y
         }
         node_data['frame'].lift()
-
+    # ลาก node
     def on_node_drag(self, event, node_data):
         if 'drag_data' not in node_data:
             return
@@ -214,7 +214,7 @@ class PipelinePage(ctk.CTkFrame):
 
         node_data['frame'].place(x=new_x, y=new_y)
         self.draw_connections()
-
+    # วาดเส้นเชื่อมระหว่าง node
     def draw_connections(self):
         self.line_canvas.delete("line")
         if len(self.nodes) < 2: return
@@ -235,13 +235,13 @@ class PipelinePage(ctk.CTkFrame):
                 x1, y1, x1 + dist, y1, x2 - dist, y2, x2, y2,
                 fill="#6f63ff", width=2, smooth=True, tags="line", arrow=tk.LAST
             )
-
+    # รัน pipeline ทั้งหมด
     def run_pipeline(self):
         if not self.nodes:
             return
 
         current_data = b""
-        self.run_logs = []
+        self.run_logs = [] # เอา output ของตัวก่อน → input ตัวถัดไป
 
         for i, node in enumerate(self.nodes):
             tool = node["name"]
@@ -264,7 +264,7 @@ class PipelinePage(ctk.CTkFrame):
             })
 
             current_data = output
-   
+    # ล้าง pipeline
     def clear_pipeline(self):
         print("Clearing pipeline...")
         for node in self.nodes:
@@ -272,13 +272,13 @@ class PipelinePage(ctk.CTkFrame):
         self.nodes.clear()
         self.node_count = 0
         self.line_canvas.delete("line")
-
+    # สร้างไฟล์ temp จาก data
     def write_temp_file(self, data):
         tmp = tempfile.NamedTemporaryFile(delete=False)
         tmp.write(data)
         tmp.close()
         return tmp.name
-    
+    # เปิด popup ของแต่ละ step
     def open_step_window(self, node, previous_output, original_data, logs, is_last):
 
         tool_name = node["name"]
@@ -385,13 +385,14 @@ class PipelinePage(ctk.CTkFrame):
 
         ctk.CTkButton(input_frame, text="Browse", width=80, command=browse_file).pack(side="right", padx=5)
 
-        if isinstance(previous_output, bytes):
-            try:
-                preview = previous_output.decode(errors="ignore")[:500]
-                input_entry.insert(0,preview)
-            except:
-                pass
-
+        if tool_name in self.engine.file_tools:
+            if isinstance(previous_output, bytes):
+                try:
+                    preview = previous_output.decode(errors="ignore")[:500]
+                    input_entry.insert(0, preview)
+                except:
+                    pass
+                
         # -------- Options --------
         ctk.CTkLabel(right, text="Options").pack(anchor="w", padx=20)
 
@@ -625,6 +626,10 @@ class PipelinePage(ctk.CTkFrame):
 
         # -------- Run Tool --------
         def run_tool():
+            # รวม options → params
+            # ตรวจว่าเป็น file tool หรือ text tool
+            # เรียก PipelineEngine
+            # แสดง output
             params_list = []
             for flag, var, opt_type in option_vars:
                 if opt_type == "checkbox":
@@ -661,7 +666,7 @@ class PipelinePage(ctk.CTkFrame):
         # buttons
         ctk.CTkButton(right, text="Run", fg_color="#4caf50", command=run_tool).pack(pady=(15,5))
 
-        def next_step():
+        def next_step(): # ปิด window แล้วส่ง output กลับ pipeline
             if result["output"] is None:
                 return
             win.destroy()
@@ -676,7 +681,7 @@ class PipelinePage(ctk.CTkFrame):
         self.wait_window(win)
 
         return result["output"]
-
+    #โหลด template pipeline สำเร็จรูป
     def load_template(self, template):
         self.clear_pipeline()
 
@@ -695,7 +700,7 @@ class PipelinePage(ctk.CTkFrame):
 
         for tool in tools:
             self.add_tool_node(tool)
-
+    #โหลด tool จาก JSON
     def load_tools_from_json(self):
         tools_path = os.path.join(os.path.dirname(__file__), "..", "Pipeline", "custom_tools.json")
         tools_path = os.path.abspath(tools_path)
@@ -728,7 +733,7 @@ class PipelinePage(ctk.CTkFrame):
 
         return categories
     
-
+    #refresh panel tool 
     def refresh_tools_panel(self):
         for widget in self.tools_panel.winfo_children():
             widget.destroy()
@@ -770,11 +775,11 @@ class PipelinePage(ctk.CTkFrame):
                     text_color="black", 
                     hover_color="#eee"
                 ).pack(fill="x", padx=15, pady=(5, 10))
-        
+        #เช็ค pipeline ที่เคย save
     def check_pipeline_status(self):
         saved_data = self.load_saved_pipelines()
         self.show_startup_popup(saved_data)
-    
+    # popup หน้าเริ่มต้น (Pipeline Manager)
     def show_startup_popup(self, saved_data):
         popup = ctk.CTkToplevel(self)
         popup.title("Pipeline Manager")
@@ -820,7 +825,7 @@ class PipelinePage(ctk.CTkFrame):
                 btn = ctk.CTkButton(row, text="Open", width=60, fg_color="#2eb85c", hover_color="#279e4f",
                                     command=lambda name=p_name: load_existing(name))
                 btn.pack(side="right", padx=10)
-
+    #โหลด saved pipeline จากไฟล์
     def load_saved_pipelines(self):
         save_path = os.path.join(os.path.dirname(__file__), "..", "Pipeline", "saved_pipelines.json")
         save_path = os.path.abspath(save_path)
@@ -832,10 +837,10 @@ class PipelinePage(ctk.CTkFrame):
             except Exception:
                 pass
         return []
-    
+    # แสดงจำนวน pipeline (debug)
     def show_saved_pipelines_list(self, saved_data):
         print(f"You have {len(saved_data)} saved pipelines available in the sidebar.")
-    
+    # Wizard สร้าง pipeline
     def open_pipeline_wizard(self, current_step=1, pipeline_data=None):
         if pipeline_data is None:
             pipeline_data = []
@@ -889,7 +894,7 @@ class PipelinePage(ctk.CTkFrame):
         # Popup Add Option (อัปเกรดแก้บัก State & Live Preview)
         # ==========================================
         self.temp_options_list = []
-
+        # popup เพิ่ม option
         def open_add_option_popup():
             popup = ctk.CTkToplevel(wizard)
             popup.title("Add Custom Option")
@@ -985,7 +990,7 @@ class PipelinePage(ctk.CTkFrame):
         add_option_btn.configure(command=open_add_option_popup)
         # ==========================================
 
-
+        # อัปเดต info tool ที่เลือก
         def update_tool_selection(choice):
             if choice == "Custom":
                 custom_tool_frame.pack(after=tool_menu, fill="x", padx=40, pady=(0, 10))
@@ -998,7 +1003,7 @@ class PipelinePage(ctk.CTkFrame):
             has_option_checkbox.pack(before=user_desc_entry.master.winfo_children()[-2], anchor="w", padx=40, pady=5)
             has_option_var.set(False)
             add_option_btn.pack_forget()
-
+        # toggle ปุ่ม add option
         def toggle_add_option_btn():
             if has_option_var.get():
                 add_option_btn.pack(after=has_option_checkbox, pady=5, padx=40, anchor="w")
@@ -1011,7 +1016,7 @@ class PipelinePage(ctk.CTkFrame):
 
         btn_frame = ctk.CTkFrame(wizard, fg_color="transparent")
         btn_frame.pack(side="bottom", pady=30, fill="x", padx=40)
-
+        # เพิ่ม tool step ถัดไป
         def add_next_tool():
             if current_step == 1 and name_entry:
                 self.current_pipeline_name = name_entry.get()
@@ -1029,7 +1034,7 @@ class PipelinePage(ctk.CTkFrame):
             pipeline_data.append(node_data)
             wizard.destroy()
             self.open_pipeline_wizard(current_step + 1, pipeline_data)
-
+        # finish wizard + save pipeline
         def finish_pipeline():
             if current_step == 1 and name_entry:
                 self.current_pipeline_name = name_entry.get()
@@ -1052,7 +1057,7 @@ class PipelinePage(ctk.CTkFrame):
 
         ctk.CTkButton(btn_frame, text="+ Add Another Tool", fg_color="#6f63ff", command=add_next_tool).pack(side="left", expand=True, padx=5)
         ctk.CTkButton(btn_frame, text="Finish & Save", fg_color="#2eb85c", command=finish_pipeline).pack(side="left", expand=True, padx=5)
-
+    # สร้าง pipeline ลง canvas + save
     def finalize_wizard_pipeline(self, pipeline_data, pipeline_name):
         self.clear_pipeline()
         for tool_info in pipeline_data:
@@ -1089,7 +1094,7 @@ class PipelinePage(ctk.CTkFrame):
             
         except Exception as e:
             print(f"Error saving pipeline: {e}")
-
+    # โหลด pipeline มาแสดงบน canvas
     def load_saved_pipeline_to_canvas(self, pipeline_name):
         save_path = os.path.join(
             os.path.dirname(__file__),
@@ -1154,7 +1159,7 @@ class PipelinePage(ctk.CTkFrame):
 
                 self.draw_connections()
                 break
-
+    # popup เพิ่ม tool ใหม่
     def open_add_tool_window(self):
         win = ctk.CTkToplevel(self)
         win.title("Add Tool")
