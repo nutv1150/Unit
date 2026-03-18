@@ -9,7 +9,7 @@ import threading
 import hashlib
 import mmap  # ⭐ นำเข้า mmap สำหรับจัดการไฟล์ขนาดใหญ่
 
-# --- ⭐ คลาสหน้าต่าง Popup สำหรับเลือก Regex ---
+# --- ⭐ คลาสหน้าต่าง Popup สำหรับเลือก Regex (Modern Dark Theme) ---
 class RegexSelectionPopup(ctk.CTkToplevel):
     def __init__(self, parent, current_regex, callback):
         super().__init__(parent)
@@ -30,10 +30,10 @@ class RegexSelectionPopup(ctk.CTkToplevel):
         label = ctk.CTkLabel(self, text="🎯 Choose a Pattern for Analysis", font=("Segoe UI", 16, "bold"))
         label.pack(pady=15)
 
-        self.preview_box = ctk.CTkFrame(self, fg_color="#1A1A1A", height=65, corner_radius=5)
+        self.preview_box = ctk.CTkFrame(self, fg_color="#1E1E1E", border_width=1, border_color="#333333", height=65, corner_radius=8)
         self.preview_box.pack(fill="x", padx=20, pady=5)
         self.preview_box.pack_propagate(False)
-        self.hover_label = ctk.CTkLabel(self.preview_box, text="💡 นำเมาส์ไปชี้ที่ตัวเลือกเพื่อดูรายละเอียด", text_color="#3498db")
+        self.hover_label = ctk.CTkLabel(self.preview_box, text="💡 นำเมาส์ไปชี้ที่ตัวเลือกเพื่อดูรายละเอียด", text_color="#4DB8FF") 
         self.hover_label.pack(expand=True)
 
         custom_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -50,10 +50,11 @@ class RegexSelectionPopup(ctk.CTkToplevel):
         row2.pack(fill="x")
         self.custom_desc_entry = ctk.CTkEntry(row2, placeholder_text="Description (Optional)", height=30)
         self.custom_desc_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
-        ctk.CTkButton(row2, text="Add", width=50, command=self.add_custom_regex).pack(side="left", padx=2)
-        ctk.CTkButton(row2, text="ℹ️", width=30, fg_color="#34495E", command=parent.show_regex_info).pack(side="left", padx=2)
+        
+        ctk.CTkButton(row2, text="Add", width=50, fg_color="#1F6FEB", hover_color="#1158C7", command=self.add_custom_regex).pack(side="left", padx=2)
+        ctk.CTkButton(row2, text="ℹ️", width=30, fg_color="#30363D", hover_color="#484F58", command=parent.show_regex_info).pack(side="left", padx=2)
 
-        self.scroll_frame = ctk.CTkScrollableFrame(self, height=180, fg_color="#2C3E50")
+        self.scroll_frame = ctk.CTkScrollableFrame(self, height=180, fg_color="#252526", border_width=1, border_color="#3E3E42", corner_radius=8)
         self.scroll_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
         for p in self.smart_db.keys():
@@ -61,9 +62,10 @@ class RegexSelectionPopup(ctk.CTkToplevel):
 
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.pack(fill="x", padx=20, pady=15)
-        ctk.CTkButton(btn_frame, text="Confirm", fg_color="#2ECC71", command=self.confirm).pack(side="right", padx=5)
-        ctk.CTkButton(btn_frame, text="Clear", fg_color="#5f6475", command=self.clear_selection).pack(side="right", padx=5)
-        ctk.CTkButton(btn_frame, text="Cancel", fg_color="#E74C3C", command=self.destroy).pack(side="right", padx=5)
+        
+        ctk.CTkButton(btn_frame, text="Confirm", fg_color="#2EA043", hover_color="#238636", command=self.confirm).pack(side="right", padx=5)
+        ctk.CTkButton(btn_frame, text="Clear", fg_color="#484F58", hover_color="#6E7681", command=self.clear_selection).pack(side="right", padx=5)
+        ctk.CTkButton(btn_frame, text="Cancel", fg_color="#DA3633", hover_color="#B62324", command=self.destroy).pack(side="right", padx=5)
 
         self.update_idletasks() 
         self.deiconify()        
@@ -72,7 +74,14 @@ class RegexSelectionPopup(ctk.CTkToplevel):
 
     def create_preview_radio(self, p):
         n = self.smart_db.get(p, p)
-        rb = ctk.CTkRadioButton(self.scroll_frame, text=n, variable=self.regex_var, value=p)
+        # ⭐ เพิ่ม text_color="white" เข้าไปตรงนี้ครับ
+        rb = ctk.CTkRadioButton(
+            self.scroll_frame, 
+            text=n, 
+            variable=self.regex_var, 
+            value=p, 
+            text_color="white"  # <--- โค้ดที่เพิ่มเข้ามา
+        )
         rb.pack(anchor="w", padx=15, pady=5)
         rb.bind("<Enter>", lambda e, p=p: self.show_preview(p))
         rb.bind("<Leave>", lambda e: self.hide_preview())
@@ -101,10 +110,10 @@ class RegexSelectionPopup(ctk.CTkToplevel):
 
     def show_preview(self, p):
         txt = self.regex_previews.get(p, f"Custom: {p}")
-        self.hover_label.configure(text=txt, text_color="#f1c40f")
+        self.hover_label.configure(text=txt, text_color="#FFD700")
 
     def hide_preview(self):
-        self.hover_label.configure(text="💡 นำเมาส์ไปชี้ที่ตัวเลือกเพื่อดูรายละเอียด", text_color="#3498db")
+        self.hover_label.configure(text="💡 นำเมาส์ไปชี้ที่ตัวเลือกเพื่อดูรายละเอียด", text_color="#4DB8FF")
 
     def confirm(self):
         self.callback(self.regex_var.get())
@@ -188,7 +197,7 @@ class FileInspectionPage(ctk.CTkFrame):
         self.btn_regex_popup = ctk.CTkButton(action_frame, text="⚙️ Select Regex", fg_color="#34495E", state="disabled", command=self.open_regex_popup)
         self.btn_regex_popup.pack(side="left", padx=5)
 
-        # ⭐ ปุ่มใหม่: Clear Regex (หน้าหลัก)
+        # ปุ่ม Clear Regex
         self.btn_clear_regex = ctk.CTkButton(action_frame, text="❌", width=30, fg_color="#E74C3C", hover_color="#C0392B", state="disabled", command=self.clear_main_regex)
         self.btn_clear_regex.pack(side="left", padx=(0, 5))
 
@@ -202,7 +211,7 @@ class FileInspectionPage(ctk.CTkFrame):
         self.regex_status_label = ctk.CTkLabel(action_frame, text="Regex: None", font=("Segoe UI", 11, "italic"), text_color="#3498db")
         self.regex_status_label.pack(side="right", padx=10)
 
-        # 5. ⭐ Output Header & Terminal
+        # 5. Output Header & Terminal
         output_header = ctk.CTkFrame(self, fg_color="transparent")
         output_header.grid(row=4, column=0, sticky="ew", padx=20, pady=(5, 0))
         ctk.CTkLabel(output_header, text="💻 Terminal Output", font=("Segoe UI", 12, "bold"), text_color="gray").pack(side="left")
@@ -277,7 +286,6 @@ class FileInspectionPage(ctk.CTkFrame):
 
     # --- Regex Controls ---
     def toggle_regex_button(self, mode):
-        # ⭐ เปิดใช้งานทั้งปุ่มเลือก Regex และปุ่ม Clear Regex พร้อมกัน
         if mode == "Strings": 
             self.btn_regex_popup.configure(state="normal")
             self.btn_clear_regex.configure(state="normal")
@@ -294,7 +302,6 @@ class FileInspectionPage(ctk.CTkFrame):
         self.regex_status_label.configure(text=f"Regex: {name}", text_color="#F1C40F" if new_regex else "#3498db")
 
     def clear_main_regex(self):
-        """ ⭐ ฟังก์ชันสำหรับปุ่มล้างค่า Regex ที่หน้าหลัก """
         self.regex_var.set("")
         self.regex_status_label.configure(text="Regex: None", text_color="#3498db")
         self.safe_log("[*] Regex pattern cleared.")
