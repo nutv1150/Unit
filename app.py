@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from tkinterdnd2 import TkinterDnD  # ⭐ 1. Import ไลบรารีสำหรับ Drag & Drop
+from tkinterdnd2 import TkinterDnD  # 1. Import ไลบรารีสำหรับ Drag & Drop
 
 from sidebar import Sidebar
 from pages.data_hash import DataHashPage
@@ -11,12 +11,12 @@ from pages.dashboard import DashboardPage
 ctk.set_appearance_mode("Light")
 ctk.set_default_color_theme("blue")
 
-# ⭐ 2. เพิ่ม TkinterDnD.DnDWrapper เข้ามาสืบทอดร่วมกับ ctk.CTk
+# 2. เพิ่ม TkinterDnD.DnDWrapper เข้ามาสืบทอดร่วมกับ ctk.CTk
 class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
     def __init__(self):
         super().__init__()
 
-        # ⭐ 3. บรรทัดนี้สำคัญมาก! เป็นการสั่งเปิดใช้งานระบบ Drag & Drop ของแอปหลัก
+        # 3. บรรทัดนี้สำคัญมาก! เป็นการสั่งเปิดใช้งานระบบ Drag & Drop ของแอปหลัก
         self.TkdndVersion = TkinterDnD._require(self)
 
         self.title("Unified Toolkit")
@@ -47,7 +47,7 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         # ---------------- จุดที่ 2: เปลี่ยนหน้าเริ่มต้นเป็น Dashboard ----------------
         self.switch_page("Dashboard")
 
-    # ⭐ แก้ไขฟังก์ชันนี้ใหม่ทั้งหมด
+    #  แก้ไขฟังก์ชันนี้ใหม่ทั้งหมด
     def switch_page(self, name):
         # 1. ปริ้นท์เช็คเลยว่า Sidebar ส่งคำว่าอะไรมา (ดูใน Terminal สีดำตอนรันโปรแกรม)
         print(f"[DEBUG] ปุ่มที่กดส่งค่ามาคือ: '{name}'")
@@ -79,6 +79,16 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         else:
             # ถ้ายังพังอีก มันจะปริ้นท์บอกชัดเจนเลยว่าหาไม่เจอ
             print(f"[ERROR] ❌ เปลี่ยนหน้าไม่ได้! ไม่พบ '{name}' ในระบบเลย")
+
+    def send_to_hashing(self, text):
+        # 1. สลับไปหน้า Data Hashing
+        self.switch_page("Data Hashing")
+        # 2. ใส่ข้อความลง input_box
+        page = self.pages["Data Hashing"]
+        page.input_box.delete("1.0", "end")
+        page.input_box.insert("1.0", text)
+        # 3. trigger process_data ทันที
+        page.process_data()
 
 if __name__ == "__main__":
     app = UNITApp()
