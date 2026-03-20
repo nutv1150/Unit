@@ -165,23 +165,20 @@ class DataHashPage(ctk.CTkFrame):
 
         self.input_box.bind("<KeyRelease>", self.process_data)
 
-    # =========================
-    # Process Main Logic
-    # =========================
-    def process_data(self, event=None):
-        data = self.input_box.get("1.0", "end").strip()
-        algo = self.algo_menu.get()
 
-        # ==========================================
+    # Process Main Logic
+    def process_data(self, event=None):
+        data = self.input_box.get("1.0", "end").strip()  # อ่านข้อความทั้งหมดจาก textbox
+        algo = self.algo_menu.get() # อ่านอัลกอริทึมที่เลือก
+
         # Dynamic Placeholder (อัปเดตคำใบ้ในกล่องตามโหมด)
-        # ==========================================
         if self.mode == "Bitwise":
             self.key_entry.configure(placeholder_text="Bitwise Key (Number)")
         elif self.mode == "Hash" and algo.startswith("shake_"):
             self.key_entry.configure(placeholder_text="SHAKE Output Length (Bytes) - Default: 32")
         else:
             self.key_entry.configure(placeholder_text="Not used for this algorithm")
-        # ==========================================
+
 
         if not data:
             self.output_box.delete("1.0", "end")
@@ -195,7 +192,7 @@ class DataHashPage(ctk.CTkFrame):
                 result = decode_data(data, algo)
 
             elif self.mode == "Hash":
-                # ⭐ ตรวจสอบว่าเป็น SHAKE หรือไม่ ถ้าใช่ให้ดึงค่า Length มาใช้
+                #  ตรวจสอบว่าเป็น SHAKE หรือไม่ ถ้าใช่ให้ดึงค่า Length มาใช้
                 if algo.startswith("shake_"):
                     length_str = self.key_entry.get().strip()
                     # ถ้าใส่เลขให้ใช้เลขนั้น ถ้าว่างหรือพิมพ์ผิดให้ใช้ 32
@@ -231,15 +228,11 @@ class DataHashPage(ctk.CTkFrame):
         # โค้ดยังว่างไว้สำหรับฟังก์ชัน select_tab ของคุณ
         pass
 
-    # =========================
     # Highlight Output
-    # =========================
     def search_output(self):
         highlight_text(self.output_box, self.search_entry.get())
 
-    # =========================
     # Browse File
-    # =========================
     def browse_file(self):
         file_path = filedialog.askopenfilename(
             filetypes=[("Text Files", "*.txt *.json *.log *.py *.md"), ("All Files", "*.*")]
@@ -259,9 +252,7 @@ class DataHashPage(ctk.CTkFrame):
         except Exception as e:
             print("Read file error:", e)
 
-    # =========================
     # Toggle Mode
-    # =========================
     def toggle_mode(self):
         if self.mode == "Decode":
             self.mode = "Encode"
@@ -289,9 +280,8 @@ class DataHashPage(ctk.CTkFrame):
 
         self.process_data()
 
-    # =========================
+  
     # Update Label
-    # =========================
     def update_output_label(self):
         self.output_label_btn.configure(
             text=f"{self.mode} • {self.algo_menu.get()}"

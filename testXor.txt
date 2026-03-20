@@ -1,0 +1,212 @@
+"""
+=============================================================
+  Test Cases — bitwise_mask / bitwise_unmask
+  ไฟล์: extra_tools.py
+=============================================================
+
+INPUT  → ข้อมูลที่ต้องการ XOR/OR/AND
+         รองรับ 2 รูปแบบ (auto-detect):
+         • Hex string  เช่น  "41 42 43"  หรือ  "414243"  หรือ  "41:42:43"
+         • Raw text    เช่น  "Hello CTF"
+
+KEY    → ค่าที่ใช้ทำ bitwise operation
+         รองรับ 4 รูปแบบ (auto-detect):
+         • decimal     เช่น  "42"         → byte 0x2A
+         • 0x hex      เช่น  "0x2A"       → byte 0x2A  (ผลเดียวกับ decimal 42)
+         • hex string  เช่น  "DEADBEEF"   → 4 bytes, repeat ถ้าสั้นกว่า input
+         • ASCII text  เช่น  "KEY"        → 3 bytes, repeat วนซ้ำ
+
+OUTPUT → แสดง 3 รูปแบบพร้อมกัน:
+         • [HEX]    — ผลลัพธ์เป็น hex bytes
+         • [ASCII]  — ผลลัพธ์แปลงเป็น text (ถ้าอ่านไม่ออกจะแสดง ? หรือ replacement char)
+         • Printable check — บอกว่าอ่านเป็น text ได้ไหม
+         • 🚩 Flag hint   — แจ้งถ้าเจอ pattern เช่น flag{ CTF{ THCTT
+
+=============================================================
+"""
+
+from extra_tools import bitwise_mask, bitwise_unmask
+
+
+# =============================================================
+# TEST 1 — XOR, Input: Raw text, Key: decimal
+# =============================================================
+# สถานการณ์: โจทย์ให้ plaintext มา ต้องการ encrypt ด้วย XOR
+#
+# Input : "flag{hello_ctf}"  → Raw text 15 ตัวอักษร
+# Key   : "42"               → decimal 42 = 0x2A
+# Op    : XOR
+#
+# วิธีคิด: ตัวอักษรแต่ละตัวถูก XOR กับ 0x2A
+#   'f' (0x66) XOR 0x2A = 0x4C = 'L'
+#   'l' (0x6C) XOR 0x2A = 0x46 = 'F'
+#   'a' (0x61) XOR 0x2A = 0x4B = 'K'  ...
+#
+# Output ที่คาดหวัง:
+#   HEX   : 4C 46 4B 4D 51 42 4F 46 46 45 75 49 5E 4C 57
+#   ASCII : LFKMQBOFFEuI^LW
+
+print("=" * 60)
+print("TEST 1 — XOR | Input: Raw text | Key: decimal")
+print("=" * 60)
+print(bitwise_mask("flag{hello_ctf}", "42", "xor"))
+
+
+# =============================================================
+# TEST 2 — XOR, Input: Raw text, Key: 0x hex (ผลเดียวกับ Test 1)
+# =============================================================
+# สถานการณ์: key ในโจทย์ระบุเป็น hex เช่น 0x2A
+#
+# Input : "flag{hello_ctf}"  → Raw text
+# Key   : "0x2A"             → hex number = decimal 42
+# Op    : XOR
+#
+# ผลลัพธ์ต้องเหมือน TEST 1 ทุกอย่าง เพราะ 42 == 0x2A
+#
+# Output ที่คาดหวัง:
+#   HEX   : 4C 46 4B 4D 51 42 4F 46 46 45 75 49 5E 4C 57
+#   ASCII : LFKMQBOFFEuI^LW
+
+print("\n" + "=" * 60)
+print("TEST 2 — XOR | Input: Raw text | Key: 0x hex (= decimal 42)")
+print("=" * 60)
+print(bitwise_mask("flag{hello_ctf}", "0x2A", "xor"))
+
+
+# =============================================================
+# TEST 3 — XOR Repeating Key, Input: Raw text, Key: ASCII string
+# =============================================================
+# สถานการณ์: CTF โจทย์ Crypto ที่ใช้ repeating key XOR
+#            key "KEY" วนซ้ำ: K E Y K E Y K E Y ...
+#
+# Input : "flag{repeating_key}"  → 19 bytes
+# Key   : "KEY"                  → 3 bytes → repeat เป็น 19 bytes
+#
+#   'f'(0x66) XOR 'K'(0x4B) = 0x2D
+#   'l'(0x6C) XOR 'E'(0x45) = 0x29
+#   'a'(0x61) XOR 'Y'(0x59) = 0x38
+#   'g'(0x67) XOR 'K'(0x4B) = 0x2C  ← key วนซ้ำ
+#   ...
+#
+# Output ที่คาดหวัง:
+#   HEX   : 2D 29 38 2C 3E 2B 2E 35 3C 2A 31 30 25 22 06 20 20 20 36
+#   Printable: ⚠️ Non-printable
+
+print("\n" + "=" * 60)
+print("TEST 3 — XOR Repeating Key | Input: Raw text | Key: ASCII 'KEY'")
+print("=" * 60)
+print(bitwise_mask("flag{repeating_key}", "KEY", "xor"))
+
+
+# =============================================================
+# TEST 4 — XOR Unmask (Decrypt), Input: Hex string, Key: decimal
+# =============================================================
+# สถานการณ์: ได้ ciphertext เป็น hex มาจากโจทย์ CTF
+#            ต้องการถอดรหัสกลับด้วย key เดิม
+#
+# Input : "4C 46 4B 4D 51 42 4F 46 46 45 75 49 5E 4C 57"
+#          ← HEX output จาก TEST 1
+# Key   : "42"  → decimal 42 = 0x2A
+# Op    : XOR Unmask (= XOR ซ้ำด้วย key เดิม)
+#
+# หลักการ: A XOR B = C  →  C XOR B = A  (XOR กลับได้เสมอ)
+#
+# Output ที่คาดหวัง:
+#   ASCII : flag{hello_ctf}
+#   🚩 FLAG DETECTED
+
+print("\n" + "=" * 60)
+print("TEST 4 — XOR Unmask (Decrypt) | Input: Hex string | Key: decimal")
+print("=" * 60)
+print(bitwise_unmask("4C 46 4B 4D 51 42 4F 46 46 45 75 49 5E 4C 57", "42"))
+
+
+# =============================================================
+# TEST 5 — OR Mask, Input: Raw text, Key: 0x hex
+# =============================================================
+# สถานการณ์: OR ใช้บ่อยใน binary manipulation
+#            เช่น set bit สูง (0x80) ให้ทุก byte เพื่อซ่อน ASCII
+#
+# Input : "Hello"  → 5 bytes
+# Key   : "0x80"   → bit 7 = 1
+# Op    : OR
+#
+# 'H'(0x48) OR 0x80 = 0xC8
+# 'e'(0x65) OR 0x80 = 0xE5
+# ...
+#
+# OR ไม่สามารถ reverse ได้ เพราะ bit ที่ถูก set แล้วไม่รู้ว่าเดิมเป็น 0 หรือ 1
+#
+# Output ที่คาดหวัง:
+#   HEX   : C8 E5 EC EC EF
+#   Printable: ⚠️ Non-printable
+
+print("\n" + "=" * 60)
+print("TEST 5 — OR Mask | Input: Raw text | Key: 0x80 (set MSB)")
+print("=" * 60)
+print(bitwise_mask("Hello", "0x80", "or"))
+
+
+# =============================================================
+# TEST 6 — AND Mask, Input: Raw text, Key: 0x hex
+# =============================================================
+# สถานการณ์: AND ใช้ตัด/กรอง bits
+#            เช่น AND 0x7F เพื่อเอาแค่ 7 bits ล่าง (force ASCII range)
+#
+# Input : "Hello"  → 5 bytes
+# Key   : "0x7F"   → bits 0-6 = 1, bit 7 = 0
+# Op    : AND
+#
+# 'H'(0x48) AND 0x7F = 0x48 = 'H'  (ไม่เปลี่ยนเพราะ bit 7 เป็น 0 อยู่แล้ว)
+# ...
+#
+# AND ไม่สามารถ reverse ได้ เพราะ bit ที่ถูก clear แล้วไม่รู้ว่าเดิมเป็น 1 หรือ 0
+#
+# Output ที่คาดหวัง:
+#   HEX   : 48 65 6C 6C 6F
+#   ASCII : Hello
+#   Printable: ✅
+
+print("\n" + "=" * 60)
+print("TEST 6 — AND Mask | Input: Raw text | Key: 0x7F (keep 7 bits)")
+print("=" * 60)
+print(bitwise_mask("Hello", "0x7F", "and"))
+
+
+# =============================================================
+# TEST 7 — Error: key ว่าง
+# =============================================================
+# สถานการณ์: ผู้ใช้ลืมใส่ key
+# คาดหวัง  : แจ้ง error พร้อมบอกรูปแบบที่รองรับ
+
+print("\n" + "=" * 60)
+print("TEST 7 — Error: Key ว่าง")
+print("=" * 60)
+try:
+    bitwise_mask("Hello", "", "xor")
+except ValueError as e:
+    print(e)
+
+
+# =============================================================
+# TEST 8 — Error: 0x hex ผิด format
+# =============================================================
+# สถานการณ์: พิมพ์ 0x แต่ตามด้วยอักษรที่ไม่ใช่ hex
+# คาดหวัง  : แจ้ง error ชัดเจน
+
+print("\n" + "=" * 60)
+print("TEST 8 — Error: 0x hex ผิด format")
+print("=" * 60)
+try:
+    bitwise_mask("Hello", "0xZZ", "xor")
+except ValueError as e:
+    print(e)
+
+
+
+
+xor Unmask
+
+2c 26 2b 2d 31 3a 25 3d 2f 38 39 22 2f 26 26 15 32 25 38 15 22 23 2e 2e 2f 24 15 39 25 15 2f 2b 39 33 37
+
+0x4A
