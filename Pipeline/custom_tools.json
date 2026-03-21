@@ -237,6 +237,14 @@
       "mode": "text",
       "description": "Reverse text lines",
       "options": []
+    },
+    {
+      "name": "openssl enc",
+      "command": "openssl",
+      "mode": "file",
+      "description": "Encrypt or decrypt file using OpenSSL (AES, DES, etc.)",
+      "params": ["enc"],
+      "options": []
     }
   ],
   "Pwnable": [
