@@ -1,0 +1,93 @@
+
+{
+    "saved_pipelines": [
+        {
+            "pipeline_name": "hidden",
+            "steps": [
+                {
+                    "name": "strings",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                },
+                {
+                    "name": "grep",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-E",
+                            "type": "text",
+                            "description": ""
+                        }
+                    ]
+                },
+                {
+                    "name": "base64_decode",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                }
+            ]
+        },
+        {
+            "pipeline_name": "Untitled",
+            "steps": [
+                {
+                    "name": "openssl enc",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-d",
+                            "type": "checkbox",
+                            "description": "Decrypt mode"
+                        },
+                        {
+                            "flag": "-aes-128-ecb",
+                            "type": "checkbox",
+                            "description": "ECB no IV"
+                        },
+                        {
+                            "flag": "-aes-128-cbc",
+                            "type": "checkbox",
+                            "description": "IV"
+                        },
+                        {
+                            "flag": "-aes-256-cbc",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-nopad",
+                            "type": "checkbox",
+                            "description": "off PKCS#7 padding"
+                        },
+                        {
+                            "flag": "-K",
+                            "type": "text",
+                            "description": "key Hex 4A4A4A..."
+                        },
+                        {
+                            "flag": "iv",
+                            "type": "text",
+                            "description": "IV Hex"
+                        },
+                        {
+                            "flag": "-out",
+                            "type": "text",
+                            "description": "Output file path decry.iso"
+                        }
+                    ]
+                },
+                {
+                    "name": "strings",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                }
+            ]
+        }
+    ]
+}
+

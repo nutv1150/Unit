@@ -94,15 +94,21 @@ class RegexSelectionPopup(ctk.CTkToplevel):
         if p:
             try: 
                 re.compile(p)
-                display_name = name if name else f"🛠 Custom Pattern"
+                display_name = name if name else "🛠 Custom Pattern"
                 self.smart_db[p] = display_name
                 desc_text = f"{desc}\n" if desc else ""
                 self.regex_previews[p] = f"🛠 {display_name}\n{desc_text}Regex: {p}"
+                
+                # ⭐ เพิ่ม: sync กลับไปที่ parent ด้วย
+                self.parent.smart_db[p] = display_name
+                self.parent.regex_previews[p] = self.regex_previews[p]
+                
                 self.create_preview_radio(p)
                 self.custom_regex_entry.delete(0, "end")
                 self.custom_name_entry.delete(0, "end")
                 self.custom_desc_entry.delete(0, "end")
-            except: pass
+            except Exception as e:
+                print("Add regex error:", e)  # ⭐ เปลี่ยนจาก pass เป็น print
 
     def clear_selection(self):
         self.regex_var.set("")

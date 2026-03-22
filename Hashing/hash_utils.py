@@ -16,7 +16,6 @@ def hash_data(text, algo="sha256", length=32):
         "sha3_512": hashlib.sha3_512,
         "blake2b": hashlib.blake2b,
         "blake2s": hashlib.blake2s,
-        # เพิ่ม SHAKE เข้ามา
         "shake_128": hashlib.shake_128,
         "shake_256": hashlib.shake_256,
     }
