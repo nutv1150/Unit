@@ -61,7 +61,6 @@ def _parse_input_bytes(raw: str) -> tuple:
     แปลง input เป็น bytes
     คืนค่า (bytes, ประเภทข้อมูล)
     """
-
     # ตัดช่องว่างหน้า-หลัง
     cleaned = raw.strip()
 
@@ -148,12 +147,12 @@ def _flag_hint(b: bytes) -> str:
         text = b.decode("utf-8", errors="ignore")
 
         # pattern ที่ใช้ตรวจ
-        patterns = ["flag{", "CTF{", "picoCTF{"]
+        patterns = ["flag{", "CTF{", "picoCTF{","TCHTT{"]
 
         # ตรวจทีละ pattern
         for p in patterns:
             if p in text:
-                return f"พบ {p}"
+                return f"🚩 FLAG DETECTED: พบ pattern '{p}'"
 
     except:
         pass
@@ -181,7 +180,26 @@ def _format_output(result: bytes, op_label: str, data_fmt: str,
     flag = _flag_hint(result)
 
     # รวมผลลัพธ์เป็น string
-    return f"{op_label}\n{hex_space}\n{ascii_out}\n{printable}\n{flag}"
+     # รวมเป็นกล่อง
+    lines = [
+        "╔══════════════════════════════════════════",
+        f"║  Operation : {op_label}",
+        f"║  Input     : {data_fmt}  ({len(result)} bytes)",
+        f"║  Key       : {key_raw!r}  [{key_fmt}]"
+        + (f"  → repeating {len(key_bytes)} byte(s)" if len(key_bytes) > 1 else ""),
+        "╠══════════════════════════════════════════",
+        "║  [HEX]",
+        f"║  {hex_space}",
+        "╠══════════════════════════════════════════",
+        "║  [ASCII / UTF-8]",
+        f"║  {ascii_out}",
+        "╠══════════════════════════════════════════",
+        f"║  Printable : {printable}",
+    ]
+    if flag:
+        lines.append(f"║  {flag}")
+    lines.append("╚══════════════════════════════════════════")
+    return "\n".join(lines)
 
 
 # ฟังก์ชันหลัก mask
