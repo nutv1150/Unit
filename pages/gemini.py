@@ -75,24 +75,35 @@ class GeminiPage(ctk.CTkFrame):
     # เชื่อมต่อ / เช็คว่ามี Gemini CLI ในเครื่องไหม
     # ------------------------------------------------------------------
     def init_api(self):
-        if shutil.which(self.gemini_cmd) is None:
+        resolved_path = shutil.which(self.gemini_cmd)
+        if resolved_path is None:
             self.update_chat_ui(
                 "System",
-                f"❌ ไม่พบคำสั่ง '{self.gemini_cmd}' ในเครื่อง กรุณาติดตั้ง Gemini CLI "
-                f"(npm install -g @google/gemini-cli) ก่อนครับ",
+                f"❌ ไม่พบคำสั่ง '{self.gemini_cmd}' ในเครื่อง (PATH ที่โปรแกรมเห็น: {os.environ.get('PATH', 'ไม่มี PATH เลย')}) "
+                f"กรุณาติดตั้ง Gemini CLI (npm install -g @google/gemini-cli) ก่อนครับ",
             )
             return
+
+        self.update_chat_ui("System", f"🔍 เจอ gemini ที่: {resolved_path}")
 
         entered_key = self.api_entry.get().strip()
         self.api_key = entered_key if entered_key else None
 
+        self.status_label.configure(text="⏳ กำลังเชื่อมต่อ...")
+        self.update_chat_ui("System", "กำลังเชื่อมต่อกับ Gemini CLI...")
+
+        # รันการเช็ค/ทดสอบ CLI ใน background thread เพื่อไม่ให้ UI ค้าง
+        threading.Thread(target=self._init_api_worker, daemon=True).start()
+
+    def _init_api_worker(self):
         try:
             res = subprocess.run(
                 [self.gemini_cmd, "--version"],
                 capture_output=True,
                 text=True,
-                timeout=15,
+                timeout=20,
                 env=self._build_env(),
+                stdin=subprocess.DEVNULL,
             )
             version_info = (res.stdout or res.stderr).strip()
 
@@ -101,33 +112,40 @@ class GeminiPage(ctk.CTkFrame):
                 [self.gemini_cmd, "-m", self.model_name, "-p", "hi"],
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=60,
                 env=self._build_env(),
+                stdin=subprocess.DEVNULL,
             )
             combined = (test_res.stdout + test_res.stderr)
+
             if "UNAUTHENTICATED" in combined or "invalid authentication" in combined.lower():
-                self.status_label.configure(text="❌ Auth ไม่ผ่าน")
-                self.update_chat_ui(
-                    "System",
+                self.after(0, self._init_api_fail, "❌ Auth ไม่ผ่าน",
                     "❌ ยังไม่ได้ auth กับ Gemini CLI: ให้เปิด terminal แล้วรัน `gemini` เพื่อ login ผ่านเบราว์เซอร์ "
-                    "หรือใส่ API Key ในช่องด้านบนแล้วกด 'เชื่อมต่อ CLI' อีกครั้งครับ",
-                )
+                    "หรือใส่ API Key ในช่องด้านบนแล้วกด 'เชื่อมต่อ CLI' อีกครั้งครับ")
                 return
             if "trusted directory" in combined.lower():
-                self.status_label.configure(text="❌ โฟลเดอร์ไม่ trusted")
-                self.update_chat_ui(
-                    "System",
+                self.after(0, self._init_api_fail, "❌ โฟลเดอร์ไม่ trusted",
                     "❌ Gemini CLI บล็อกเพราะโฟลเดอร์ทำงานยังไม่ trusted ลองรันโปรแกรมนี้จาก terminal แล้ว "
-                    "`cd` ไปที่โฟลเดอร์นั้นก่อน แล้วรัน `gemini` ครั้งนึงเพื่อ trust ผ่าน interactive mode ก่อนครับ",
-                )
+                    "`cd` ไปที่โฟลเดอร์นั้นก่อน แล้วรัน `gemini` ครั้งนึงเพื่อ trust ผ่าน interactive mode ก่อนครับ")
                 return
 
-            self.cli_ready = True
-            self.api_entry.configure(state="disabled")
-            self.status_label.configure(text=f"✅ เชื่อมต่อแล้ว: {version_info or self.gemini_cmd}")
-            self.update_chat_ui("System", "✅ CTF Mode พร้อมลุย! (เชื่อมต่อผ่าน Gemini CLI)")
+            self.after(0, self._init_api_success, version_info)
+        except subprocess.TimeoutExpired:
+            self.after(0, self._init_api_fail, "❌ หมดเวลา",
+                "❌ การเชื่อมต่อ CLI ใช้เวลานานเกินไป (timeout) ลองเช็คอินเทอร์เน็ต หรือรัน `gemini -p \"hi\"` "
+                "ตรงๆ ใน terminal ดูว่าค้างเหมือนกันไหมครับ")
         except Exception as e:
-            self.update_chat_ui("System", f"❌ การเชื่อมต่อ CLI ล้มเหลว: {e}")
+            self.after(0, self._init_api_fail, "❌ เชื่อมต่อล้มเหลว", f"❌ การเชื่อมต่อ CLI ล้มเหลว: {e}")
+
+    def _init_api_success(self, version_info):
+        self.cli_ready = True
+        self.api_entry.configure(state="disabled")
+        self.status_label.configure(text=f"✅ เชื่อมต่อแล้ว: {version_info or self.gemini_cmd}")
+        self.update_chat_ui("System", "✅ CTF Mode พร้อมลุย! (เชื่อมต่อผ่าน Gemini CLI)")
+
+    def _init_api_fail(self, status_text, message):
+        self.status_label.configure(text=status_text)
+        self.update_chat_ui("System", message)
 
     def _build_env(self):
         """สร้าง environment variables ให้ subprocess โดยแนบ API key และ trust flag เข้าไป"""
@@ -172,6 +190,7 @@ class GeminiPage(ctk.CTkFrame):
             text=True,
             timeout=120,
             env=self._build_env(),
+            stdin=subprocess.DEVNULL,
         )
         combined_err = result.stderr.strip()
         if "UNAUTHENTICATED" in combined_err or "invalid authentication" in combined_err.lower():
