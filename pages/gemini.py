@@ -4,6 +4,7 @@ import os
 import re
 import subprocess
 import shutil
+import time
 
 
 class GeminiPage(ctk.CTkFrame):
@@ -23,6 +24,21 @@ class GeminiPage(ctk.CTkFrame):
         ctk.CTkButton(
             api_container, text="เชื่อมต่อ CLI", width=100, command=self.init_api
         ).pack(side="left", padx=10)
+
+        # dropdown เลือกโมเดล - สลับได้เองถ้าตัวไหนโควตาหมด
+        # หมายเหตุ: gemini-2.5-flash-lite ถูกจำกัดสำหรับ API key ใหม่แล้ว (ModelNotFoundError)
+        # รายการนี้เป็นโมเดล stable ที่ผู้ใช้ใหม่เข้าถึงได้ (เช็คล่าสุด ก.ค. 2026)
+        self.model_options = [
+            "gemini-3.1-flash-lite",
+            "gemini-2.5-flash",
+            "gemini-3.5-flash",
+            "gemini-2.5-pro",
+        ]
+        self.model_var = ctk.StringVar(value=self.model_options[0])
+        ctk.CTkOptionMenu(
+            api_container, values=self.model_options, variable=self.model_var,
+            width=160, command=self.on_model_change,
+        ).pack(side="left", padx=(0, 10))
 
         self.status_label = ctk.CTkLabel(
             self,
@@ -57,8 +73,11 @@ class GeminiPage(ctk.CTkFrame):
         # ตัวแปรควบคุม state
         self.cli_ready = False
         self.gemini_cmd = "gemini"          # ชื่อคำสั่ง CLI (แก้ตรงนี้ได้ถ้า path ไม่ตรง)
-        self.model_name = "gemini-2.5-flash"  # แก้เป็นโมเดลที่ CLI ของคุณรองรับ
+        self.model_name = self.model_options[0]  # ค่า default: gemini-2.5-flash-lite (โควตาสูงกว่า flash ปกติ)
         self.api_key = None  # ถ้าผู้ใช้กรอกมา จะส่งเป็น env var ให้ CLI ใช้แทน OAuth login
+        # CLI จำกัดสิทธิ์อ่าน/เขียนไฟล์ตาม working directory ที่รันอยู่ (workspace)
+        # ตั้งเป็น home directory เพื่อให้ครอบคลุมโฟลเดอร์ลูกอย่าง Downloads/Documents ด้วย
+        self.cli_workdir = os.path.expanduser("~")
 
         # เก็บ system prompt + ประวัติแชทไว้เอง เพราะ CLI แบบ one-shot ไม่มี session ให้
         self.system_prompt = (
@@ -74,6 +93,10 @@ class GeminiPage(ctk.CTkFrame):
     # ------------------------------------------------------------------
     # เชื่อมต่อ / เช็คว่ามี Gemini CLI ในเครื่องไหม
     # ------------------------------------------------------------------
+    def on_model_change(self, selected_model):
+        self.model_name = selected_model
+        self.update_chat_ui("System", f"🔄 เปลี่ยนไปใช้โมเดล: {selected_model}")
+
     def init_api(self):
         resolved_path = shutil.which(self.gemini_cmd)
         if resolved_path is None:
@@ -104,6 +127,7 @@ class GeminiPage(ctk.CTkFrame):
                 timeout=20,
                 env=self._build_env(),
                 stdin=subprocess.DEVNULL,
+                cwd=self.cli_workdir,
             )
             version_info = (res.stdout or res.stderr).strip()
 
@@ -115,6 +139,7 @@ class GeminiPage(ctk.CTkFrame):
                 timeout=60,
                 env=self._build_env(),
                 stdin=subprocess.DEVNULL,
+                cwd=self.cli_workdir,
             )
             combined = (test_res.stdout + test_res.stderr)
 
@@ -178,36 +203,76 @@ class GeminiPage(ctk.CTkFrame):
     # ------------------------------------------------------------------
     # เรียก Gemini CLI แบบ non-interactive
     # ------------------------------------------------------------------
-    def call_gemini_cli(self, prompt_text):
+    def call_gemini_cli(self, prompt_text, max_retries=3):
         """
         เรียก gemini CLI แบบ one-shot (-p) แล้วคืนค่า stdout
-        ปรับ flag ตรงนี้ให้ตรงกับเวอร์ชัน CLI ที่ติดตั้งจริง ถ้าจำเป็น
+        มี retry อัตโนมัติเมื่อเจอ 503/UNAVAILABLE (โมเดลโหลดสูงชั่วคราวฝั่ง Google)
         """
         cmd = [self.gemini_cmd, "-m", self.model_name, "-p", prompt_text]
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=120,
-            env=self._build_env(),
-            stdin=subprocess.DEVNULL,
-        )
-        combined_err = result.stderr.strip()
-        if "UNAUTHENTICATED" in combined_err or "invalid authentication" in combined_err.lower():
-            raise RuntimeError(
-                "Auth ไม่ผ่าน: กรุณา login ผ่าน `gemini` ในเทอร์มินัล หรือใส่ API Key แล้วกด 'เชื่อมต่อ CLI' ใหม่"
-            )
-        if result.returncode != 0 and not result.stdout.strip():
-            raise RuntimeError(combined_err or "Gemini CLI คืนค่า error โดยไม่มีรายละเอียด")
-        return (result.stdout or result.stderr).strip()
+        last_error = None
 
-    def build_prompt_with_history(self, new_user_text):
+        for attempt in range(1, max_retries + 1):
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=180,
+                env=self._build_env(),
+                stdin=subprocess.DEVNULL,
+                cwd=self.cli_workdir,
+            )
+            combined_err = result.stderr.strip()
+            combined_out = (result.stdout or "").strip()
+            full_text = combined_out + combined_err
+
+            if "UNAUTHENTICATED" in combined_err or "invalid authentication" in combined_err.lower():
+                raise RuntimeError(
+                    "Auth ไม่ผ่าน: กรุณา login ผ่าน `gemini` ในเทอร์มินัล หรือใส่ API Key แล้วกด 'เชื่อมต่อ CLI' ใหม่"
+                )
+
+            if "exhausted your daily quota" in full_text.lower() or "quotaerror" in full_text.lower():
+                raise RuntimeError(
+                    f"โควตารายวันของโมเดล '{self.model_name}' หมดแล้ว "
+                    f"ลองเปลี่ยนโมเดลจาก dropdown ด้านบน (เช่น gemini-3.1-flash-lite) แล้วลองใหม่ครับ"
+                )
+
+            if "modelnotfounderror" in full_text.lower() or "no longer available to new users" in full_text.lower():
+                raise RuntimeError(
+                    f"โมเดล '{self.model_name}' ไม่พร้อมใช้งานสำหรับ API key นี้ (อาจถูกจำกัดสำหรับ key ใหม่) "
+                    f"ลองเปลี่ยนโมเดลจาก dropdown ด้านบนเป็นตัวอื่น (เช่น gemini-2.5-flash หรือ gemini-3.5-flash) ครับ"
+                )
+
+            is_overloaded = (
+                '"status":503' in full_text.replace(" ", "")
+                or "UNAVAILABLE" in full_text
+                or "experiencing high demand" in full_text.lower()
+            )
+            if is_overloaded and attempt < max_retries:
+                last_error = full_text
+                self.after(
+                    0,
+                    self.update_chat_ui,
+                    "System",
+                    f"⏳ โมเดลกำลังโหลดสูง (503) กำลังลองใหม่ ({attempt}/{max_retries})...",
+                )
+                time.sleep(3 * attempt)  # รอเพิ่มขึ้นทีละรอบ (backoff)
+                continue
+
+            if result.returncode != 0 and not combined_out:
+                raise RuntimeError(combined_err or "Gemini CLI คืนค่า error โดยไม่มีรายละเอียด")
+            return (combined_out or combined_err).strip()
+
+        raise RuntimeError(f"โมเดลโหลดสูงต่อเนื่อง (503) ลองใหม่อีกครั้งภายหลังครับ\n\n{last_error}")
+
+    def build_prompt_with_history(self, new_user_text, max_history_turns=6):
         """
-        ต่อ system prompt + ประวัติแชทเดิม + ข้อความใหม่ เป็น prompt เดียว
+        ต่อ system prompt + ประวัติแชทล่าสุด (จำกัดจำนวนรอบ) + ข้อความใหม่ เป็น prompt เดียว
         เพื่อจำลอง 'session' เพราะ CLI แบบ one-shot ไม่มี state ให้เอง
+        จำกัดประวัติไว้ไม่ให้ยาวเกินไป ไม่งั้น CLI จะช้าลงเรื่อยๆ จนอาจ timeout
         """
         parts = [f"[SYSTEM INSTRUCTION]\n{self.system_prompt}\n"]
-        for role, text in self.history:
+        recent_history = self.history[-max_history_turns:]  # เอาแค่ N รอบล่าสุด (user+model นับรวมกัน)
+        for role, text in recent_history:
             tag = "USER" if role == "user" else "MODEL"
             parts.append(f"[{tag}]\n{text}\n")
         parts.append(f"[USER]\n{new_user_text}\n[MODEL]\n")
