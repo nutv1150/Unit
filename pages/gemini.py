@@ -18,7 +18,7 @@ class GeminiPage(ctk.CTkFrame):
         ctk.CTkButton(api_container, text="เชื่อมต่อ API", width=80, command=self.init_api).pack(side="left", padx=10)
 
         # --- 2. ส่วนหัวโปรแกรม ---
-        ctk.CTkLabel(self, text="GEMINI AI (CTF MODE)", font=("Impact", 50), text_color="#A9CCE3").pack(pady=10)
+        ctk.CTkLabel(self, text="GEMINI AI ", font=("Impact", 50), text_color="#A9CCE3").pack(pady=10)
         ctk.CTkLabel(self, text="Python SDK + Auto Save & Execute (Anti-Quota Ban)", font=("Arial", 12, "italic"), text_color="#5DADE2").place(relx=0.95, rely=0.8, anchor="e")
 
         # --- 3. กล่องแสดงแชท ---
