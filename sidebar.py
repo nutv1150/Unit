@@ -46,6 +46,5 @@ class Sidebar(ctk.CTkFrame):
         # ไฮไลท์ปุ่มก่อน
         self.update_button_styles(name)
         
-        # ⭐ แก้ไขแล้ว: เพิ่ม "Dashboard" เข้าไปในลิสต์หน้าต่างที่อนุญาตให้สลับได้
-        if name in ["Dashboard", "Data Hashing", "File Inspection", "Pipeline", "Gemini CLI"]:
-            self.callback(name)
+        # ⭐ ยิง callback ส่งชื่อหน้าไปให้ app.py จัดการเปลี่ยนหน้าได้เลย
+        self.callback(name)

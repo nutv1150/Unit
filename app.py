@@ -7,6 +7,7 @@ from pages.file_inspection import FileInspectionPage
 from pages.pipeline import PipelinePage
 from pages.gemini import GeminiPage
 from pages.dashboard import DashboardPage
+from pages.app_portal import AppPortalPage
 
 ctk.set_appearance_mode("Light")
 ctk.set_default_color_theme("blue")
@@ -40,6 +41,7 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
             "File Inspection": FileInspectionPage(self.container),
             "Pipeline": PipelinePage(self.container),
             "Gemini CLI": GeminiPage(self.container),
+            "App Portal": AppPortalPage(self.container),
         }
 
         self.current_page = None
