@@ -6,28 +6,89 @@ import subprocess
 import shutil
 import time
 
-
 class GeminiPage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
+        
+        # --- [ ธีมสี Cyberpunk / Terminal ] ---
+        BG_COLOR = "#0D0D12"        # ดำสนิทเหลือบน้ำเงิน
+        PANEL_COLOR = "#15151E"     # สีพื้นหลังกล่องควบคุม
+        ACCENT_CYAN = "#00FFFF"     # สีฟ้า Neon
+        ACCENT_GREEN = "#00FF41"    # สีเขียว Terminal
+        TEXT_DIM = "#8892B0"        # สีเทาตัวหนังสือทั่วไป
+        
+        self.configure(fg_color=BG_COLOR)
 
-        # --- 1. ส่วนเชื่อมต่อ Gemini CLI ---
-        api_container = ctk.CTkFrame(self, fg_color="transparent")
-        api_container.pack(pady=20, fill="x", padx=100)
+        # ==========================================
+        # 1. ส่วนหัวโปรแกรม (HEADER HUD)
+        # ==========================================
+        header_frame = ctk.CTkFrame(self, fg_color="transparent")
+        header_frame.pack(pady=(20, 10), fill="x")
+        
+        ctk.CTkLabel(
+            header_frame, 
+            text=">_ GEMINI_AI :: [CTF_MODE]", 
+            font=("Consolas", 42, "bold"), 
+            text_color=ACCENT_CYAN
+        ).pack()
+        
+        ctk.CTkLabel(
+            header_frame, 
+            text="SYSTEM_STATUS: WRAPPER ACTIVE | AUTO_EXEC: ENABLED", 
+            font=("Consolas", 12), 
+            text_color=ACCENT_GREEN
+        ).pack()
 
+        # ==========================================
+        # 2. แผงควบคุม API & Model (CONTROL PANEL)
+        # ==========================================
+        api_container = ctk.CTkFrame(
+            self, 
+            fg_color=PANEL_COLOR, 
+            border_color=ACCENT_CYAN, 
+            border_width=1, 
+            corner_radius=8
+        )
+        api_container.pack(pady=10, fill="x", padx=40)
+        
+        # จัด Layout ภายในแผงควบคุม
+        api_inner = ctk.CTkFrame(api_container, fg_color="transparent")
+        api_inner.pack(pady=15, padx=20, fill="x")
+
+        # Label API
+        ctk.CTkLabel(api_inner, text="🔑 API_KEY:", font=("Consolas", 14, "bold"), text_color=ACCENT_CYAN).pack(side="left", padx=(0, 10))
+
+        # ช่องใส่ API Key ดีไซน์ใหม่
         self.api_entry = ctk.CTkEntry(
-            api_container,
-            placeholder_text="(ถ้าไม่ได้ login gemini CLI ไว้) วาง API Key ที่นี่ - เว้นว่างได้ถ้า login แล้ว",
+            api_inner,
+            placeholder_text="Paste your token here (Leave blank if CLI is authenticated)...",
             show="*",
+            fg_color="#0A0A0F",
+            border_color="#333344",
+            text_color=ACCENT_CYAN,
+            font=("Consolas", 12),
+            height=35
         )
         self.api_entry.pack(side="left", fill="x", expand=True)
+
+        # ปุ่มโชว์/ซ่อน API Key
+        self.toggle_btn = ctk.CTkButton(
+            api_inner, text="👁", width=35, height=35, 
+            fg_color="#2B2B36", hover_color="#3A3A4A", text_color="white",
+            command=self.toggle_api_visibility
+        )
+        self.toggle_btn.pack(side="left", padx=5)
+
+        # ปุ่มเชื่อมต่อ
         ctk.CTkButton(
-            api_container, text="เชื่อมต่อ CLI", width=100, command=self.init_api
+            api_inner, text="[ CONNECT_CLI ]", width=120, height=35,
+            font=("Consolas", 12, "bold"),
+            fg_color="transparent", border_width=1, border_color=ACCENT_GREEN, text_color=ACCENT_GREEN,
+            hover_color="#003311",
+            command=self.init_api
         ).pack(side="left", padx=10)
 
-        # dropdown เลือกโมเดล - สลับได้เองถ้าตัวไหนโควตาหมด
-        # หมายเหตุ: gemini-2.5-flash-lite ถูกจำกัดสำหรับ API key ใหม่แล้ว (ModelNotFoundError)
-        # รายการนี้เป็นโมเดล stable ที่ผู้ใช้ใหม่เข้าถึงได้ (เช็คล่าสุด ก.ค. 2026)
+        # Dropdown Model
         self.model_options = [
             "gemini-3.1-flash-lite",
             "gemini-2.5-flash",
@@ -36,16 +97,23 @@ class GeminiPage(ctk.CTkFrame):
         ]
         self.model_var = ctk.StringVar(value=self.model_options[0])
         ctk.CTkOptionMenu(
-            api_container, values=self.model_options, variable=self.model_var,
-            width=160, command=self.on_model_change,
-        ).pack(side="left", padx=(0, 10))
+            api_inner, values=self.model_options, variable=self.model_var,
+            width=160, height=35,
+            font=("Consolas", 12),
+            fg_color="#1E1E2E", button_color="#2B2B36", button_hover_color="#3A3A4A",
+            command=self.on_model_change,
+        ).pack(side="left")
 
+        # สถานะการเชื่อมต่อ (ย้ายมาไว้ใต้กล่องแผงควบคุม)
         self.status_label = ctk.CTkLabel(
             self,
-            text="ยังไม่ได้เชื่อมต่อ Gemini CLI",
+            text="[!] WAITING FOR CONNECTION...",
+            font=("Consolas", 12, "italic"),
+            text_color=TEXT_DIM,
             anchor="w",
         )
-        self.status_label.pack(fill="x", padx=100)
+        self.status_label.pack(fill="x", padx=40)
+
 
         # --- 2. ส่วนหัวโปรแกรม ---
 
@@ -53,35 +121,54 @@ class GeminiPage(ctk.CTkFrame):
         ctk.CTkLabel(self, text="Python SDK + Auto Save & Execute (Anti-Quota Ban)", font=("Arial", 12, "italic"), text_color="#5DADE2").place(relx=0.95, rely=0.8, anchor="e")
 
 
-        # --- 3. กล่องแสดงแชท ---
-        self.chat_display = ctk.CTkTextbox(self, font=("Arial", 14), state="disabled", wrap="word")
-        self.chat_display.pack(expand=True, fill="both", padx=100, pady=10)
 
-        # --- 4. กล่องพิมพ์ข้อความ ---
+        # ==========================================
+        # 4. กล่องพิมพ์ข้อความ (COMMAND INPUT)
+        # ==========================================
         input_container = ctk.CTkFrame(self, fg_color="transparent")
-        input_container.pack(side="bottom", fill="x", padx=100, pady=20)
+        input_container.pack(side="bottom", fill="x", padx=40, pady=(5, 20))
+        
+        # Label หลอกให้ดูเหมือน Terminal Prompt
+        ctk.CTkLabel(
+            input_container, 
+            text="root@kali:~#", 
+            font=("Consolas", 16, "bold"), 
+            text_color="#FF3366" # สีแดง-ชมพู ให้เด่นๆ
+        ).pack(side="left", padx=(0, 10))
 
         self.input_field = ctk.CTkEntry(
             input_container,
-            placeholder_text="สั่งให้ AI วิเคราะห์ไฟล์ หรือรันคำสั่ง (เช่น 'รัน zsteg ดูรูปนี้หน่อย')",
-            height=40,
+            placeholder_text="Enter command or target file...",
+            height=45,
+            font=("Consolas", 14),
+            fg_color="#0A0A0F",
+            border_color=ACCENT_CYAN,
+            text_color="white"
         )
         self.input_field.pack(side="left", fill="x", expand=True)
         self.input_field.bind("<Return>", lambda event: self.send_message())
 
-        self.send_btn = ctk.CTkButton(input_container, text="Enter", width=80, height=40, command=self.send_message)
+        self.send_btn = ctk.CTkButton(
+            input_container, 
+            text="EXECUTE", 
+            width=100, height=45, 
+            font=("Consolas", 14, "bold"),
+            fg_color=ACCENT_CYAN, 
+            text_color="black",
+            hover_color="#00CCCC",
+            command=self.send_message
+        )
         self.send_btn.pack(side="left", padx=10)
 
-        # ตัวแปรควบคุม state
+        # ==========================================
+        # ตัวแปรควบคุม state & Logic (ไม่แตะต้อง)
+        # ==========================================
         self.cli_ready = False
-        self.gemini_cmd = "gemini"          # ชื่อคำสั่ง CLI (แก้ตรงนี้ได้ถ้า path ไม่ตรง)
-        self.model_name = self.model_options[0]  # ค่า default: gemini-2.5-flash-lite (โควตาสูงกว่า flash ปกติ)
-        self.api_key = None  # ถ้าผู้ใช้กรอกมา จะส่งเป็น env var ให้ CLI ใช้แทน OAuth login
-        # CLI จำกัดสิทธิ์อ่าน/เขียนไฟล์ตาม working directory ที่รันอยู่ (workspace)
-        # ตั้งเป็น home directory เพื่อให้ครอบคลุมโฟลเดอร์ลูกอย่าง Downloads/Documents ด้วย
+        self.gemini_cmd = "gemini"          
+        self.model_name = self.model_options[0]  
+        self.api_key = None  
         self.cli_workdir = os.path.expanduser("~")
 
-        # เก็บ system prompt + ประวัติแชทไว้เอง เพราะ CLI แบบ one-shot ไม่มี session ให้
         self.system_prompt = (
             "คุณคือ Cybersecurity Expert และ AI Assistant สำหรับแข่ง CTF "
             "คุณสามารถเซฟไฟล์ได้โดยใช้ [SAVE:ที่อยู่ไฟล์]...เนื้อหา...[/SAVE] "
@@ -90,11 +177,22 @@ class GeminiPage(ctk.CTkFrame):
             "ถ้าผู้ใช้แค่ทักทาย (เช่น พิมพ์ hello) หรือถามทฤษฎีทั่วไป ให้ตอบกลับด้วยข้อความธรรมดา ห้ามใช้แท็กใดๆ ทั้งสิ้น "
             "ให้ใช้แท็กเหล่านี้เฉพาะตอนที่จำเป็นต้อง 'รันคำสั่งเพื่อแก้โจทย์' หรือ 'เขียนไฟล์จริงๆ' เท่านั้น"
         )
-        self.history = []  # list ของ ("user"/"model", text)
+        self.history = []  
 
-    # ------------------------------------------------------------------
-    # เชื่อมต่อ / เช็คว่ามี Gemini CLI ในเครื่องไหม
-    # ------------------------------------------------------------------
+    # --- ฟังก์ชันใหม่เสริม UI (ซ่อน/โชว์ API Key) ---
+    def toggle_api_visibility(self):
+        """ฟังก์ชันสำหรับปุ่ม 👁 สลับดู API Key (ไม่กระทบ Logic)"""
+        if self.api_entry.cget("show") == "*":
+            self.api_entry.configure(show="")
+            self.toggle_btn.configure(text="🔒")
+        else:
+            self.api_entry.configure(show="*")
+            self.toggle_btn.configure(text="👁")
+
+    # ==================================================================
+    # ⬇️ LOGIC การทำงานทั้งหมดด้านล่างนี้ เหมือนเดิมเป๊ะ 100% ⬇️
+    # ==================================================================
+    
     def on_model_change(self, selected_model):
         self.model_name = selected_model
         self.update_chat_ui("System", f"🔄 เปลี่ยนไปใช้โมเดล: {selected_model}")
@@ -117,7 +215,6 @@ class GeminiPage(ctk.CTkFrame):
         self.status_label.configure(text="⏳ กำลังเชื่อมต่อ...")
         self.update_chat_ui("System", "กำลังเชื่อมต่อกับ Gemini CLI...")
 
-        # รันการเช็ค/ทดสอบ CLI ใน background thread เพื่อไม่ให้ UI ค้าง
         threading.Thread(target=self._init_api_worker, daemon=True).start()
 
     def _init_api_worker(self):
@@ -133,7 +230,6 @@ class GeminiPage(ctk.CTkFrame):
             )
             version_info = (res.stdout or res.stderr).strip()
 
-            # ทดสอบยิง prompt สั้นๆ จริงๆ เพื่อเช็คว่า auth ผ่านไหม (ไม่ใช่แค่เช็คว่ามีคำสั่ง)
             test_res = subprocess.run(
                 [self.gemini_cmd, "-m", self.model_name, "-p", "hi"],
                 capture_output=True,
@@ -167,26 +263,21 @@ class GeminiPage(ctk.CTkFrame):
     def _init_api_success(self, version_info):
         self.cli_ready = True
         self.api_entry.configure(state="disabled")
-        self.status_label.configure(text=f"✅ เชื่อมต่อแล้ว: {version_info or self.gemini_cmd}")
+        self.status_label.configure(text=f"✅ CONNECTED: {version_info or self.gemini_cmd}", text_color="#00FF41")
         self.update_chat_ui("System", "✅ CTF Mode พร้อมลุย! (เชื่อมต่อผ่าน Gemini CLI)")
 
     def _init_api_fail(self, status_text, message):
-        self.status_label.configure(text=status_text)
+        self.status_label.configure(text=status_text, text_color="#FF3366")
         self.update_chat_ui("System", message)
 
     def _build_env(self):
-        """สร้าง environment variables ให้ subprocess โดยแนบ API key และ trust flag เข้าไป"""
         env = os.environ.copy()
         if self.api_key:
             env["GEMINI_API_KEY"] = self.api_key
             env["GOOGLE_API_KEY"] = self.api_key
-        # ป้องกัน error "not running in a trusted directory" เวลารันแบบ non-interactive
         env["GEMINI_CLI_TRUST_WORKSPACE"] = "true"
         return env
 
-    # ------------------------------------------------------------------
-    # ส่งข้อความ
-    # ------------------------------------------------------------------
     def send_message(self):
         user_text = self.input_field.get().strip()
         if not user_text:
@@ -202,14 +293,7 @@ class GeminiPage(ctk.CTkFrame):
 
         threading.Thread(target=self.process_request, args=(user_text,), daemon=True).start()
 
-    # ------------------------------------------------------------------
-    # เรียก Gemini CLI แบบ non-interactive
-    # ------------------------------------------------------------------
     def call_gemini_cli(self, prompt_text, max_retries=3):
-        """
-        เรียก gemini CLI แบบ one-shot (-p) แล้วคืนค่า stdout
-        มี retry อัตโนมัติเมื่อเจอ 503/UNAVAILABLE (โมเดลโหลดสูงชั่วคราวฝั่ง Google)
-        """
         cmd = [self.gemini_cmd, "-m", self.model_name, "-p", prompt_text]
         last_error = None
 
@@ -257,7 +341,7 @@ class GeminiPage(ctk.CTkFrame):
                     "System",
                     f"⏳ โมเดลกำลังโหลดสูง (503) กำลังลองใหม่ ({attempt}/{max_retries})...",
                 )
-                time.sleep(3 * attempt)  # รอเพิ่มขึ้นทีละรอบ (backoff)
+                time.sleep(3 * attempt)
                 continue
 
             if result.returncode != 0 and not combined_out:
@@ -267,13 +351,8 @@ class GeminiPage(ctk.CTkFrame):
         raise RuntimeError(f"โมเดลโหลดสูงต่อเนื่อง (503) ลองใหม่อีกครั้งภายหลังครับ\n\n{last_error}")
 
     def build_prompt_with_history(self, new_user_text, max_history_turns=6):
-        """
-        ต่อ system prompt + ประวัติแชทล่าสุด (จำกัดจำนวนรอบ) + ข้อความใหม่ เป็น prompt เดียว
-        เพื่อจำลอง 'session' เพราะ CLI แบบ one-shot ไม่มี state ให้เอง
-        จำกัดประวัติไว้ไม่ให้ยาวเกินไป ไม่งั้น CLI จะช้าลงเรื่อยๆ จนอาจ timeout
-        """
         parts = [f"[SYSTEM INSTRUCTION]\n{self.system_prompt}\n"]
-        recent_history = self.history[-max_history_turns:]  # เอาแค่ N รอบล่าสุด (user+model นับรวมกัน)
+        recent_history = self.history[-max_history_turns:]
         for role, text in recent_history:
             tag = "USER" if role == "user" else "MODEL"
             parts.append(f"[{tag}]\n{text}\n")
@@ -286,7 +365,6 @@ class GeminiPage(ctk.CTkFrame):
             words = prompt.split()
             file_data = ""
 
-            # 1. แอบอ่านไฟล์ก่อนส่งคำถาม (ถ้าผู้ใช้พิมพ์พาธไฟล์มา)
             for word in words:
                 clean_path = word.strip('"\'')
                 if os.path.isfile(clean_path):
@@ -298,14 +376,12 @@ class GeminiPage(ctk.CTkFrame):
             if file_data:
                 enhanced_prompt = f"{prompt}\n{file_data}"
 
-            # 2. คุยกับ AI ครั้งแรก (ผ่าน CLI)
             full_prompt = self.build_prompt_with_history(enhanced_prompt)
             output = self.call_gemini_cli(full_prompt)
 
             self.history.append(("user", enhanced_prompt))
             self.history.append(("model", output))
 
-            # 🔥 3. ระบบ Agent: ดักจับแท็ก [EXEC] และรันคำสั่งอัตโนมัติ (ลิมิต 2 รอบกันโควตาพัง)
             exec_pattern = r"\[EXEC\](.*?)\[/EXEC\]"
             loop_count = 0
 
@@ -322,7 +398,6 @@ class GeminiPage(ctk.CTkFrame):
                     if not cmd_out:
                         cmd_out = "(คำสั่งทำงานสำเร็จ แต่ไม่มีข้อความตอบกลับ)"
 
-                    # 🛡️ ระบบป้องกันข้อความยาวเกินไป
                     if len(cmd_out) > 4000:
                         cmd_out = cmd_out[:4000] + "\n...[ข้อความถูกตัดทิ้งเนื่องจากยาวเกินไป]..."
 
@@ -342,7 +417,6 @@ class GeminiPage(ctk.CTkFrame):
         self.after(0, self.finish_response, output)
 
     def finish_response(self, output):
-        # 4. ดักจับเผื่อมีการสั่ง [SAVE:...] โค้ด
         save_pattern = r"\[SAVE:(.*?)\](.*?)\[/SAVE\]"
         matches = re.findall(save_pattern, output, re.DOTALL)
 
@@ -357,10 +431,8 @@ class GeminiPage(ctk.CTkFrame):
             except Exception as e:
                 output = output.replace(full_tag, f"\n\n❌ [ระบบ]: เซฟไฟล์ไม่สำเร็จ: {e}\n")
 
-        # เคลียร์หน้าจอแล้วแสดงผลสรุปสุดท้าย
         self.chat_display.configure(state="normal")
 
-        # ลบข้อความ [System] ที่โหลดๆ อยู่ออกให้หมด
         lines = self.chat_display.get("1.0", "end").split("\n")
         last_you_idx = 0
         for i, line in enumerate(reversed(lines)):
