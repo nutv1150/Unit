@@ -19,18 +19,20 @@ class DataHashPage(ctk.CTkFrame):
             "Base16", "Base58", "Base62",
             "Hex", "Binary", "Octal", "Decimal",
             "URL Encode",
+            "URL-safe Base64",
             "HTML Entity",
-            "Unicode Escape", "Reverse", "ROT13"
+            "Unicode Escape","Reverse","ROT13"
         ]
 
         self.decode_algos = [
             "Auto Detect", "Base64", "Base32",
-            "Base45", "Base85", "Base58", "Base62", "Ascii85",
+            "Base45", "Base85", "Base58", "Base62","Ascii85",
             "Base16", "Hex",
             "Binary", "Octal", "Decimal",
             "URL Decode",
+            "URL-safe Base64",
             "HTML Entity",
-            "Unicode Escape", "Reverse", "ROT13"
+            "Unicode Escape","Reverse","ROT13"
         ]
 
         self.hash_algos = [
@@ -38,8 +40,7 @@ class DataHashPage(ctk.CTkFrame):
             "sha384", "sha512",
             "sha3_224", "sha3_256",
             "sha3_384", "sha3_512",
-            "blake2b", "blake2s",
-            "shake_128", "shake_256"  # ⭐ เพิ่มตระกูล SHAKE เข้ามาที่นี่
+            "blake2b", "blake2s"
         ]
 
         # ⭐ Bitwise algorithms จาก Tools
@@ -121,14 +122,12 @@ class DataHashPage(ctk.CTkFrame):
         self.input_box = ctk.CTkTextbox(self, height=150)
         self.input_box.pack(fill="x", padx=20, pady=(5, 10))
 
-        # ⭐ Key สำหรับ Bitwise และระบุ Length สำหรับ SHAKE
+        # ⭐ Key สำหรับ Bitwise
         self.key_entry = ctk.CTkEntry(
             self,
-            placeholder_text="Optional Input (Key / Length)"
+            placeholder_text="Bitwise Key (Number)"
         )
         self.key_entry.pack(fill="x", padx=20, pady=5)
-        # ผูก event เพื่อให้เวลาพิมพ์ความยาว SHAKE แล้วอัปเดต Hash ทันที
-        self.key_entry.bind("<KeyRelease>", self.process_data)
 
         # =========================
         # OUTPUT SECTION
@@ -165,23 +164,17 @@ class DataHashPage(ctk.CTkFrame):
 
         self.input_box.bind("<KeyRelease>", self.process_data)
 
-
+    # =========================
     # Process Main Logic
+    # =========================
     def process_data(self, event=None):
-        data = self.input_box.get("1.0", "end").strip()  # อ่านข้อความทั้งหมดจาก textbox
-        algo = self.algo_menu.get() # อ่านอัลกอริทึมที่เลือก
-
-        # Dynamic Placeholder (อัปเดตคำใบ้ในกล่องตามโหมด)
-        if self.mode == "Bitwise":
-            self.key_entry.configure(placeholder_text="Bitwise Key (Number)")
-        elif self.mode == "Hash" and algo.startswith("shake_"):
-            self.key_entry.configure(placeholder_text="SHAKE Output Length (Bytes) - Default: 32")
-        else:
-            self.key_entry.configure(placeholder_text="Not used for this algorithm")
-
+        data = self.input_box.get("1.0", "end").strip()
+        algo = self.algo_menu.get()
 
         if not data:
             self.output_box.delete("1.0", "end")
+            self.current_detected_algo = None # เคลียร์ค่าที่เจอ
+            self.update_output_label()
             return
 
         try:
@@ -189,31 +182,27 @@ class DataHashPage(ctk.CTkFrame):
                 result = encode_data(data, algo)
 
             elif self.mode == "Decode":
-                result = decode_data(data, algo)
+                # ⭐ แก้ไข: ถ้าเป็น Auto Detect ให้ไปเรียกฟังก์ชันหลักมาตรงๆ เพื่อเอาชื่อด้วย
+                if algo == "Auto Detect":
+                    from Decode.base_decoder import auto_detect_decode
+                    detected_name, result = auto_detect_decode(data.encode())
+                    self.current_detected_algo = detected_name # บันทึกชื่อที่หาเจอไว้
+                else:
+                    result = decode_data(data, algo)
+                    self.current_detected_algo = algo # ถ้าไม่ได้ Auto ก็ใช้ชื่อจากเมนู
 
             elif self.mode == "Hash":
-                #  ตรวจสอบว่าเป็น SHAKE หรือไม่ ถ้าใช่ให้ดึงค่า Length มาใช้
-                if algo.startswith("shake_"):
-                    length_str = self.key_entry.get().strip()
-                    # ถ้าใส่เลขให้ใช้เลขนั้น ถ้าว่างหรือพิมพ์ผิดให้ใช้ 32
-                    length = int(length_str) if length_str.isdigit() and int(length_str) > 0 else 32
-                    result = hash_data(data, algo, length=length)
-                else:
-                    result = hash_data(data, algo)
+                result = hash_data(data, algo)
 
             elif self.mode == "Bitwise":
                 key = self.key_entry.get()
                 if not key:
-                    raise ValueError("Please provide a Key")
+                    raise ValueError("กรุณาใส่ Key")
 
-                if algo == "XOR Mask":
-                    result = bitwise_mask(data, key, "xor")
-                elif algo == "XOR Unmask":
-                    result = bitwise_unmask(data, key)
-                elif algo == "OR Mask":
-                    result = bitwise_mask(data, key, "or")
-                elif algo == "AND Mask":
-                    result = bitwise_mask(data, key, "and")
+                if algo == "XOR Mask": result = bitwise_mask(data, key, "xor")
+                elif algo == "XOR Unmask": result = bitwise_unmask(data, key)
+                elif algo == "OR Mask": result = bitwise_mask(data, key, "or")
+                elif algo == "AND Mask": result = bitwise_mask(data, key, "and")
 
             self.output_box.delete("1.0", "end")
             self.output_box.insert("1.0", result)
@@ -222,18 +211,20 @@ class DataHashPage(ctk.CTkFrame):
             self.output_box.delete("1.0", "end")
             self.output_box.insert("1.0", f"Error: {e}")
 
+        # อัปเดต Label หลังจากประมวลผลเสร็จ
         self.update_output_label()
 
-    def select_tab(self, name):
-        # โค้ดยังว่างไว้สำหรับฟังก์ชัน select_tab ของคุณ
-        pass
-
+    # =========================
     # Highlight Output
+    # =========================
     def search_output(self):
         highlight_text(self.output_box, self.search_entry.get())
 
+    # =========================
     # Browse File
+    # =========================
     def browse_file(self):
+
         file_path = filedialog.askopenfilename(
             filetypes=[("Text Files", "*.txt *.json *.log *.py *.md"), ("All Files", "*.*")]
         )
@@ -252,8 +243,11 @@ class DataHashPage(ctk.CTkFrame):
         except Exception as e:
             print("Read file error:", e)
 
+    # =========================
     # Toggle Mode
+    # =========================
     def toggle_mode(self):
+
         if self.mode == "Decode":
             self.mode = "Encode"
             self.algo_menu.configure(values=self.encode_algos)
@@ -280,9 +274,17 @@ class DataHashPage(ctk.CTkFrame):
 
         self.process_data()
 
-  
+    # =========================
     # Update Label
+    # =========================
     def update_output_label(self):
-        self.output_label_btn.configure(
-            text=f"{self.mode} • {self.algo_menu.get()}"
-        )
+        # ⭐ แก้ไข: ให้โชว์ป้ายกำกับเท่ๆ เวลาใช้งาน Auto Detect
+        if self.mode == "Decode" and self.algo_menu.get() == "Auto Detect":
+            detected = getattr(self, "current_detected_algo", "Unknown")
+            
+            if detected == "Unknown":
+                self.output_label_btn.configure(text="Auto Detect: ❓ Unknown", fg_color="#E74C3C")
+            else:
+                self.output_label_btn.configure(text=f"Auto Detect: 🎯 {detected}", fg_color="#2ECC71") # สีเขียวเมื่อตรวจเจอ
+        else:
+            self.output_label_btn.configure(text=f"{self.mode} • {self.algo_menu.get()}", fg_color="gray")
