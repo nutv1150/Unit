@@ -12,7 +12,7 @@ pipeline รัน CLI tools ภายนอก และตัวช่วย A
 จุดเข้าโปรแกรมคือ `app.py` — เป็น `ctk.CTk` ที่ผสม `TkinterDnD.DnDWrapper` เพื่อรองรับ drag & drop
 ไฟล์ทั้งแอป
 
-## การรันโปรแกรม
+## การรันโปรแกร,,
 
 ```bash
 python app.py
