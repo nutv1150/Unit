@@ -120,7 +120,20 @@ class GeminiPage(ctk.CTkFrame):
         ctk.CTkLabel(self, text="GEMINI AI ", font=("Impact", 50), text_color="#A9CCE3").pack(pady=10)
         ctk.CTkLabel(self, text="Python SDK + Auto Save & Execute (Anti-Quota Ban)", font=("Arial", 12, "italic"), text_color="#5DADE2").place(relx=0.95, rely=0.8, anchor="e")
 
-
+        # ==========================================
+        # 3. กล่องแสดงประวัติแชท (CHAT DISPLAY)
+        # ==========================================
+        self.chat_display = ctk.CTkTextbox(
+            self,
+            fg_color="#0A0A0F",
+            border_color="#333344",
+            border_width=1,
+            corner_radius=8,
+            text_color="#00FF41",
+            font=("Consolas", 13)
+        )
+        self.chat_display.pack(pady=10, fill="both", expand=True, padx=40)
+        self.chat_display.configure(state="disabled")
 
         # ==========================================
         # 4. กล่องพิมพ์ข้อความ (COMMAND INPUT)
