@@ -1,0 +1,16 @@
+[
+    {
+        "name": "Binwalk",
+        "desc": "qq",
+        "icon": "🛠️",
+        "check": "binwalk",
+        "cmd": "x-terminal-emulator -e bash -c 'echo -e \"\\e[1;36m[+] BINWALK MODULE READY (Use -e to extract)\\e[0m\"; read -e -i \"binwalk -e \" -p \"root@kali:~# \" cmd; eval \"$cmd\"; exec bash'x-terminal-emulator -e binwalk"
+    },
+    {
+        "name": "Firefox ESR",
+        "desc": "Custom Module",
+        "icon": "🛠️",
+        "check": "/usr/lib/firefox-esr/firefox-esr",
+        "cmd": "/usr/lib/firefox-esr/firefox-esr"
+    }
+]

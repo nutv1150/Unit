@@ -19,11 +19,48 @@ ACCENT_GREEN = "#00FF41"
 TEXT_DIM = "#8892B0"        
 ALERT_RED = "#FF3366"       
 
-# --- ⭐ คลาสหน้าต่าง Popup สำหรับเลือก Regex (Cyberpunk Theme) ---
+# --- ⭐ 1. คลาสสำหรับการสร้าง "กรอบ" ผลลัพธ์แยกแต่ละไฟล์ ---
+class ResultBox(ctk.CTkFrame):
+    def __init__(self, master, filename, app_root, **kwargs):
+        super().__init__(master, border_width=1, border_color="#333344", corner_radius=6, fg_color="#0A0A0F", **kwargs)
+        
+        self.header = ctk.CTkFrame(self, fg_color="#1E1E2E", corner_radius=4, height=35)
+        self.header.pack(fill="x", padx=1, pady=1)
+        self.header.pack_propagate(False)
+        
+        self.title = ctk.CTkLabel(self.header, text=f" 📄 {filename} ", font=("Consolas", 13, "bold"), text_color=ACCENT_CYAN)
+        self.title.pack(side="left", padx=10, pady=5)
+        
+        self.textbox = ctk.CTkTextbox(
+            self, fg_color="#050508", text_color=ACCENT_GREEN, 
+            font=("Consolas", 12), height=180, border_width=0
+        )
+        self.textbox.pack(fill="both", expand=True, padx=2, pady=(0, 2))
+        
+        self.textbox.tag_config("found", background=ACCENT_CYAN, foreground="#000000")
+        self.textbox.tag_config("error", foreground=ALERT_RED)
+        
+        self.app_root = app_root
+        self.context_menu = Menu(self, tearoff=0, bg=PANEL_COLOR, fg="white", activebackground=ACCENT_CYAN, activeforeground="black", font=("Consolas", 10))
+        self.context_menu.add_command(label="🚀 FORWARD TO HASHING MODULE", command=self.send_selection)
+        self.textbox.bind("<Button-3>", self.show_context_menu)
+
+    def send_selection(self):
+        try:
+            sel = self.textbox.get("sel.first", "sel.last").strip()
+            if sel and hasattr(self.app_root, "send_to_hashing"):
+                self.app_root.send_to_hashing(sel)
+        except: pass
+        
+    def show_context_menu(self, e):
+        if self.textbox.tag_ranges("sel"):
+            self.context_menu.tk_popup(e.x_root, e.y_root)
+
+
+# --- ⭐ 2. หน้าต่าง Popup สำหรับเลือก Regex ---
 class RegexSelectionPopup(ctk.CTkToplevel):
     def __init__(self, parent, current_regex, callback):
         super().__init__(parent)
-        
         self.withdraw()
         self.title("SELECT REGEX PATTERN :: [CONFIG]")
         self.geometry("650x580")
@@ -31,7 +68,6 @@ class RegexSelectionPopup(ctk.CTkToplevel):
         
         self.callback = callback
         self.parent = parent
-
         self.smart_db = parent.smart_db
         self.regex_previews = parent.regex_previews
         self.regex_var = ctk.StringVar(value=current_regex)
@@ -111,8 +147,7 @@ class RegexSelectionPopup(ctk.CTkToplevel):
                 self.custom_regex_entry.delete(0, "end")
                 self.custom_name_entry.delete(0, "end")
                 self.custom_desc_entry.delete(0, "end")
-            except Exception as e:
-                print("[!] REGEX COMPILE ERROR:", e)
+            except Exception as e: pass
 
     def clear_selection(self):
         self.regex_var.set("")
@@ -130,14 +165,13 @@ class RegexSelectionPopup(ctk.CTkToplevel):
         self.destroy()
 
 
-# --- ⭐ หน้าหลัก File Inspection (Cyberpunk + Batch Mode) ---
+# --- ⭐ 3. หน้าหลัก File Inspection ---
 class FileInspectionPage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
         self.app_root = master.master 
         self.configure(fg_color=BG_COLOR)
         
-        # ⭐ เปลี่ยนจากเก็บไฟล์เดียว เป็นเก็บเป็นลิสต์ (Array)
         self.selected_files = [] 
         self.regex_var = ctk.StringVar(value="") 
 
@@ -152,7 +186,7 @@ class FileInspectionPage(ctk.CTkFrame):
         }
 
         self.regex_previews = {
-            r"(?:0|\+66)[689]\d[- \.]?\d{3}[- \.]?\d{4}": "📱 THAI_MOBILE_NUM\nFind Thai mobile numbers (08x, 09x, 06x) supports +66",
+            r"(?:0|\+66)[689]\d[- \.]?\d{3}[- \.]?\d{4}": "📱 THAI_MOBILE_NUM\nFind Thai mobile numbers (08x, 09x, 06x)",
             r"FLAG\{.*?\}": "🎯 STD_FLAG\nStandard CTF flag format",
             r"(flag|ctf|picoCTF)\{[^}]+\}": "🌐 MULTI_CTF_FLAG\nCommon CTF platform formats (pico, HTB, etc.)",
             "": "💡 HOVER FOR DETAILS"
@@ -166,10 +200,9 @@ class FileInspectionPage(ctk.CTkFrame):
         header_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=(20, 5))
         ctk.CTkLabel(header_frame, text=">_ DATA_INSPECTOR :: [BATCH_SCAN]", font=("Consolas", 28, "bold"), text_color=ACCENT_CYAN).pack(side="left")
 
-        # 2. 🚀 Drag & Drop Zone (รองรับ Multiple Files)
+        # 2. 🚀 Drag & Drop Zone 
         self.drop_zone = ctk.CTkFrame(self, fg_color="#0A0A0F", corner_radius=4, border_width=1, border_color="#333344")
         self.drop_zone.grid(row=1, column=0, sticky="ew", padx=30, pady=10)
-        
         self.drop_zone.drop_target_register(DND_FILES)
         self.drop_zone.dnd_bind('<<Drop>>', self.on_drop)
 
@@ -180,7 +213,6 @@ class FileInspectionPage(ctk.CTkFrame):
         self.file_icon_label.pack(side="left", padx=10)
         self.file_label = ctk.CTkLabel(drop_inner, text="DRAG & DROP FILE(S) HERE OR CLICK TO BROWSE", text_color=TEXT_DIM, font=("Consolas", 12))
         self.file_label.pack(side="left", padx=10)
-        
         ctk.CTkButton(drop_inner, text="[ BROWSE ]", font=("Consolas", 12, "bold"), fg_color="transparent", border_width=1, border_color=ACCENT_CYAN, text_color=ACCENT_CYAN, hover_color="#003344", width=100, command=self.browse_file).pack(side="left", padx=10)
 
         # 3. 📊 File Metadata Card 
@@ -200,10 +232,8 @@ class FileInspectionPage(ctk.CTkFrame):
         action_frame.grid(row=3, column=0, sticky="ew", padx=30, pady=10)
 
         self.tool_menu = ctk.CTkOptionMenu(
-            action_frame, 
-            values=["Header Check", "Executable Check", "Strings", "zsteg Analysis"], 
-            width=180, height=35,
-            font=("Consolas", 12),
+            action_frame, values=["Header Check", "Executable Check", "Strings", "zsteg Analysis"], 
+            width=180, height=35, font=("Consolas", 12),
             fg_color="#1E1E2E", button_color="#2B2B36", button_hover_color="#3A3A4A",
             state="disabled", command=self.toggle_regex_button
         )
@@ -243,42 +273,118 @@ class FileInspectionPage(ctk.CTkFrame):
         )
         self.regex_status_label.pack(side="right", padx=10)
 
-        # 5. Output Terminal
+        # =========================================================================
+        # 5. Output Container (Split View)
+        # =========================================================================
         output_header = ctk.CTkFrame(self, fg_color="transparent")
         output_header.grid(row=4, column=0, sticky="ew", padx=30, pady=(5, 0))
-        ctk.CTkLabel(output_header, text="root@kali:~#", font=("Consolas", 14, "bold"), text_color=ALERT_RED).pack(side="left")
+        ctk.CTkLabel(output_header, text=">_ ANALYSIS_OUTPUT", font=("Consolas", 14, "bold"), text_color=ALERT_RED).pack(side="left")
+        ctk.CTkButton(output_header, text="[ CLEAR_ALL ]", font=("Consolas", 12, "bold"), width=100, height=28, fg_color="transparent", border_width=1, border_color=ALERT_RED, text_color=ALERT_RED, hover_color="#4A0011", command=self.clear_terminal).pack(side="right")
+
+        self.output_container = ctk.CTkFrame(self, fg_color="transparent")
+        self.output_container.grid(row=5, column=0, sticky="nsew", padx=30, pady=(5, 20))
+        self.output_container.grid_columnconfigure(1, weight=1)
+        self.output_container.grid_rowconfigure(0, weight=1)
+
+        self.file_nav_panel = ctk.CTkScrollableFrame(self.output_container, width=220, fg_color=PANEL_COLOR, border_width=1, border_color="#333344", corner_radius=4)
+        self.file_nav_panel.grid(row=0, column=0, sticky="ns", padx=(0, 10))
+        ctk.CTkLabel(self.file_nav_panel, text="[ OUTPUT_FILTER ]", font=("Consolas", 12, "bold"), text_color=TEXT_DIM).pack(pady=(5, 10))
+
+        self.results_scroll = ctk.CTkScrollableFrame(self.output_container, fg_color="#050508", border_width=1, border_color="#333344", corner_radius=4)
+        self.results_scroll.grid(row=0, column=1, sticky="nsew")
+
+        self.result_boxes = {}  
+        self.nav_buttons = {}   
+        self.current_view_id = "ALL"
+
+
+    # ==================================================================
+    # ⬇️ MULTI-VIEW TERMINAL LOGIC (สร้างกรอบแยก) ⬇️
+    # ==================================================================
+
+    def populate_file_nav(self):
+        for widget in self.file_nav_panel.winfo_children():
+            if isinstance(widget, ctk.CTkButton): widget.destroy()
+                
+        for box in self.result_boxes.values(): box.destroy()
         
-        ctk.CTkButton(output_header, text="[ CLEAR_TERM ]", font=("Consolas", 12, "bold"), width=100, height=28, fg_color="transparent", border_width=1, border_color=ALERT_RED, text_color=ALERT_RED, hover_color="#4A0011", command=self.clear_terminal).pack(side="right")
+        self.result_boxes.clear()
+        self.nav_buttons.clear()
 
-        self.output = ctk.CTkTextbox(
-            self, fg_color="#050508", text_color=ACCENT_GREEN, font=("Consolas", 13), 
-            border_width=1, border_color="#333344", corner_radius=4
+        btn_all = ctk.CTkButton(
+            self.file_nav_panel, text="🌟 [ ALL_RESULTS ]", anchor="w", font=("Consolas", 12, "bold"),
+            fg_color="transparent", hover_color="#2B2B36", text_color=TEXT_DIM,
+            command=lambda: self.switch_view("ALL")
         )
-        self.output.grid(row=5, column=0, sticky="nsew", padx=30, pady=(5, 20))
-        self.output.tag_config("found", background=ACCENT_CYAN, foreground="#000000") 
-        self.output.tag_config("error", foreground=ALERT_RED)
-        self.output.tag_config("header", foreground="#FFB800")
+        btn_all.pack(fill="x", pady=2, padx=5)
+        self.nav_buttons["ALL"] = btn_all
 
-        self.context_menu = Menu(self, tearoff=0, bg=PANEL_COLOR, fg="white", activebackground=ACCENT_CYAN, activeforeground="black", font=("Consolas", 10))
-        self.context_menu.add_command(label="🚀 FORWARD TO HASHING MODULE", command=self.send_selection)
-        self.output.bind("<Button-3>", self.show_context_menu)
+        for path in self.selected_files:
+            filename = os.path.basename(path)
+            
+            btn = ctk.CTkButton(
+                self.file_nav_panel, text=f"📄 {filename}", anchor="w", font=("Consolas", 11),
+                fg_color="transparent", hover_color="#2B2B36", text_color="white",
+                command=lambda p=path: self.switch_view(p)
+            )
+            btn.pack(fill="x", pady=2, padx=5)
+            self.nav_buttons[path] = btn
+            
+            box = ResultBox(self.results_scroll, filename, self.app_root)
+            self.result_boxes[path] = box
 
+        for btn in self.nav_buttons.values():
+            btn.bind("<Button-4>", lambda e: self.file_nav_panel._parent_canvas.yview_scroll(-1, "units"))
+            btn.bind("<Button-5>", lambda e: self.file_nav_panel._parent_canvas.yview_scroll(1, "units"))
+            btn.bind("<MouseWheel>", lambda e: self.file_nav_panel._parent_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
+
+        self.switch_view("ALL")
+
+    def switch_view(self, target_id):
+        self.current_view_id = target_id
+        
+        for t_id, btn in self.nav_buttons.items():
+            if t_id == target_id:
+                btn.configure(fg_color=ACCENT_CYAN, text_color="black")
+            else:
+                btn.configure(fg_color="transparent", text_color="white" if t_id != "ALL" else TEXT_DIM)
+                
+        for path, box in self.result_boxes.items():
+            if target_id == "ALL" or target_id == path:
+                box.pack(fill="x", padx=10, pady=(10, 5)) 
+            else:
+                box.pack_forget() 
+
+        try:
+            self.results_scroll._parent_canvas.yview_moveto(0)
+        except:
+            pass
+
+    def log(self, msg, tag=None, newline=True, target_file=None):
+        txt = msg + ("\n" if newline else "")
+        if target_file and target_file in self.result_boxes:
+            tb = self.result_boxes[target_file].textbox
+            tb.insert("end", txt, tag)
+            tb.see("end")
+
+    def safe_log(self, msg, tag=None, newline=True, target_file=None):
+        self.after(0, lambda: self.log(msg, tag, newline, target_file))
+
+    def clear_terminal(self):
+        for box in self.result_boxes.values():
+            box.textbox.delete("1.0", "end")
 
     # ==================================================================
     # ⬇️ BATCH LOGIC FUNCTIONS (รองรับหลายไฟล์) ⬇️
     # ==================================================================
 
     def on_drop(self, event):
-        # ⭐ การลากวางหลายไฟล์ของ Tkinter จะเชื่อมกันมาด้วยช่องว่าง
-        # ใช้ self.tk.splitlist เพื่อแยก String ออกเป็น List ของพาธไฟล์อย่างปลอดภัย
         raw_paths = self.tk.splitlist(event.data)
         self.load_files(raw_paths)
 
     def browse_file(self):
-        # ⭐ เปลี่ยนเป็น askopenfilenames เพื่อเลือกได้หลายไฟล์
         paths = filedialog.askopenfilenames()
-        if paths: 
-            self.load_files(paths)
+        if paths: self.load_files(paths)
 
     def load_files(self, paths):
         valid_paths = [p for p in paths if os.path.exists(p)]
@@ -307,16 +413,13 @@ class FileInspectionPage(ctk.CTkFrame):
 
     def update_metadata_card(self):
         self.meta_frame.grid() 
-        
         if len(self.selected_files) == 1:
-            # โหมด 1 ไฟล์ แสดงปกติ
             path = self.selected_files[0]
             size_bytes = os.path.getsize(path)
             size_str = self.format_size(size_bytes)
             ext = os.path.splitext(path)[1].lower() or "Unknown"
             threading.Thread(target=self._calc_md5, args=(path, size_str, ext), daemon=True).start()
         else:
-            # โหมด Batch รวมขนาดทั้งหมด
             total_bytes = sum(os.path.getsize(p) for p in self.selected_files)
             size_str = self.format_size(total_bytes)
             self.meta_size.configure(text=f"[TOTAL_SIZE]: {size_str}")
@@ -327,20 +430,15 @@ class FileInspectionPage(ctk.CTkFrame):
         md5 = hashlib.md5()
         try:
             with open(path, "rb") as f:
-                for chunk in iter(lambda: f.read(4096), b""):
-                    md5.update(chunk)
+                for chunk in iter(lambda: f.read(4096), b""): md5.update(chunk)
             result = md5.hexdigest()
-        except:
-            result = "Error"
+        except: result = "Error"
         self.after(0, lambda: self._update_meta_ui(size_str, ext, result))
         
     def _update_meta_ui(self, size_str, ext, md5_str):
         self.meta_size.configure(text=f"[SIZE]: {size_str}")
         self.meta_ext.configure(text=f"[EXT]: {ext}")
         self.meta_md5.configure(text=f"[MD5]: {md5_str}")
-
-    def clear_terminal(self):
-        self.output.delete("1.0", "end")
 
     def toggle_regex_button(self, mode):
         if mode == "Strings": 
@@ -356,7 +454,6 @@ class FileInspectionPage(ctk.CTkFrame):
     def update_selected_regex(self, new_regex):
         self.regex_var.set(new_regex)
         name = self.smart_db.get(new_regex, new_regex if new_regex else "None")
-        
         if new_regex:
             self.regex_status_label.configure(text=f" 🎯 FILTER: {name} ", fg_color=ACCENT_CYAN, text_color="black")
         else:
@@ -365,15 +462,13 @@ class FileInspectionPage(ctk.CTkFrame):
     def clear_main_regex(self):
         self.regex_var.set("")
         self.regex_status_label.configure(text=" 🔍 REGEX: NONE ", fg_color="#0A0A0F", text_color=TEXT_DIM)
-        self.safe_log("[*] REGEX PATTERN CLEARED.")
 
     def start_analysis_thread(self):
         if not self.selected_files: return
-        self.output.delete("1.0", "end")
+        
+        self.populate_file_nav()
         
         choice = self.tool_menu.get()
-        self.log(f"[*] INITIATING {choice.upper()} ON {len(self.selected_files)} TARGET(S)\n" + "="*60)
-
         self.btn_analyze.configure(state="disabled")
         self.tool_menu.configure(state="disabled")
         self.warning_label.configure(text="STATUS: PROCESSING...", text_color="#FFB800")
@@ -383,22 +478,11 @@ class FileInspectionPage(ctk.CTkFrame):
         threading.Thread(target=self._run_analysis_logic, args=(choice,), daemon=True).start()
 
     def _run_analysis_logic(self, choice):
-        # ⭐ State Tracking สำหรับ Batch ป้องกันโปรแกรมค้างเวลารัน 50 ไฟล์แล้วผลลัพธ์ล้นจอ
-        state = {
-            'match_count': 0, 
-            'display_count': 0, 
-            'max_display': 3000, 
-            'warned': False
-        }
+        state = {'match_count': 0, 'display_count': 0, 'max_display': 3000, 'warned': False}
 
         for path in self.selected_files:
-            # ถ้าเป็น Strings แล้วล้นจอ โดยที่ไม่ได้ใส่ Regex ให้หยุดแสดงผลไฟล์ที่เหลือ
             if choice == "Strings" and not self.regex_var.get() and state['warned']:
                 break
-
-            # ขีดเส้นแบ่งไฟล์แต่ละอันให้ดูง่ายๆ
-            self.safe_log(f"\n[*] TARGET: {os.path.basename(path)}", "header")
-            self.safe_log("-" * 45)
             
             if choice == "Header Check": self.inspect_file_header(path)
             elif choice == "Executable Check": self.check_if_executable(path)
@@ -409,14 +493,13 @@ class FileInspectionPage(ctk.CTkFrame):
 
     def check_if_executable(self, path):
         try:
-            with open(path, 'rb') as f: 
-                h = f.read(4)
+            with open(path, 'rb') as f: h = f.read(4)
             if h == b'\x7fELF': res = "Linux ELF (Executable)"
             elif h[:2] == b'MZ': res = "Windows EXE (Executable)"
             else: res = "Data File (Non-Executable)"
-            self.safe_log(f"[+] RESULT: {res}")
+            self.safe_log(f"[+] RESULT: {res}", target_file=path)
         except Exception as e:
-            self.safe_log(f"[!] EXECUTABLE CHECK ERROR: {str(e)}", "error")
+            self.safe_log(f"[!] EXECUTABLE CHECK ERROR: {str(e)}", "error", target_file=path)
 
     def inspect_file_header(self, path):
         try:
@@ -434,26 +517,26 @@ class FileInspectionPage(ctk.CTkFrame):
                 try: header_data.decode('utf-8'); res = "Plain Text (.txt / Code)"
                 except: res = "Unknown Binary Data"
             
-            self.safe_log(f"[+] DETECTED TYPE: {res}")
+            self.safe_log(f"[+] DETECTED TYPE: {res}", target_file=path)
         except Exception as e:
-            self.safe_log(f"[!] ERROR: {str(e)}", "error")
+            self.safe_log(f"[!] ERROR: {str(e)}", "error", target_file=path)
 
     def run_zsteg_analysis(self, path):
         ext = os.path.splitext(path)[1].lower()
         if ext not in [".png", ".bmp"]:
-            self.safe_log("[!] ZSTEG ERROR: TARGET MUST BE PNG OR BMP", "error")
+            self.safe_log("[!] ZSTEG ERROR: TARGET MUST BE PNG OR BMP", "error", target_file=path)
             return
         try:
             res = subprocess.run(["zsteg", path], capture_output=True, text=True)
-            self.safe_log(res.stdout if res.stdout else "[?] NO HIDDEN DATA DETECTED.")
-        except: self.safe_log("[!] ZSTEG COMMAND NOT FOUND IN SYSTEM PATH.", "error")
+            self.safe_log(res.stdout if res.stdout else "[?] NO HIDDEN DATA DETECTED.", target_file=path)
+        except: self.safe_log("[!] ZSTEG COMMAND NOT FOUND IN SYSTEM PATH.", "error", target_file=path)
 
     def extract_all_strings(self, path, state):
         p = self.regex_var.get()
         try:
             file_size = os.path.getsize(path)
             if file_size == 0:
-                self.safe_log("[!] TARGET FILE IS EMPTY.")
+                self.safe_log("[!] TARGET FILE IS EMPTY.", target_file=path)
                 return
 
             with open(path, "rb") as f:
@@ -461,41 +544,46 @@ class FileInspectionPage(ctk.CTkFrame):
                     found_iter = re.finditer(rb"[ -~]{4,}", mm)
                     
                     for match in found_iter:
-                        # หยุดถ้าถึงขีดจำกัดการพิมพ์ลงหน้าจอ (ป้องกันแอปค้าง)
+                        # หยุดถ้าแสดงผลครบลิมิตแล้ว (ถ้ามี p ให้ทำงานเงียบๆ ต่อเพื่อเก็บยอด match_count)
                         if state['display_count'] >= state['max_display'] and not p:
                             if not state['warned']:
-                                self.safe_log(f"\n[⚠️] REACHED BATCH DISPLAY LIMIT ({state['max_display']}). HALTING TO PREVENT HANG.", "error")
+                                self.safe_log(f"\n[⚠️] REACHED BATCH DISPLAY LIMIT ({state['max_display']}). HALTING TO PREVENT HANG.", "error", target_file=path)
                                 state['warned'] = True
                             break 
 
                         s = match.group()
                         line = s.decode(errors="ignore")
                         
+                        matches = []
                         if p:
                             matches = list(re.finditer(p, line, re.IGNORECASE))
                             if matches:
                                 state['match_count'] += len(matches)
                                 
-                                if state['display_count'] < state['max_display']:
-                                    self.safe_log("[+] MATCH: ", newline=False)
-                                    lp = 0
-                                    for m in matches: 
-                                        st, en = m.span()
-                                        self.safe_log(line[lp:st], newline=False)
-                                        self.safe_log(line[st:en], "found", newline=False)
-                                        lp = en
-                                    self.safe_log(line[lp:])
-                                    state['display_count'] += 1
-                                elif state['display_count'] == state['max_display']:
-                                    self.safe_log(f"\n[⚠️] REACHED DISPLAY LIMIT ({state['max_display']}). PROCESSING REMAINDER IN BACKGROUND...", "error")
-                                    state['display_count'] += 1 
-                        else: 
-                            if state['display_count'] < state['max_display']:
-                                self.safe_log(f"  {line}")
-                                state['display_count'] += 1
+                        if state['display_count'] < state['max_display']:
+                            if matches:
+                                # ไฮไลท์เฉพาะบรรทัดที่เจอ (สาดสีฟ้า)
+                                self.safe_log("  ", newline=False, target_file=path)
+                                lp = 0
+                                for m in matches: 
+                                    st, en = m.span()
+                                    self.safe_log(line[lp:st], newline=False, target_file=path)
+                                    self.safe_log(line[st:en], "found", newline=False, target_file=path)
+                                    lp = en
+                                self.safe_log(line[lp:], target_file=path)
+                            else:
+                                # บรรทัดปกติ พิมพ์ออกมาตามปกติ
+                                self.safe_log(f"  {line}", target_file=path)
+                                
+                            state['display_count'] += 1
+                        elif state['display_count'] == state['max_display']:
+                            if not state['warned']:
+                                self.safe_log(f"\n[⚠️] REACHED DISPLAY LIMIT ({state['max_display']}). PROCESSING REMAINDER IN BACKGROUND...", "error", target_file=path)
+                                state['warned'] = True
+                            state['display_count'] += 1 
                                 
         except Exception as e: 
-            self.safe_log(f"[!] STRINGS EXTRACTION ERROR: {str(e)}", "error")
+            self.safe_log(f"[!] STRINGS EXTRACTION ERROR: {str(e)}", "error", target_file=path)
 
     def finish_analysis(self, choice, total_matches):
         self.progress_bar.stop()
@@ -508,7 +596,6 @@ class FileInspectionPage(ctk.CTkFrame):
         else:
             self.warning_label.configure(text="STATUS: COMPLETE", text_color=ACCENT_GREEN)
 
-    # --- UI Helpers ---
     def show_regex_info(self):
         info_window = ctk.CTkToplevel(self)
         info_window.withdraw()
@@ -540,19 +627,3 @@ class FileInspectionPage(ctk.CTkFrame):
         info_window.deiconify()
         info_window.lift()
         info_window.focus_force()
-
-    def log(self, msg, tag=None, newline=True):
-        self.output.insert("end", msg + ("\n" if newline else ""), tag)
-        self.output.see("end")
-
-    def safe_log(self, msg, tag=None, newline=True):
-        self.after(0, lambda: self.log(msg, tag, newline))
-
-    def send_selection(self):
-        try:
-            sel = self.output.get("sel.first", "sel.last").strip()
-            if sel and hasattr(self.app_root, "send_to_hashing"): self.app_root.send_to_hashing(sel)
-        except: pass
-        
-    def show_context_menu(self, e):
-        if self.output.tag_ranges("sel"): self.context_menu.tk_popup(e.x_root, e.y_root)
