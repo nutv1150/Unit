@@ -1,4 +1,3 @@
-
 {
     "saved_pipelines": [
         {
@@ -87,7 +86,84 @@
                     "options": []
                 }
             ]
+        },
+        {
+            "pipeline_name": "Untitled",
+            "steps": [
+                {
+                    "name": "strings",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                },
+                {
+                    "name": "grep",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-E",
+                            "type": "text",
+                            "description": "[A-Za-z0-9+/]{20,}={0,2}"
+                        }
+                    ]
+                },
+                {
+                    "name": "base64_decode",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                },
+                {
+                    "name": "openssl enc",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-d",
+                            "type": "text",
+                            "description": "-aes-128-ecb -nopad"
+                        },
+                        {
+                            "flag": "-K",
+                            "type": "text",
+                            "description": "4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A"
+                        },
+                        {
+                            "flag": "-in",
+                            "type": "text",
+                            "description": "hidden_payload.iso -out final.iso"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "pipeline_name": "Untitled",
+            "steps": [
+                {
+                    "name": "openssl enc",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-d",
+                            "type": "checkbox",
+                            "description": "-aes-128-ecb -nopad"
+                        },
+                        {
+                            "flag": "-K",
+                            "type": "checkbox",
+                            "description": "4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A"
+                        },
+                        {
+                            "flag": "-in",
+                            "type": "checkbox",
+                            "description": "hidden_payload.iso -out decrypted.iso"
+                        }
+                    ]
+                }
+            ]
         }
     ]
 }
-

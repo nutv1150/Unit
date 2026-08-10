@@ -6,6 +6,21 @@ from Pipeline.pipeline_engine import PipelineEngine
 import tempfile
 import os
 
+# ==========================================
+# ธีมสีหลัก (Cyberpunk / Terminal)
+# ให้ตรงกับหน้า Gemini CLI / App Portal / File Inspection
+# ==========================================
+BG_COLOR = "#0D0D12"        # ดำสนิทเหลือบน้ำเงิน (พื้นหลังหน้า)
+PANEL_COLOR = "#15151E"     # พื้นหลังกล่อง/แผงควบคุม
+CARD_COLOR = "#1E1E2A"      # พื้นหลัง node / การ์ดย่อย
+INPUT_BG = "#0A0A0F"        # พื้นหลังช่องกรอกข้อมูล/canvas/กล่องข้อความ
+BORDER_COLOR = "#333344"    # เส้นขอบทั่วไป
+ACCENT_CYAN = "#00FFFF"     # สีฟ้า Neon (ปุ่มหลัก/หัวข้อ)
+ACCENT_GREEN = "#00FF41"    # สีเขียว Terminal (สถานะ/ยืนยัน)
+ACCENT_PURPLE = "#6f63ff"   # สีม่วง Neon (node/เส้นเชื่อม pipeline)
+TEXT_DIM = "#8892B0"        # สีเทาตัวหนังสือทั่วไป
+ALERT_RED = "#FF3366"       # สีแดง-ชมพู (ลบ/ล้าง/อันตราย)
+
 
 class PipelinePage(ctk.CTkFrame):
     def __init__(self, master):
@@ -13,22 +28,27 @@ class PipelinePage(ctk.CTkFrame):
         self.run_logs = []
         self.engine = PipelineEngine() #เชื่อมกับ backend
 
-        self.configure(fg_color="#ececec")
+        self.configure(fg_color=BG_COLOR)
         self.nodes = []      # เก็บข้อมูล Node ทั้งหมด
         self.node_count = 0
         self.is_auto = True
 
         # --- Header ---
-        self.title_label = ctk.CTkLabel(self, text="Pipeline", font=ctk.CTkFont(size=22, weight="bold"), text_color="black")
-        self.title_label.pack(anchor="w", padx=20, pady=(10, 5))
-        
+        self.title_label = ctk.CTkLabel(
+            self, text=">_ PIPELINE :: MULTI-STEP EXEC",
+            font=("Consolas", 24, "bold"), text_color=ACCENT_CYAN
+        )
+        self.title_label.pack(anchor="w", padx=20, pady=(15, 5))
+
         self.content_row = ctk.CTkFrame(self, fg_color="transparent")
-        self.content_row.pack(fill="both", expand=True, padx=20, pady=20)
+        self.content_row.pack(fill="both", expand=True, padx=20, pady=(0, 20))
 
         # --- Tools Panel (ด้านซ้าย) ---
         self.tools_panel = ctk.CTkScrollableFrame(
             self.content_row,
-            fg_color="#f7f7f7",
+            fg_color=PANEL_COLOR,
+            border_width=1,
+            border_color=BORDER_COLOR,
             width=230,
             corner_radius=10
         )
@@ -36,7 +56,11 @@ class PipelinePage(ctk.CTkFrame):
         self.tools_panel.pack(side="left", fill="y", padx=(0, 15))
         self.tools_panel.configure(height=600)
 
-        ctk.CTkLabel(self.tools_panel, text="All Tools", font=ctk.CTkFont(size=14, weight="bold")).pack(pady=(15, 10), padx=15, anchor="w")
+        ctk.CTkLabel(
+            self.tools_panel, text="ALL_TOOLS",
+            font=ctk.CTkFont(family="Consolas", size=14, weight="bold"),
+            text_color=ACCENT_CYAN
+        ).pack(pady=(15, 10), padx=15, anchor="w")
 
         tool_categories = self.load_tools_from_json()
 
@@ -50,7 +74,8 @@ class PipelinePage(ctk.CTkFrame):
             ctk.CTkLabel(
                 header_frame,
                 text=cat,
-                font=ctk.CTkFont(size=13, weight="bold")
+                font=ctk.CTkFont(family="Consolas", size=13, weight="bold"),
+                text_color=ACCENT_GREEN
             ).pack(side="left")
 
             # 3. แสดงรายชื่อ Tool
@@ -58,7 +83,8 @@ class PipelinePage(ctk.CTkFrame):
                 lbl = ctk.CTkLabel(
                     self.tools_panel,
                     text=f"  • {tool}",
-                    font=ctk.CTkFont(size=12),
+                    font=ctk.CTkFont(family="Consolas", size=12),
+                    text_color=TEXT_DIM,
                     cursor="hand2"
                 )
                 lbl.pack(padx=15, anchor="w")
@@ -67,42 +93,52 @@ class PipelinePage(ctk.CTkFrame):
                     lbl.bind("<Button-1>", lambda e, name=tool: self.load_saved_pipeline_to_canvas(name))
                 else:
                     lbl.bind("<Button-1>", lambda e, t=tool: self.add_tool_node(t))
-            
+
             # 4. เพิ่มปุ่ม + Add Pipeline ไว้ด้านใต้สุดของหมวด Pipelines
             if cat in ["Pipelines", "Saved Pipelines"]:
                 ctk.CTkButton(
                     self.tools_panel,
                     text="+ Add Pipeline",
                     command=self.open_pipeline_wizard,
-                    fg_color="transparent", 
-                    border_width=1, 
-                    border_color="#ccc", 
-                    text_color="black", 
-                    hover_color="#eee"
+                    fg_color="transparent",
+                    border_width=1,
+                    border_color=ACCENT_PURPLE,
+                    text_color=ACCENT_PURPLE,
+                    hover_color=CARD_COLOR
                 ).pack(fill="x", padx=15, pady=(5, 10))
 
-        self.add_btn = ctk.CTkButton(self.tools_panel,text="+ Add Tools",command=self.open_add_tool_window, fg_color="transparent", border_width=1, border_color="#ccc", text_color="black", hover_color="#eee")
+        self.add_btn = ctk.CTkButton(
+            self.tools_panel, text="+ Add Tools", command=self.open_add_tool_window,
+            fg_color="transparent", border_width=1, border_color=ACCENT_CYAN,
+            text_color=ACCENT_CYAN, hover_color=CARD_COLOR
+        )
         self.add_btn.pack(fill="x", padx=15, pady=20)
 
         # --- Work Area (ตรงกลาง) ---
-        self.work_area = ctk.CTkFrame(self.content_row, fg_color="white", corner_radius=10)
+        self.work_area = ctk.CTkFrame(
+            self.content_row, fg_color=PANEL_COLOR,
+            border_width=1, border_color=BORDER_COLOR, corner_radius=10
+        )
         self.work_area.pack(side="left", fill="both", expand=True)
 
         # --- Top Controls ---
         self.controls = ctk.CTkFrame(self.work_area, fg_color="transparent")
         self.controls.pack(fill="x", padx=15, pady=15)
 
-        self.step_btn = ctk.CTkButton(self.controls, text="Auto Mode", fg_color="#2eb85c", width=100, command=self.toggle_mode)
+        self.step_btn = ctk.CTkButton(
+            self.controls, text="Auto Mode", fg_color=ACCENT_GREEN, text_color="black",
+            hover_color="#00CC33", width=100, command=self.toggle_mode
+        )
         self.step_btn.pack(side="left", padx=2)
 
         # Run
         self.run_btn = ctk.CTkButton(
             self.controls,
             text="Run All",
-            fg_color="#dcdcdc",
+            fg_color=ACCENT_CYAN,
             text_color="black",
             width=80,
-            hover_color="#ccc",
+            hover_color="#00CCCC",
             command=self.run_pipeline
         )
         self.run_btn.pack(side="left", padx=2)
@@ -111,10 +147,12 @@ class PipelinePage(ctk.CTkFrame):
         self.clear_btn = ctk.CTkButton(
             self.controls,
             text="Clear",
-            fg_color="#dcdcdc",
-            text_color="black",
+            fg_color="transparent",
+            border_width=1,
+            border_color=ALERT_RED,
+            text_color=ALERT_RED,
             width=80,
-            hover_color="#ccc",
+            hover_color="#331119",
             command=self.clear_pipeline
         )
         self.clear_btn.pack(side="left", padx=2)
@@ -129,55 +167,67 @@ class PipelinePage(ctk.CTkFrame):
                 "Stego Scan",
                 "Forensics Scan"
             ],
+            fg_color=INPUT_BG,
+            button_color=PANEL_COLOR,
+            button_hover_color=BORDER_COLOR,
+            text_color=ACCENT_CYAN,
+            dropdown_fg_color=PANEL_COLOR,
+            dropdown_text_color=ACCENT_CYAN,
             command=self.load_template
         )
 
         self.template_opt.pack(side="left", padx=2)
 
         # --- Canvas Area ---
-        self.canvas_container = ctk.CTkFrame(self.work_area, fg_color="#1a1a1a", corner_radius=8)
-        self.canvas_container.pack(fill="both", expand=True, padx=15)
+        self.canvas_container = ctk.CTkFrame(self.work_area, fg_color=INPUT_BG, corner_radius=8)
+        self.canvas_container.pack(fill="both", expand=True, padx=15, pady=(0, 15))
 
-        self.line_canvas = tk.Canvas(self.canvas_container, bg="#1a1a1a", highlightthickness=0)
+        self.line_canvas = tk.Canvas(self.canvas_container, bg=INPUT_BG, highlightthickness=0)
         self.line_canvas.pack(fill="both", expand=True)
 
-        self.placeholder = ctk.CTkLabel(self.line_canvas, text="Pipeline Flow Canvas Area", text_color="#555")
+        self.placeholder = ctk.CTkLabel(
+            self.line_canvas, text="[ PIPELINE FLOW CANVAS — คลิก tool ด้านซ้ายเพื่อเริ่ม ]",
+            font=("Consolas", 12), text_color=TEXT_DIM
+        )
         self.placeholder.place(relx=0.5, rely=0.5, anchor="center")
 
         self.bind("<Visibility>", self.on_show_page)
+
     # ใช้เช็คว่ามี pipeline หรือยัง
     def on_show_page(self, event):
         if not self.nodes:
             self.check_pipeline_status()
         self.unbind("<Visibility>")
+
     # สลับโหมด Auto / Step-by-Step
     def toggle_mode(self):
         self.is_auto = not self.is_auto
         if self.is_auto:
-            self.step_btn.configure(text="Auto Mode", fg_color="#2eb85c")
+            self.step_btn.configure(text="Auto Mode", fg_color=ACCENT_GREEN, text_color="black")
             print("Switched to Auto Mode")
         else:
-            self.step_btn.configure(text="Step-by-Step", fg_color="#4f87ff")
+            self.step_btn.configure(text="Step-by-Step", fg_color=ACCENT_CYAN, text_color="black")
             print("Switched to Step-by-Step Mode")
+
     # เพิ่ม node (tool) ลง canvas
-    def add_tool_node(self, tool_name, user_desc=""): 
+    def add_tool_node(self, tool_name, user_desc=""):
         if self.node_count == 0:
             self.placeholder.place_forget()
 
         self.node_count += 1
-        
-        node = ctk.CTkFrame(self.line_canvas, fg_color="#333333", corner_radius=4, 
-                            border_width=1, border_color="#6f63ff", width=110, height=35)
-        
+
+        node = ctk.CTkFrame(self.line_canvas, fg_color=CARD_COLOR, corner_radius=4,
+                            border_width=1, border_color=ACCENT_PURPLE, width=110, height=35)
+
         x_pos = 50 + (len(self.nodes) * 160)
         y_pos = 50 + ((len(self.nodes) % 3) * 60)
         node.place(x=x_pos, y=y_pos)
 
-        lbl = ctk.CTkLabel(node, text=tool_name, font=ctk.CTkFont(size=11, weight="bold"), text_color="white")
+        lbl = ctk.CTkLabel(node, text=tool_name, font=ctk.CTkFont(family="Consolas", size=11, weight="bold"), text_color=ACCENT_CYAN)
         lbl.place(relx=0.5, rely=0.5, anchor="center")
-        
-        ctk.CTkFrame(node, width=6, height=6, corner_radius=3, fg_color="#555").place(relx=0, rely=0.5, anchor="center")
-        ctk.CTkFrame(node, width=6, height=6, corner_radius=3, fg_color="#6f63ff").place(relx=1, rely=0.5, anchor="center")
+
+        ctk.CTkFrame(node, width=6, height=6, corner_radius=3, fg_color=TEXT_DIM).place(relx=0, rely=0.5, anchor="center")
+        ctk.CTkFrame(node, width=6, height=6, corner_radius=3, fg_color=ACCENT_GREEN).place(relx=1, rely=0.5, anchor="center")
 
         node_data = {
             'frame': node,
@@ -193,6 +243,7 @@ class PipelinePage(ctk.CTkFrame):
             item.bind("<B1-Motion>", lambda e, n=node_data: self.on_node_drag(e, n))
 
         self.draw_connections()
+
     # เริ่มลาก node
     def on_node_press(self, event, node_data):
         self.current_node = node_data
@@ -201,6 +252,7 @@ class PipelinePage(ctk.CTkFrame):
             'y': event.y
         }
         node_data['frame'].lift()
+
     # ลาก node
     def on_node_drag(self, event, node_data):
         if 'drag_data' not in node_data:
@@ -214,6 +266,7 @@ class PipelinePage(ctk.CTkFrame):
 
         node_data['frame'].place(x=new_x, y=new_y)
         self.draw_connections()
+
     # วาดเส้นเชื่อมระหว่าง node
     def draw_connections(self):
         self.line_canvas.delete("line")
@@ -222,19 +275,20 @@ class PipelinePage(ctk.CTkFrame):
         for i in range(len(self.nodes) - 1):
             n1 = self.nodes[i]['frame']
             n2 = self.nodes[i+1]['frame']
-            
+
             x1 = n1.winfo_x() + n1.winfo_width()
             y1 = n1.winfo_y() + (n1.winfo_height() / 2)
             x2 = n2.winfo_x()
             y2 = n2.winfo_y() + (n2.winfo_height() / 2)
-            
-            if x1 < 10 or x2 < 10: continue 
+
+            if x1 < 10 or x2 < 10: continue
 
             dist = abs(x2 - x1) / 2
             self.line_canvas.create_line(
                 x1, y1, x1 + dist, y1, x2 - dist, y2, x2, y2,
-                fill="#6f63ff", width=2, smooth=True, tags="line", arrow=tk.LAST
+                fill=ACCENT_CYAN, width=2, smooth=True, tags="line", arrow=tk.LAST
             )
+
     # รัน pipeline ทั้งหมด
     def run_pipeline(self):
         if not self.nodes:
@@ -264,6 +318,7 @@ class PipelinePage(ctk.CTkFrame):
             })
 
             current_data = output
+
     # ล้าง pipeline
     def clear_pipeline(self):
         print("Clearing pipeline...")
@@ -272,12 +327,14 @@ class PipelinePage(ctk.CTkFrame):
         self.nodes.clear()
         self.node_count = 0
         self.line_canvas.delete("line")
+
     # สร้างไฟล์ temp จาก data
     def write_temp_file(self, data):
         tmp = tempfile.NamedTemporaryFile(delete=False)
         tmp.write(data)
         tmp.close()
         return tmp.name
+
     # เปิด popup ของแต่ละ step
     def open_step_window(self, node, previous_output, original_data, logs, is_last):
 
@@ -287,19 +344,24 @@ class PipelinePage(ctk.CTkFrame):
         win.title(f"{tool_name} Step")
         win.geometry("1000x620")
         win.attributes("-topmost", True)
+        win.configure(fg_color=BG_COLOR)
 
-        container = ctk.CTkFrame(win)
+        container = ctk.CTkFrame(win, fg_color="transparent")
         container.pack(fill="both", expand=True, padx=10, pady=10)
 
         # ---------------- LEFT PANEL ----------------
-        left = ctk.CTkFrame(container, width=520)
-        left.pack(side="left", fill="both", expand=True, padx=(0,5))
+        left = ctk.CTkFrame(container, width=520, fg_color=PANEL_COLOR, border_width=1, border_color=BORDER_COLOR)
+        left.pack(side="left", fill="both", expand=True, padx=(0, 5))
 
-        ctk.CTkLabel(left, text="Pipeline Output History",
-            font=ctk.CTkFont(size=13, weight="bold")
-        ).pack(anchor="w", padx=10, pady=(10,0))
+        ctk.CTkLabel(
+            left, text="PIPELINE OUTPUT HISTORY",
+            font=ctk.CTkFont(family="Consolas", size=13, weight="bold"), text_color=ACCENT_CYAN
+        ).pack(anchor="w", padx=10, pady=(10, 0))
 
-        output_box = ctk.CTkTextbox(left)
+        output_box = ctk.CTkTextbox(
+            left, fg_color=INPUT_BG, border_width=1, border_color=BORDER_COLOR,
+            text_color=ACCENT_GREEN, font=("Consolas", 12)
+        )
         output_box.pack(fill="both", expand=True, padx=10, pady=10)
 
         def send_selected_to_input():
@@ -350,40 +412,50 @@ class PipelinePage(ctk.CTkFrame):
                 return
             win.attributes("-topmost", False)
             path = filedialog.asksaveasfilename(parent=win, defaultextension=".txt")
-            win.attributes("-topmost", True) 
+            win.attributes("-topmost", True)
 
             if path:
-                with open(path,"wb") as f:
+                with open(path, "wb") as f:
                     f.write(result["output"])
 
-        ctk.CTkButton(left,text="Save Output as File", command=save_output).pack(pady=5)
+        ctk.CTkButton(
+            left, text="Save Output as File", command=save_output,
+            fg_color="transparent", border_width=1, border_color=ACCENT_CYAN,
+            text_color=ACCENT_CYAN, hover_color=CARD_COLOR
+        ).pack(pady=5)
 
         # ---------------- RIGHT PANEL ----------------
-        right = ctk.CTkFrame(container, width=380)
-        right.pack(side="left", fill="y", padx=(5,0))
+        right = ctk.CTkFrame(container, width=380, fg_color=PANEL_COLOR, border_width=1, border_color=BORDER_COLOR)
+        right.pack(side="left", fill="y", padx=(5, 0))
 
-        ctk.CTkLabel(right, text=tool_name, font=ctk.CTkFont(size=16, weight="bold")).pack(pady=10)
+        ctk.CTkLabel(
+            right, text=tool_name, font=ctk.CTkFont(family="Consolas", size=16, weight="bold"),
+            text_color=ACCENT_CYAN
+        ).pack(pady=10)
 
         # -------- Input --------
-        ctk.CTkLabel(right,text="Input").pack(anchor="w", padx=20)
+        ctk.CTkLabel(right, text="Input", text_color=TEXT_DIM).pack(anchor="w", padx=20)
 
         input_frame = ctk.CTkFrame(right, fg_color="transparent")
         input_frame.pack(fill="x", padx=20, pady=5)
 
-        input_entry = ctk.CTkEntry(input_frame)
+        input_entry = ctk.CTkEntry(input_frame, fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
         input_entry.pack(side="left", fill="x", expand=True)
 
         def browse_file():
             win.attributes("-topmost", False)
             path = filedialog.askopenfilename(parent=win)
-            win.attributes("-topmost", True) 
+            win.attributes("-topmost", True)
 
             if path:
-                input_entry.delete(0,"end")
-                input_entry.insert(0,path)
-                update_preview() 
+                input_entry.delete(0, "end")
+                input_entry.insert(0, path)
+                update_preview()
 
-        ctk.CTkButton(input_frame, text="Browse", width=80, command=browse_file).pack(side="right", padx=5)
+        ctk.CTkButton(
+            input_frame, text="Browse", width=80, command=browse_file,
+            fg_color=BORDER_COLOR, text_color=ACCENT_CYAN, hover_color=CARD_COLOR
+        ).pack(side="right", padx=5)
 
         if tool_name in self.engine.file_tools:
             if isinstance(previous_output, bytes):
@@ -392,15 +464,15 @@ class PipelinePage(ctk.CTkFrame):
                     input_entry.insert(0, preview)
                 except:
                     pass
-                
+
         # -------- Options --------
-        ctk.CTkLabel(right, text="Options").pack(anchor="w", padx=20)
+        ctk.CTkLabel(right, text="Options", text_color=TEXT_DIM).pack(anchor="w", padx=20)
 
         options_frame = ctk.CTkFrame(right, fg_color="transparent")
         options_frame.pack(fill="x", padx=20, pady=5)
 
         option_vars = []
-        
+
         # ---------------- แก้ไขบักการรวม Option ----------------
         # ป้องกันบักที่ Option ปรับแต่งไปลบ Option ดั้งเดิมของโปรแกรม
         custom_opts = node.get("options", [])
@@ -413,7 +485,7 @@ class PipelinePage(ctk.CTkFrame):
                 seen_flags.add(opt["flag"])
         # ----------------------------------------------------
 
-        def update_preview(*args): 
+        def update_preview(*args):
             params_list = []
             for flag, var, opt_type in option_vars:
                 if opt_type == "checkbox":
@@ -425,7 +497,7 @@ class PipelinePage(ctk.CTkFrame):
                         params_list.append(f"{flag} {val}")
 
             params_before_fixed = " ".join(params_list)
-            
+
             after_tool = preview_before_args() if switch_before_var.get() else ""
             after_input = preview_after_args() if switch_after_var.get() else ""
 
@@ -456,15 +528,19 @@ class PipelinePage(ctk.CTkFrame):
 
             if opt_type == "checkbox":
                 var = tk.BooleanVar()
-                chk = ctk.CTkCheckBox(row, text=display_text, variable=var, command=update_preview)
+                chk = ctk.CTkCheckBox(
+                    row, text=display_text, variable=var, command=update_preview,
+                    text_color="white", fg_color=ACCENT_CYAN, hover_color="#00CCCC",
+                    checkmark_color="black", border_color=BORDER_COLOR
+                )
                 chk.pack(anchor="w")
                 option_vars.append((flag, var, "checkbox"))
-                
+
             elif opt_type in ["text", "file"]:
-                ctk.CTkLabel(row, text=f"{display_text}:").pack(side="left", padx=(0, 5))
+                ctk.CTkLabel(row, text=f"{display_text}:", text_color=TEXT_DIM).pack(side="left", padx=(0, 5))
                 var = tk.StringVar()
                 var.trace_add("write", update_preview)
-                ent = ctk.CTkEntry(row, textvariable=var, width=120)
+                ent = ctk.CTkEntry(row, textvariable=var, width=120, fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
                 ent.pack(side="left", fill="x", expand=True)
                 option_vars.append((flag, var, "text"))
 
@@ -493,17 +569,17 @@ class PipelinePage(ctk.CTkFrame):
         def add_before_row(opt_type="checkbox"):
             row = ctk.CTkFrame(before_container, fg_color="transparent")
             row.pack(fill="x", pady=2)
-            
+
             flag_var = tk.StringVar()
             flag_var.trace_add("write", update_preview)
-            flag_entry = ctk.CTkEntry(row, width=70, placeholder_text="-n")
+            flag_entry = ctk.CTkEntry(row, width=70, placeholder_text="-n", fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
             flag_entry.pack(side="left", padx=(0, 5))
             flag_entry.configure(textvariable=flag_var)
-            
+
             val_var = tk.StringVar()
             if opt_type == "text":
                 val_var.trace_add("write", update_preview)
-                val_entry = ctk.CTkEntry(row, placeholder_text="value")
+                val_entry = ctk.CTkEntry(row, placeholder_text="value", fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
                 val_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
                 val_entry.configure(textvariable=val_var)
             else:
@@ -518,7 +594,7 @@ class PipelinePage(ctk.CTkFrame):
                 row.destroy()
                 update_preview()
 
-            ctk.CTkButton(row, text="X", width=28, fg_color="#e74c3c", hover_color="#c0392b", command=delete_row).pack(side="right")
+            ctk.CTkButton(row, text="X", width=28, fg_color=ALERT_RED, hover_color="#C0294B", text_color="white", command=delete_row).pack(side="right")
             update_preview()
 
         before_btn_frame = ctk.CTkFrame(before_container, fg_color="transparent")
@@ -533,9 +609,8 @@ class PipelinePage(ctk.CTkFrame):
                 before_container.pack_forget()
             update_preview()
 
-        switch_before = ctk.CTkSwitch(right, text="Add Manual Options (Before Input)", variable=switch_before_var, command=toggle_before, progress_color="#2eb85c")
+        switch_before = ctk.CTkSwitch(right, text="Add Manual Options (Before Input)", variable=switch_before_var, command=toggle_before, progress_color=ACCENT_GREEN, text_color="white", button_color=TEXT_DIM)
         switch_before.pack(anchor="w", padx=20, pady=(10, 0))
-
 
         # =================================================================
         # -------- สวิตช์และ Dynamic Rows (After Input) --------
@@ -562,17 +637,17 @@ class PipelinePage(ctk.CTkFrame):
         def add_after_row(opt_type="checkbox"):
             row = ctk.CTkFrame(after_container, fg_color="transparent")
             row.pack(fill="x", pady=2)
-            
+
             flag_var = tk.StringVar()
             flag_var.trace_add("write", update_preview)
-            flag_entry = ctk.CTkEntry(row, width=70, placeholder_text="-n")
+            flag_entry = ctk.CTkEntry(row, width=70, placeholder_text="-n", fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
             flag_entry.pack(side="left", padx=(0, 5))
             flag_entry.configure(textvariable=flag_var)
-            
+
             val_var = tk.StringVar()
             if opt_type == "text":
                 val_var.trace_add("write", update_preview)
-                val_entry = ctk.CTkEntry(row, placeholder_text="value")
+                val_entry = ctk.CTkEntry(row, placeholder_text="value", fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
                 val_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
                 val_entry.configure(textvariable=val_var)
             else:
@@ -587,7 +662,7 @@ class PipelinePage(ctk.CTkFrame):
                 row.destroy()
                 update_preview()
 
-            ctk.CTkButton(row, text="X", width=28, fg_color="#e74c3c", hover_color="#c0392b", command=delete_row).pack(side="right")
+            ctk.CTkButton(row, text="X", width=28, fg_color=ALERT_RED, hover_color="#C0294B", text_color="white", command=delete_row).pack(side="right")
             update_preview()
 
         after_btn_frame = ctk.CTkFrame(after_container, fg_color="transparent")
@@ -602,27 +677,26 @@ class PipelinePage(ctk.CTkFrame):
                 after_container.pack_forget()
             update_preview()
 
-        switch_after = ctk.CTkSwitch(right, text="Add Additional Arguments (After Input)", variable=switch_after_var, command=toggle_after, progress_color="#2eb85c")
+        switch_after = ctk.CTkSwitch(right, text="Add Additional Arguments (After Input)", variable=switch_after_var, command=toggle_after, progress_color=ACCENT_GREEN, text_color="white", button_color=TEXT_DIM)
         switch_after.pack(anchor="w", padx=20, pady=(10, 0))
-
 
         # -------- Command Preview --------
         preview_header = ctk.CTkFrame(right, fg_color="transparent")
         preview_header.pack(fill="x", padx=20, pady=(15, 0))
 
-        ctk.CTkLabel(preview_header, text="Command Preview", font=ctk.CTkFont(size=12, weight="bold")).pack(side="left")
+        ctk.CTkLabel(preview_header, text="Command Preview", font=ctk.CTkFont(size=12, weight="bold"), text_color=TEXT_DIM).pack(side="left")
 
-        preview_label = ctk.CTkLabel(right, text=tool_name, text_color="black", font=ctk.CTkFont(size=13), wraplength=320)
+        preview_label = ctk.CTkLabel(right, text=tool_name, text_color=ACCENT_GREEN, font=ctk.CTkFont(family="Consolas", size=13), wraplength=320)
         preview_label.pack(anchor="w", padx=20, pady=5)
-        
+
         input_entry.bind("<KeyRelease>", update_preview)
         update_preview()
 
         # -------- Description --------
-        desc = node.get("user_description","")
+        desc = node.get("user_description", "")
         if desc:
-            ctk.CTkLabel(right, text="Description", font=ctk.CTkFont(weight="bold")).pack(anchor="w", padx=20, pady=(10,0))
-            ctk.CTkLabel(right, text=desc, text_color="gray", wraplength=300).pack(anchor="w", padx=20)
+            ctk.CTkLabel(right, text="Description", font=ctk.CTkFont(weight="bold"), text_color=TEXT_DIM).pack(anchor="w", padx=20, pady=(10, 0))
+            ctk.CTkLabel(right, text=desc, text_color=TEXT_DIM, wraplength=300).pack(anchor="w", padx=20)
 
         # -------- Run Tool --------
         def run_tool():
@@ -661,10 +735,13 @@ class PipelinePage(ctk.CTkFrame):
             result["output"] = res
             output_box.insert("end", f"\n>>> output ({tool_name})\n")
             output_box.insert("end", res.decode(errors="ignore") + "\n")
-            output_box.see("end") 
+            output_box.see("end")
 
         # buttons
-        ctk.CTkButton(right, text="Run", fg_color="#4caf50", command=run_tool).pack(pady=(15,5))
+        ctk.CTkButton(
+            right, text="Run", fg_color=ACCENT_GREEN, text_color="black",
+            hover_color="#00CC33", command=run_tool
+        ).pack(pady=(15, 5))
 
         def next_step(): # ปิด window แล้วส่ง output กลับ pipeline
             if result["output"] is None:
@@ -674,13 +751,16 @@ class PipelinePage(ctk.CTkFrame):
         ctk.CTkButton(
             right,
             text="Close" if is_last else "Next",
-            fg_color="#4f87ff" if not is_last else "#666",
+            fg_color=BORDER_COLOR if is_last else ACCENT_CYAN,
+            text_color="white" if is_last else "black",
+            hover_color=CARD_COLOR if is_last else "#00CCCC",
             command=next_step
         ).pack()
 
         self.wait_window(win)
 
         return result["output"]
+
     #โหลด template pipeline สำเร็จรูป
     def load_template(self, template):
         self.clear_pipeline()
@@ -700,6 +780,7 @@ class PipelinePage(ctk.CTkFrame):
 
         for tool in tools:
             self.add_tool_node(tool)
+
     #โหลด tool จาก JSON
     def load_tools_from_json(self):
         tools_path = os.path.join(os.path.dirname(__file__), "..", "Pipeline", "custom_tools.json")
@@ -720,8 +801,8 @@ class PipelinePage(ctk.CTkFrame):
             except Exception as e:
                 print(f"Error loading saved pipelines: {e}")
 
-        categories = {"Saved Pipelines": []} 
-        
+        categories = {"Saved Pipelines": []}
+
         if saved_list:
             categories["Saved Pipelines"] = [p["pipeline_name"] for p in saved_list]
 
@@ -732,7 +813,7 @@ class PipelinePage(ctk.CTkFrame):
                 categories[category] = [tool["name"] for tool in main_data[category]]
 
         return categories
-    
+
     #refresh panel tool 
     def refresh_tools_panel(self):
         for widget in self.tools_panel.winfo_children():
@@ -747,14 +828,16 @@ class PipelinePage(ctk.CTkFrame):
             ctk.CTkLabel(
                 header_frame,
                 text=cat,
-                font=ctk.CTkFont(size=13, weight="bold")
+                font=ctk.CTkFont(family="Consolas", size=13, weight="bold"),
+                text_color=ACCENT_GREEN
             ).pack(side="left")
 
             for tool in tools:
                 lbl = ctk.CTkLabel(
                     self.tools_panel,
                     text=f"  • {tool}",
-                    font=ctk.CTkFont(size=12),
+                    font=ctk.CTkFont(family="Consolas", size=12),
+                    text_color=TEXT_DIM,
                     cursor="hand2"
                 )
                 lbl.pack(anchor="w", padx=15)
@@ -769,67 +852,79 @@ class PipelinePage(ctk.CTkFrame):
                     self.tools_panel,
                     text="+ Add Pipeline",
                     command=self.open_pipeline_wizard,
-                    fg_color="transparent", 
-                    border_width=1, 
-                    border_color="#ccc", 
-                    text_color="black", 
-                    hover_color="#eee"
+                    fg_color="transparent",
+                    border_width=1,
+                    border_color=ACCENT_PURPLE,
+                    text_color=ACCENT_PURPLE,
+                    hover_color=CARD_COLOR
                 ).pack(fill="x", padx=15, pady=(5, 10))
-        #เช็ค pipeline ที่เคย save
+
+    #เช็ค pipeline ที่เคย save
     def check_pipeline_status(self):
         saved_data = self.load_saved_pipelines()
         self.show_startup_popup(saved_data)
+
     # popup หน้าเริ่มต้น (Pipeline Manager)
     def show_startup_popup(self, saved_data):
         popup = ctk.CTkToplevel(self)
         popup.title("Pipeline Manager")
         popup.geometry("400x420")
-        popup.attributes("-topmost", True) 
+        popup.attributes("-topmost", True)
+        popup.configure(fg_color=BG_COLOR)
 
-        ctk.CTkLabel(popup, text="UNIT Pipeline", font=ctk.CTkFont(size=20, weight="bold")).pack(pady=(20, 5))
+        ctk.CTkLabel(
+            popup, text=">_ UNIT PIPELINE", font=("Consolas", 20, "bold"), text_color=ACCENT_CYAN
+        ).pack(pady=(20, 5))
 
         def create_new():
-            popup.destroy() 
-            self.open_pipeline_wizard() 
+            popup.destroy()
+            self.open_pipeline_wizard()
 
         def load_existing(p_name):
-            popup.destroy() 
-            self.load_saved_pipeline_to_canvas(p_name) 
+            popup.destroy()
+            self.load_saved_pipeline_to_canvas(p_name)
 
         bottom_frame = ctk.CTkFrame(popup, fg_color="transparent")
         bottom_frame.pack(side="bottom", fill="x", pady=20)
-        
-        ctk.CTkButton(bottom_frame, text="+ Create New Pipeline", fg_color="#6f63ff", 
-                      font=ctk.CTkFont(weight="bold"), height=40, command=create_new).pack()
+
+        ctk.CTkButton(
+            bottom_frame, text="+ Create New Pipeline", fg_color=ACCENT_PURPLE, text_color="white",
+            hover_color="#5c50e0", font=ctk.CTkFont(weight="bold"), height=40, command=create_new
+        ).pack()
 
         content_frame = ctk.CTkFrame(popup, fg_color="transparent")
         content_frame.pack(fill="both", expand=True, padx=30)
 
         if not saved_data:
-            ctk.CTkLabel(content_frame, text="No saved pipelines yet.\nStart creating your first pipeline!", 
-                         text_color="gray").pack(pady=40)
+            ctk.CTkLabel(
+                content_frame, text="No saved pipelines yet.\nStart creating your first pipeline!",
+                text_color=TEXT_DIM
+            ).pack(pady=40)
         else:
-            ctk.CTkLabel(content_frame, text="Open a saved pipeline or create a new one", text_color="gray").pack(pady=(0, 10))
-            
-            list_frame = ctk.CTkScrollableFrame(content_frame, fg_color="#e6e6e6", corner_radius=10)
+            ctk.CTkLabel(content_frame, text="Open a saved pipeline or create a new one", text_color=TEXT_DIM).pack(pady=(0, 10))
+
+            list_frame = ctk.CTkScrollableFrame(content_frame, fg_color=PANEL_COLOR, border_width=1, border_color=BORDER_COLOR, corner_radius=10)
             list_frame.pack(fill="both", expand=True)
 
             for p in saved_data:
                 p_name = p.get("pipeline_name", "Untitled Pipeline")
-                
+
                 row = ctk.CTkFrame(list_frame, fg_color="transparent")
                 row.pack(fill="x", pady=5)
-                
-                ctk.CTkLabel(row, text=f"📄 {p_name}", font=ctk.CTkFont(weight="bold"), text_color="#333").pack(side="left", padx=10)
-                
-                btn = ctk.CTkButton(row, text="Open", width=60, fg_color="#2eb85c", hover_color="#279e4f",
-                                    command=lambda name=p_name: load_existing(name))
+
+                ctk.CTkLabel(row, text=f"📄 {p_name}", font=ctk.CTkFont(weight="bold"), text_color="white").pack(side="left", padx=10)
+
+                btn = ctk.CTkButton(
+                    row, text="Open", width=60, fg_color=ACCENT_GREEN, text_color="black", hover_color="#00CC33",
+                    command=lambda name=p_name: load_existing(name)
+                )
                 btn.pack(side="right", padx=10)
+
     #โหลด saved pipeline จากไฟล์
     def load_saved_pipelines(self):
         save_path = os.path.join(os.path.dirname(__file__), "..", "Pipeline", "saved_pipelines.json")
         save_path = os.path.abspath(save_path)
-        
+
         if os.path.exists(save_path):
             try:
                 with open(save_path, "r", encoding="utf-8") as f:
@@ -837,9 +932,11 @@ class PipelinePage(ctk.CTkFrame):
             except Exception:
                 pass
         return []
+
     # แสดงจำนวน pipeline (debug)
     def show_saved_pipelines_list(self, saved_data):
         print(f"You have {len(saved_data)} saved pipelines available in the sidebar.")
+
     # Wizard สร้าง pipeline
     def open_pipeline_wizard(self, current_step=1, pipeline_data=None):
         if pipeline_data is None:
@@ -849,45 +946,53 @@ class PipelinePage(ctk.CTkFrame):
         wizard.title(f"Create Pipeline - Step {current_step}")
         wizard.geometry("520x650")
         wizard.attributes("-topmost", True)
+        wizard.configure(fg_color=BG_COLOR)
 
-        main_frame = ctk.CTkScrollableFrame(wizard)
+        main_frame = ctk.CTkScrollableFrame(wizard, fg_color="transparent")
         main_frame.pack(fill="both", expand=True)
 
         name_entry = None
         if current_step == 1:
-            ctk.CTkLabel(main_frame, text="Pipeline Name:", font=("Arial", 13, "bold")).pack(anchor="w", padx=40, pady=(15, 0))
-            name_entry = ctk.CTkEntry(main_frame, placeholder_text="Enter your Pipeline name here...")
+            ctk.CTkLabel(main_frame, text="Pipeline Name:", font=("Consolas", 13, "bold"), text_color=ACCENT_CYAN).pack(anchor="w", padx=40, pady=(15, 0))
+            name_entry = ctk.CTkEntry(main_frame, placeholder_text="Enter your Pipeline name here...", fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
             name_entry.pack(fill="x", padx=40, pady=10)
-            self.current_pipeline_name = "" 
+            self.current_pipeline_name = ""
 
-        ctk.CTkLabel(main_frame, text=f"Step {current_step}: Command Builder", font=("Arial", 18, "bold")).pack(pady=20)
+        ctk.CTkLabel(main_frame, text=f"Step {current_step}: Command Builder", font=("Consolas", 18, "bold"), text_color=ACCENT_CYAN).pack(pady=20)
 
-        ctk.CTkLabel(main_frame, text="Choose Tool:").pack(anchor="w", padx=40)
+        ctk.CTkLabel(main_frame, text="Choose Tool:", text_color=TEXT_DIM).pack(anchor="w", padx=40)
         all_categories = self.load_tools_from_json()
         all_tools_list = []
         for cat in all_categories:
             if cat != "Saved Pipelines":
                 all_tools_list.extend(all_categories[cat])
-            
+
         all_tools_list.append("Custom")
-            
+
         tool_var = ctk.StringVar(value=all_tools_list[0] if all_tools_list else "None")
-        tool_menu = ctk.CTkOptionMenu(main_frame, values=all_tools_list, variable=tool_var)
+        tool_menu = ctk.CTkOptionMenu(
+            main_frame, values=all_tools_list, variable=tool_var,
+            fg_color=INPUT_BG, button_color=PANEL_COLOR, button_hover_color=BORDER_COLOR,
+            text_color=ACCENT_CYAN, dropdown_fg_color=PANEL_COLOR, dropdown_text_color=ACCENT_CYAN
+        )
         tool_menu.pack(fill="x", padx=40, pady=(5, 10))
 
         custom_tool_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        custom_tool_entry = ctk.CTkEntry(custom_tool_frame, placeholder_text="Enter your Custom Tool command here...")
+        custom_tool_entry = ctk.CTkEntry(custom_tool_frame, placeholder_text="Enter your Custom Tool command here...", fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
         custom_tool_entry.pack(fill="x")
 
-        desc_label = ctk.CTkLabel(main_frame, text="System Info: Select a tool", text_color="gray", wraplength=400)
+        desc_label = ctk.CTkLabel(main_frame, text="System Info: Select a tool", text_color=TEXT_DIM, wraplength=400)
         desc_label.pack(pady=10)
 
         has_option_var = ctk.BooleanVar(value=False)
-        has_option_checkbox = ctk.CTkCheckBox(main_frame, text="Add options?", variable=has_option_var)
-        add_option_btn = ctk.CTkButton(main_frame, text="+ Add Option", fg_color="#4f87ff")
+        has_option_checkbox = ctk.CTkCheckBox(
+            main_frame, text="Add options?", variable=has_option_var,
+            text_color="white", fg_color=ACCENT_CYAN, hover_color="#00CCCC", checkmark_color="black", border_color=BORDER_COLOR
+        )
+        add_option_btn = ctk.CTkButton(main_frame, text="+ Add Option", fg_color=ACCENT_PURPLE, text_color="white", hover_color="#5c50e0")
 
-        ctk.CTkLabel(main_frame, text="Note / Description").pack(anchor="w", padx=40, pady=(15, 0))
-        user_desc_entry = ctk.CTkEntry(main_frame, placeholder_text="..........")
+        ctk.CTkLabel(main_frame, text="Note / Description", text_color=TEXT_DIM).pack(anchor="w", padx=40, pady=(15, 0))
+        user_desc_entry = ctk.CTkEntry(main_frame, placeholder_text="..........", fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
         user_desc_entry.pack(fill="x", padx=40, pady=(5, 10))
 
         # ==========================================
@@ -900,23 +1005,24 @@ class PipelinePage(ctk.CTkFrame):
             popup.title("Add Custom Option")
             popup.geometry("620x350")
             popup.attributes("-topmost", True)
-            
-            ctk.CTkLabel(popup, text="Add Custom Option", font=("Arial", 14, "bold")).pack(pady=(10, 0))
-            
-            preview_label = ctk.CTkLabel(popup, text="Preview: ...", text_color="black", font=ctk.CTkFont(size=13))
+            popup.configure(fg_color=BG_COLOR)
+
+            ctk.CTkLabel(popup, text="Add Custom Option", font=("Consolas", 14, "bold"), text_color=ACCENT_CYAN).pack(pady=(10, 0))
+
+            preview_label = ctk.CTkLabel(popup, text="Preview: ...", text_color=ACCENT_GREEN, font=ctk.CTkFont(family="Consolas", size=13))
             preview_label.pack(pady=(5, 10))
-            
+
             options_container = ctk.CTkScrollableFrame(popup, fg_color="transparent", height=150)
             options_container.pack(fill="both", expand=True, padx=10)
-            
-            option_rows = [] 
+
+            option_rows = []
 
             # อัปเดตพรีวิวแบบ Real-time ทันทีที่พิมพ์
             def preview_command(*args):
                 base_tool = tool_var.get()
                 if base_tool == "Custom":
                     base_tool = custom_tool_entry.get().strip() or "custom_tool"
-                
+
                 flags = []
                 for flag_var, desc_var, opt_type in option_rows:
                     f = flag_var.get().strip()
@@ -924,23 +1030,23 @@ class PipelinePage(ctk.CTkFrame):
                         if opt_type == "checkbox":
                             flags.append(f)
                         else:
-                            flags.append(f"{f} <value>") 
-                
+                            flags.append(f"{f} <value>")
+
                 cmd = f"{base_tool} {' '.join(flags)}"
                 preview_label.configure(text=f"Preview: {cmd}")
 
             def add_option_row(opt_type="checkbox", default_flag="", default_desc=""):
                 row = ctk.CTkFrame(options_container, fg_color="transparent")
                 row.pack(fill="x", pady=5)
-                
+
                 # ผูก trace_add เพื่อให้พรีวิวเด้งออโต้
                 flag_var = tk.StringVar(value=default_flag)
                 flag_var.trace_add("write", preview_command)
-                flag_entry = ctk.CTkEntry(row, width=80, textvariable=flag_var, placeholder_text="-n")
+                flag_entry = ctk.CTkEntry(row, width=80, textvariable=flag_var, placeholder_text="-n", fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
                 flag_entry.pack(side="left", padx=5)
 
                 desc_var = tk.StringVar(value=default_desc)
-                desc_entry = ctk.CTkEntry(row, textvariable=desc_var, placeholder_text="description")
+                desc_entry = ctk.CTkEntry(row, textvariable=desc_var, placeholder_text="description", fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
                 desc_entry.pack(side="left", fill="x", expand=True, padx=5)
 
                 type_text = "No Param" if opt_type == "checkbox" else "With Param"
@@ -957,9 +1063,9 @@ class PipelinePage(ctk.CTkFrame):
                     row.destroy()
                     preview_command()
 
-                del_btn = ctk.CTkButton(row, text="X", width=30, fg_color="#e74c3c", hover_color="#c0392b", command=delete_this_row)
+                del_btn = ctk.CTkButton(row, text="X", width=30, fg_color=ALERT_RED, hover_color="#C0294B", text_color="white", command=delete_this_row)
                 del_btn.pack(side="left", padx=5)
-                
+
                 preview_command()
 
             # โหลดข้อมูลเก่าที่เคยแอดไว้ขึ้นมาโชว์ (ถ้ามีการเปิดปิดหน้าต่างหลายรอบ)
@@ -978,12 +1084,12 @@ class PipelinePage(ctk.CTkFrame):
 
             btn_row = ctk.CTkFrame(popup, fg_color="transparent")
             btn_row.pack(fill="x", pady=15, padx=20)
-            
+
             ctk.CTkButton(btn_row, text="+ No Param", command=lambda: add_option_row("checkbox"), width=100, fg_color="#3498db", hover_color="#2980b9").pack(side="left", padx=5)
             ctk.CTkButton(btn_row, text="+ With Param", command=lambda: add_option_row("text"), width=100, fg_color="#9b59b6", hover_color="#8e44ad").pack(side="left", padx=5)
-            
+
             # เอาปุ่ม Preview ออกไปเลย เพราะตอนนี้อัปเดตแบบเรียลไทม์แล้ว
-            ctk.CTkButton(btn_row, text="Save & Close", command=save_option_from_popup, fg_color="#2eb85c", hover_color="#27ae60", width=110).pack(side="right", padx=5)
+            ctk.CTkButton(btn_row, text="Save & Close", command=save_option_from_popup, fg_color=ACCENT_GREEN, hover_color="#00CC33", text_color="black", width=110).pack(side="right", padx=5)
 
             preview_command() # รันพรีวิวครั้งแรก
 
@@ -999,10 +1105,11 @@ class PipelinePage(ctk.CTkFrame):
                 custom_tool_frame.pack_forget()
                 desc = self.engine.tool_descriptions.get(choice, "No info available")
                 desc_label.configure(text=f"System Info: {desc}")
-            
+
             has_option_checkbox.pack(before=user_desc_entry.master.winfo_children()[-2], anchor="w", padx=40, pady=5)
             has_option_var.set(False)
             add_option_btn.pack_forget()
+
         # toggle ปุ่ม add option
         def toggle_add_option_btn():
             if has_option_var.get():
@@ -1016,11 +1123,12 @@ class PipelinePage(ctk.CTkFrame):
 
         btn_frame = ctk.CTkFrame(wizard, fg_color="transparent")
         btn_frame.pack(side="bottom", pady=30, fill="x", padx=40)
+
         # เพิ่ม tool step ถัดไป
         def add_next_tool():
             if current_step == 1 and name_entry:
                 self.current_pipeline_name = name_entry.get()
-            
+
             selected_tool = tool_var.get()
             if selected_tool == "Custom":
                 selected_tool = custom_tool_entry.get()
@@ -1034,13 +1142,14 @@ class PipelinePage(ctk.CTkFrame):
             pipeline_data.append(node_data)
             wizard.destroy()
             self.open_pipeline_wizard(current_step + 1, pipeline_data)
+
         # finish wizard + save pipeline
         def finish_pipeline():
             if current_step == 1 and name_entry:
                 self.current_pipeline_name = name_entry.get()
-            
+
             pipeline_name = self.current_pipeline_name if getattr(self, "current_pipeline_name", "") else "Untitled"
-            
+
             selected_tool = tool_var.get()
             if selected_tool == "Custom":
                 selected_tool = custom_tool_entry.get()
@@ -1055,8 +1164,9 @@ class PipelinePage(ctk.CTkFrame):
             wizard.destroy()
             self.finalize_wizard_pipeline(pipeline_data, pipeline_name)
 
-        ctk.CTkButton(btn_frame, text="+ Add Another Tool", fg_color="#6f63ff", command=add_next_tool).pack(side="left", expand=True, padx=5)
-        ctk.CTkButton(btn_frame, text="Finish & Save", fg_color="#2eb85c", command=finish_pipeline).pack(side="left", expand=True, padx=5)
+        ctk.CTkButton(btn_frame, text="+ Add Another Tool", fg_color=ACCENT_PURPLE, text_color="white", hover_color="#5c50e0", command=add_next_tool).pack(side="left", expand=True, padx=5)
+        ctk.CTkButton(btn_frame, text="Finish & Save", fg_color=ACCENT_GREEN, text_color="black", hover_color="#00CC33", command=finish_pipeline).pack(side="left", expand=True, padx=5)
+
     # สร้าง pipeline ลง canvas + save
     def finalize_wizard_pipeline(self, pipeline_data, pipeline_name):
         self.clear_pipeline()
@@ -1068,7 +1178,7 @@ class PipelinePage(ctk.CTkFrame):
 
         save_path = os.path.join(os.path.dirname(__file__), "..", "Pipeline", "saved_pipelines.json")
         save_path = os.path.abspath(save_path)
-        
+
         try:
             data = {"saved_pipelines": []}
             if os.path.exists(save_path):
@@ -1079,7 +1189,7 @@ class PipelinePage(ctk.CTkFrame):
                             data["saved_pipelines"] = []
                     except json.JSONDecodeError:
                         data = {"saved_pipelines": []}
-            
+
             new_entry = {
                 "pipeline_name": pipeline_name,
                 "steps": pipeline_data
@@ -1088,12 +1198,13 @@ class PipelinePage(ctk.CTkFrame):
 
             with open(save_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=4, ensure_ascii=False)
-            
+
             self.refresh_tools_panel()
             print(f"Saved pipeline '{pipeline_name}' successfully!")
-            
+
         except Exception as e:
             print(f"Error saving pipeline: {e}")
+
     # โหลด pipeline มาแสดงบน canvas
     def load_saved_pipeline_to_canvas(self, pipeline_name):
         save_path = os.path.join(
@@ -1120,10 +1231,10 @@ class PipelinePage(ctk.CTkFrame):
                     self.node_count += 1
                     node = ctk.CTkFrame(
                         self.line_canvas,
-                        fg_color="#333333",
+                        fg_color=CARD_COLOR,
                         corner_radius=4,
                         border_width=1,
-                        border_color="#6f63ff",
+                        border_color=ACCENT_PURPLE,
                         width=110,
                         height=35
                     )
@@ -1132,8 +1243,8 @@ class PipelinePage(ctk.CTkFrame):
                     lbl = ctk.CTkLabel(
                         node,
                         text=step["name"],
-                        font=ctk.CTkFont(size=11, weight="bold"),
-                        text_color="white"
+                        font=ctk.CTkFont(family="Consolas", size=11, weight="bold"),
+                        text_color=ACCENT_CYAN
                     )
                     lbl.place(relx=0.5, rely=0.5, anchor="center")
 
@@ -1159,18 +1270,20 @@ class PipelinePage(ctk.CTkFrame):
 
                 self.draw_connections()
                 break
+
     # popup เพิ่ม tool ใหม่
     def open_add_tool_window(self):
         win = ctk.CTkToplevel(self)
         win.title("Add Tool")
         win.geometry("300x250")
+        win.configure(fg_color=BG_COLOR)
 
-        ctk.CTkLabel(win, text="Tool Name").pack(pady=5)
-        name_entry = ctk.CTkEntry(win)
+        ctk.CTkLabel(win, text="Tool Name", text_color=TEXT_DIM).pack(pady=5)
+        name_entry = ctk.CTkEntry(win, fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
         name_entry.pack(pady=5)
 
-        ctk.CTkLabel(win, text="Linux Command").pack(pady=5)
-        cmd_entry = ctk.CTkEntry(win)
+        ctk.CTkLabel(win, text="Linux Command", text_color=TEXT_DIM).pack(pady=5)
+        cmd_entry = ctk.CTkEntry(win, fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
         cmd_entry.pack(pady=5)
 
         mode_var = ctk.StringVar(value="text")
@@ -1178,7 +1291,9 @@ class PipelinePage(ctk.CTkFrame):
         ctk.CTkOptionMenu(
             win,
             values=["text", "file"],
-            variable=mode_var
+            variable=mode_var,
+            fg_color=INPUT_BG, button_color=PANEL_COLOR, button_hover_color=BORDER_COLOR,
+            text_color=ACCENT_CYAN, dropdown_fg_color=PANEL_COLOR, dropdown_text_color=ACCENT_CYAN
         ).pack(pady=5)
 
         def save_tool():
@@ -1193,7 +1308,6 @@ class PipelinePage(ctk.CTkFrame):
             win.destroy()
 
         ctk.CTkButton(
-            win,
-            text="Add Tool",
-            command=save_tool
+            win, text="Add Tool", command=save_tool,
+            fg_color=ACCENT_GREEN, text_color="black", hover_color="#00CC33"
         ).pack(pady=10)

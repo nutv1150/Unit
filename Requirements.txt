@@ -1,0 +1,16 @@
+# requirements.txt — UNIT (Unified Toolkit)
+# สร้างจากการสแกน import จริงทุกไฟล์ .py ในโปรเจกต์ (app.py, pages/*, Encode/, Decode/,
+# Hashing/, Tools/, Pipeline/) — โมดูลอื่นที่ import ทั้งหมดเป็น standard library ของ Python
+# (hashlib, base64, urllib.parse, html, codecs, subprocess, mmap, re, json, os, threading,
+# shutil, tempfile, time, glob, platform, tkinter) จึงไม่ต้องติดตั้งเพิ่ม
+
+customtkinter>=5.2.0      # GUI framework หลักของทุกหน้าในแอป
+tkinterdnd2>=0.3.0        # รองรับ Drag & Drop ไฟล์ (app.py, pages/file_inspection.py)
+puremagic>=2.2.0          # ตรวจ file signature / magic bytes (pages/file_inspection.py)
+
+# หมายเหตุ:
+# - โปรแกรมภายนอกที่แอปเรียกผ่าน subprocess (xxd, hexdump, 7z, unzip, tar, strings, grep,
+#   openssl, wireshark, burpsuite, ghidra, nmap, msfconsole, hashcat, firefox ฯลฯ) ไม่ใช่
+#   Python package ต้องติดตั้งแยกผ่าน package manager ของระบบปฏิบัติการเอง (เช่น apt/pacman)
+# - หน้า "Gemini CLI" (pages/gemini.py) เรียกคำสั่ง `gemini` ซึ่งเป็น Node.js CLI ไม่ใช่ pip
+#   package ต้องติดตั้งด้วย: npm install -g @google/gemini-cli
