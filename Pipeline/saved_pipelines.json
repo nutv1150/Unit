@@ -164,6 +164,121 @@
                     ]
                 }
             ]
+        },
+        {
+            "pipeline_name": "hidden_payload_decode",
+            "steps": [
+                {
+                    "name": "strings",
+                    "params": "",
+                    "user_description": "Step 1: ดึงข้อความที่อ่านได้ทั้งหมดจาก hidden_payload.iso",
+                    "options": []
+                },
+                {
+                    "name": "grep",
+                    "params": "",
+                    "user_description": "Step 2: กรองหาบรรทัดที่เป็น Base64 ด้วย regex",
+                    "options": [
+                        {
+                            "flag": "-E",
+                            "type": "text",
+                            "description": "[A-Za-z0-9+/]{20,}={0,2}"
+                        }
+                    ]
+                },
+                {
+                    "name": "base64_decode",
+                    "params": "",
+                    "user_description": "Step 3: ถอด Base64 ที่กรองมาได้ → ได้ hint คีย์ Rijndael (128-bit) = ASCII 'J' x16",
+                    "options": [
+                        {
+                            "flag": "-d",
+                            "type": "checkbox",
+                            "description": "Decode mode"
+                        }
+                    ]
+                },
+                {
+                    "name": "openssl enc",
+                    "params": "",
+                    "user_description": "Step 4: ถอด AES-128-ECB ด้วยคีย์จาก hint → decrypted.iso (ต่อด้วย Step 5 XOR Unmask key 0x4A ที่หน้า Data Hashing แยกต่างหาก ไม่ได้อยู่ใน Pipeline นี้)",
+                    "options": [
+                        {
+                            "flag": "-d",
+                            "type": "checkbox",
+                            "description": "Decrypt mode"
+                        },
+                        {
+                            "flag": "-aes-128-ecb",
+                            "type": "checkbox",
+                            "description": "Cipher: AES-128-ECB"
+                        },
+                        {
+                            "flag": "-nopad",
+                            "type": "checkbox",
+                            "description": "ปิด PKCS#7 padding"
+                        },
+                        {
+                            "flag": "-K",
+                            "type": "text",
+                            "description": "Key hex 16 ไบต์ เช่น 4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A"
+                        },
+                        {
+                            "flag": "-in",
+                            "type": "text",
+                            "description": "hidden_payload.iso"
+                        },
+                        {
+                            "flag": "-out",
+                            "type": "text",
+                            "description": "decrypted.iso"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "pipeline_name": "hhhhhh",
+            "steps": [
+                {
+                    "name": "strings",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                },
+                {
+                    "name": "openssl enc",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-d -aes-128-ecb",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-nopad",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-K",
+                            "type": "text",
+                            "description": "4A 16"
+                        },
+                        {
+                            "flag": "-in hidden_payload.iso",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-out",
+                            "type": "text",
+                            "description": "decrypted.iso"
+                        }
+                    ]
+                }
+            ]
         }
     ]
 }
