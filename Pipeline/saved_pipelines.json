@@ -267,7 +267,7 @@
                             "description": "4A 16"
                         },
                         {
-                            "flag": "-in hidden_payload.iso",
+                            "flag": "-in /home/nutvv/Documents/CTF2025/DgitalForensics/hidden_payload.iso",
                             "type": "checkbox",
                             "description": ""
                         },

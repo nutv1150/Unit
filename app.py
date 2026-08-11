@@ -92,6 +92,16 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         # 3. trigger process_data ทันที
         page.process_data()
 
+    def send_to_gemini(self, text):
+        # 1. สลับไปหน้า Gemini CLI
+        self.switch_page("Gemini CLI")
+        # 2. ใส่ข้อความลง input_field
+        page = self.pages["Gemini CLI"]
+        page.input_field.delete(0, "end")
+        page.input_field.insert(0, text)
+        # 3. trigger send_message ทันที (ถ้ายังไม่ได้ connect CLI จะโชว์คำเตือนให้เอง)
+        page.send_message()
+
 if __name__ == "__main__":
     app = UNITApp()
     app.mainloop()

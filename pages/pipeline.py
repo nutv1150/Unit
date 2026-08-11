@@ -25,13 +25,13 @@ ALERT_RED = "#FF3366"       # สีแดง-ชมพู (ลบ/ล้าง/
 class PipelinePage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
+        self.app_root = master.master  # ใช้เรียก switch_page / send_to_* ข้ามหน้า
         self.run_logs = []
         self.engine = PipelineEngine() #เชื่อมกับ backend
 
         self.configure(fg_color=BG_COLOR)
         self.nodes = []      # เก็บข้อมูล Node ทั้งหมด
         self.node_count = 0
-        self.is_auto = True
 
         # --- Header ---
         self.title_label = ctk.CTkLabel(
@@ -125,12 +125,6 @@ class PipelinePage(ctk.CTkFrame):
         self.controls = ctk.CTkFrame(self.work_area, fg_color="transparent")
         self.controls.pack(fill="x", padx=15, pady=15)
 
-        self.step_btn = ctk.CTkButton(
-            self.controls, text="Auto Mode", fg_color=ACCENT_GREEN, text_color="black",
-            hover_color="#00CC33", width=100, command=self.toggle_mode
-        )
-        self.step_btn.pack(side="left", padx=2)
-
         # Run
         self.run_btn = ctk.CTkButton(
             self.controls,
@@ -191,23 +185,9 @@ class PipelinePage(ctk.CTkFrame):
         )
         self.placeholder.place(relx=0.5, rely=0.5, anchor="center")
 
-        self.bind("<Visibility>", self.on_show_page)
-
-    # ใช้เช็คว่ามี pipeline หรือยัง
-    def on_show_page(self, event):
-        if not self.nodes:
-            self.check_pipeline_status()
-        self.unbind("<Visibility>")
-
-    # สลับโหมด Auto / Step-by-Step
-    def toggle_mode(self):
-        self.is_auto = not self.is_auto
-        if self.is_auto:
-            self.step_btn.configure(text="Auto Mode", fg_color=ACCENT_GREEN, text_color="black")
-            print("Switched to Auto Mode")
-        else:
-            self.step_btn.configure(text="Step-by-Step", fg_color=ACCENT_CYAN, text_color="black")
-            print("Switched to Step-by-Step Mode")
+        # หมายเหตุ: เดิมมี popup "Pipeline Manager" ที่ผุดขึ้นบังคับทุกครั้งที่เข้าหน้านี้
+        # ตัดออกแล้วเพราะ Saved Pipelines / + Add Pipeline มีอยู่แล้วในแผง ALL_TOOLS ด้านซ้าย
+        # ผู้ใช้ยังเรียกดู pipeline ที่บันทึกไว้ได้ตามปกติ ไม่ต้องถูกขัดจังหวะตอนเข้าหน้า
 
     # เพิ่ม node (tool) ลง canvas
     def add_tool_node(self, tool_name, user_desc=""):
@@ -265,7 +245,13 @@ class PipelinePage(ctk.CTkFrame):
         new_y = node_data['frame'].winfo_y() + deltay
 
         node_data['frame'].place(x=new_x, y=new_y)
+        self.reorder_nodes_by_position()
         self.draw_connections()
+
+    # เรียง self.nodes ใหม่ตามตำแหน่ง x จริงบน canvas
+    # เพื่อให้ลำดับที่ผู้ใช้ "เห็น" (ซ้าย -> ขวา) ตรงกับลำดับที่ Run All จะรันจริงเสมอ
+    def reorder_nodes_by_position(self):
+        self.nodes.sort(key=lambda n: n['frame'].winfo_x())
 
     # วาดเส้นเชื่อมระหว่าง node
     def draw_connections(self):
@@ -306,7 +292,9 @@ class PipelinePage(ctk.CTkFrame):
                 current_data,
                 current_data,
                 self.run_logs,
-                is_last
+                is_last,
+                step_index=i + 1,
+                total_steps=len(self.nodes)
             )
 
             if output is None:
@@ -336,15 +324,32 @@ class PipelinePage(ctk.CTkFrame):
         return tmp.name
 
     # เปิด popup ของแต่ละ step
-    def open_step_window(self, node, previous_output, original_data, logs, is_last):
+    def open_step_window(self, node, previous_output, original_data, logs, is_last, step_index=1, total_steps=1):
 
         tool_name = node["name"]
 
         win = ctk.CTkToplevel(self)
-        win.title(f"{tool_name} Step")
-        win.geometry("1000x620")
+        win.title(f"Step {step_index}/{total_steps} — {tool_name}")
+        win.geometry("1000x660")
         win.attributes("-topmost", True)
         win.configure(fg_color=BG_COLOR)
+
+        # ---------------- แถบ Progress (Step X / N) ----------------
+        progress_header = ctk.CTkFrame(win, fg_color=PANEL_COLOR, corner_radius=8)
+        progress_header.pack(fill="x", padx=10, pady=(10, 0))
+
+        ctk.CTkLabel(
+            progress_header,
+            text=f"STEP {step_index} / {total_steps}  ·  {tool_name}",
+            font=ctk.CTkFont(family="Consolas", size=14, weight="bold"),
+            text_color=ACCENT_CYAN
+        ).pack(side="left", padx=15, pady=10)
+
+        progress_bar = ctk.CTkProgressBar(
+            progress_header, width=220, progress_color=ACCENT_GREEN, fg_color=INPUT_BG
+        )
+        progress_bar.pack(side="right", padx=15, pady=10)
+        progress_bar.set(step_index / total_steps if total_steps else 1)
 
         container = ctk.CTkFrame(win, fg_color="transparent")
         container.pack(fill="both", expand=True, padx=10, pady=10)
@@ -372,10 +377,43 @@ class PipelinePage(ctk.CTkFrame):
             except:
                 pass
 
+        def get_selected_or_output_text():
+            # ถ้าผู้ใช้ select ข้อความไว้ ใช้ส่วนที่ select
+            # ถ้าไม่ได้ select อะไรเลย ใช้ output ล่าสุดของ step นี้แทน (สะดวกกว่าปล่อยว่าง)
+            try:
+                return output_box.get("sel.first", "sel.last").strip()
+            except Exception:
+                pass
+            if result["output"] is not None:
+                try:
+                    return result["output"].decode(errors="ignore").strip()
+                except Exception:
+                    return str(result["output"]).strip()
+            return ""
+
+        def send_selected_to_gemini():
+            text = get_selected_or_output_text()
+            if text and hasattr(self.app_root, "send_to_gemini"):
+                self.app_root.send_to_gemini(text)
+
+        def send_selected_to_hashing():
+            text = get_selected_or_output_text()
+            if text and hasattr(self.app_root, "send_to_hashing"):
+                self.app_root.send_to_hashing(text)
+
         context_menu = tk.Menu(output_box, tearoff=0)
         context_menu.add_command(
             label="Send to Input",
             command=send_selected_to_input
+        )
+        context_menu.add_separator()
+        context_menu.add_command(
+            label="Send to Gemini",
+            command=send_selected_to_gemini
+        )
+        context_menu.add_command(
+            label="Send to Data Hashing",
+            command=send_selected_to_hashing
         )
 
         def show_context_menu(event):
@@ -545,10 +583,32 @@ class PipelinePage(ctk.CTkFrame):
                 option_vars.append((flag, var, "text"))
 
         # =================================================================
+        # -------- Advanced Options (ยุบ/ขยาย) --------
+        # เก็บ Manual Options (before/after) ไว้ในนี้เพื่อไม่ให้หน้าต่างรก
+        # auto-ขยายให้เองถ้า tool ไม่มี default option เลย (เช่น openssl enc)
+        # =================================================================
+        advanced_frame = ctk.CTkFrame(right, fg_color="transparent")
+
+        def toggle_advanced():
+            if advanced_frame.winfo_ismapped():
+                advanced_frame.pack_forget()
+                advanced_toggle_btn.configure(text="▸ Advanced Options")
+            else:
+                advanced_frame.pack(fill="x", padx=20, pady=(0, 5))
+                advanced_toggle_btn.configure(text="▾ Advanced Options")
+
+        advanced_toggle_btn = ctk.CTkButton(
+            right, text="▸ Advanced Options", command=toggle_advanced,
+            fg_color="transparent", border_width=1, border_color=BORDER_COLOR,
+            text_color=TEXT_DIM, hover_color=CARD_COLOR, anchor="w"
+        )
+        advanced_toggle_btn.pack(fill="x", padx=20, pady=(15, 0))
+
+        # =================================================================
         # -------- สวิตช์และ Dynamic Rows (Before Input) --------
         # =================================================================
         switch_before_var = ctk.BooleanVar(value=False)
-        before_container = ctk.CTkFrame(right, fg_color="transparent")
+        before_container = ctk.CTkFrame(advanced_frame, fg_color="transparent")
         before_rows = []
 
         def preview_before_args():
@@ -604,19 +664,19 @@ class PipelinePage(ctk.CTkFrame):
 
         def toggle_before():
             if switch_before_var.get():
-                before_container.pack(after=switch_before, fill="x", padx=20, pady=(0, 5))
+                before_container.pack(after=switch_before, fill="x", pady=(0, 5))
             else:
                 before_container.pack_forget()
             update_preview()
 
-        switch_before = ctk.CTkSwitch(right, text="Add Manual Options (Before Input)", variable=switch_before_var, command=toggle_before, progress_color=ACCENT_GREEN, text_color="white", button_color=TEXT_DIM)
-        switch_before.pack(anchor="w", padx=20, pady=(10, 0))
+        switch_before = ctk.CTkSwitch(advanced_frame, text="Add Manual Options (Before Input)", variable=switch_before_var, command=toggle_before, progress_color=ACCENT_GREEN, text_color="white", button_color=TEXT_DIM)
+        switch_before.pack(anchor="w", pady=(10, 0))
 
         # =================================================================
         # -------- สวิตช์และ Dynamic Rows (After Input) --------
         # =================================================================
         switch_after_var = ctk.BooleanVar(value=False)
-        after_container = ctk.CTkFrame(right, fg_color="transparent")
+        after_container = ctk.CTkFrame(advanced_frame, fg_color="transparent")
         after_rows = []
 
         def preview_after_args():
@@ -672,13 +732,18 @@ class PipelinePage(ctk.CTkFrame):
 
         def toggle_after():
             if switch_after_var.get():
-                after_container.pack(after=switch_after, fill="x", padx=20, pady=(0, 5))
+                after_container.pack(after=switch_after, fill="x", pady=(0, 5))
             else:
                 after_container.pack_forget()
             update_preview()
 
-        switch_after = ctk.CTkSwitch(right, text="Add Additional Arguments (After Input)", variable=switch_after_var, command=toggle_after, progress_color=ACCENT_GREEN, text_color="white", button_color=TEXT_DIM)
-        switch_after.pack(anchor="w", padx=20, pady=(10, 0))
+        switch_after = ctk.CTkSwitch(advanced_frame, text="Add Additional Arguments (After Input)", variable=switch_after_var, command=toggle_after, progress_color=ACCENT_GREEN, text_color="white", button_color=TEXT_DIM)
+        switch_after.pack(anchor="w", pady=(10, 0))
+
+        if not tool_options:
+            # tool นี้ไม่มี option สำเร็จรูปเลย (เช่น openssl enc) ต้องพึ่ง manual options
+            # อย่างเดียว เลยเปิด Advanced ให้อัตโนมัติจะได้ไม่ต้องเดา
+            toggle_advanced()
 
         # -------- Command Preview --------
         preview_header = ctk.CTkFrame(right, fg_color="transparent")
