@@ -165,7 +165,7 @@ class RegexSelectionPopup(ctk.CTkToplevel):
         self.destroy()
 
 
-# --- ⭐ 3. หน้าหลัก File Inspection ---
+# --- ⭐ 3. หน้าหลัก File Inspection ---[cite: 1]
 class FileInspectionPage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
@@ -232,10 +232,10 @@ class FileInspectionPage(ctk.CTkFrame):
         action_frame.grid(row=3, column=0, sticky="ew", padx=30, pady=10)
 
         self.tool_menu = ctk.CTkOptionMenu(
-            action_frame, values=["Header Check", "Executable Check", "Strings", "zsteg Analysis"], 
+            action_frame, values=["Header Check", "Executable Check", "Strings", "zsteg Analysis", "Exiftool"], 
             width=180, height=35, font=("Consolas", 12),
             fg_color="#1E1E2E", button_color="#2B2B36", button_hover_color="#3A3A4A",
-            state="disabled", command=self.toggle_regex_button
+            state="disabled", command=self.on_tool_change
         )
         self.tool_menu.pack(side="left", padx=15, pady=15)
 
@@ -273,9 +273,7 @@ class FileInspectionPage(ctk.CTkFrame):
         )
         self.regex_status_label.pack(side="right", padx=10)
 
-        # =========================================================================
         # 5. Output Container (Split View)
-        # =========================================================================
         output_header = ctk.CTkFrame(self, fg_color="transparent")
         output_header.grid(row=4, column=0, sticky="ew", padx=30, pady=(5, 0))
         ctk.CTkLabel(output_header, text=">_ ANALYSIS_OUTPUT", font=("Consolas", 14, "bold"), text_color=ALERT_RED).pack(side="left")
@@ -296,11 +294,6 @@ class FileInspectionPage(ctk.CTkFrame):
         self.result_boxes = {}  
         self.nav_buttons = {}   
         self.current_view_id = "ALL"
-
-
-    # ==================================================================
-    # ⬇️ MULTI-VIEW TERMINAL LOGIC (สร้างกรอบแยก) ⬇️
-    # ==================================================================
 
     def populate_file_nav(self):
         for widget in self.file_nav_panel.winfo_children():
@@ -374,10 +367,6 @@ class FileInspectionPage(ctk.CTkFrame):
         for box in self.result_boxes.values():
             box.textbox.delete("1.0", "end")
 
-    # ==================================================================
-    # ⬇️ BATCH LOGIC FUNCTIONS (รองรับหลายไฟล์) ⬇️
-    # ==================================================================
-
     def on_drop(self, event):
         raw_paths = self.tk.splitlist(event.data)
         self.load_files(raw_paths)
@@ -405,6 +394,8 @@ class FileInspectionPage(ctk.CTkFrame):
         self.toggle_regex_button(self.tool_menu.get())
 
         self.update_metadata_card()
+        # ทำงานอัตโนมัติทันทีเมื่อโหลดไฟล์เสร็จ
+        self.start_analysis_thread()
 
     def format_size(self, size_bytes):
         if size_bytes < 1024: return f"{size_bytes} B"
@@ -440,6 +431,11 @@ class FileInspectionPage(ctk.CTkFrame):
         self.meta_ext.configure(text=f"[EXT]: {ext}")
         self.meta_md5.configure(text=f"[MD5]: {md5_str}")
 
+    def on_tool_change(self, choice):
+        self.toggle_regex_button(choice)
+        if self.selected_files:
+            self.start_analysis_thread()
+
     def toggle_regex_button(self, mode):
         if mode == "Strings": 
             self.btn_regex_popup.configure(state="normal")
@@ -458,10 +454,14 @@ class FileInspectionPage(ctk.CTkFrame):
             self.regex_status_label.configure(text=f" 🎯 FILTER: {name} ", fg_color=ACCENT_CYAN, text_color="black")
         else:
             self.regex_status_label.configure(text=" 🔍 REGEX: NONE ", fg_color="#0A0A0F", text_color=TEXT_DIM)
+        if self.selected_files:
+            self.start_analysis_thread()
 
     def clear_main_regex(self):
         self.regex_var.set("")
         self.regex_status_label.configure(text=" 🔍 REGEX: NONE ", fg_color="#0A0A0F", text_color=TEXT_DIM)
+        if self.selected_files:
+            self.start_analysis_thread()
 
     def start_analysis_thread(self):
         if not self.selected_files: return
@@ -488,6 +488,7 @@ class FileInspectionPage(ctk.CTkFrame):
             elif choice == "Executable Check": self.check_if_executable(path)
             elif choice == "Strings": self.extract_all_strings(path, state)
             elif choice == "zsteg Analysis": self.run_zsteg_analysis(path)
+            elif choice == "Exiftool": self.run_exiftool_analysis(path)
 
         self.after(0, lambda: self.finish_analysis(choice, state['match_count']))
 
@@ -531,6 +532,25 @@ class FileInspectionPage(ctk.CTkFrame):
             self.safe_log(res.stdout if res.stdout else "[?] NO HIDDEN DATA DETECTED.", target_file=path)
         except: self.safe_log("[!] ZSTEG COMMAND NOT FOUND IN SYSTEM PATH.", "error", target_file=path)
 
+    def run_exiftool_analysis(self, path):
+        try:
+            res = subprocess.run(["exiftool", path], capture_output=True, text=True, timeout=10)
+            if res.returncode == 0 and res.stdout.strip():
+                self.safe_log(res.stdout, target_file=path)
+                return
+        except:
+            pass
+
+        try:
+            file_size = os.path.getsize(path)
+            ext = os.path.splitext(path)[1]
+            self.safe_log(f"[+] FILE PATH: {path}", target_file=path)
+            self.safe_log(f"[+] FILE SIZE: {file_size} bytes", target_file=path)
+            self.safe_log(f"[+] EXTENSION: {ext}", target_file=path)
+            self.safe_log("[!] 'exiftool' not found in system. Install via `sudo apt install libimage-exiftool-perl` for deep metadata.", "error", target_file=path)
+        except Exception as e:
+            self.safe_log(f"[!] ERROR READING FILE: {str(e)}", "error", target_file=path)
+
     def extract_all_strings(self, path, state):
         p = self.regex_var.get()
         try:
@@ -541,10 +561,10 @@ class FileInspectionPage(ctk.CTkFrame):
 
             with open(path, "rb") as f:
                 with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
-                    found_iter = re.finditer(rb"[ -~]{4,}", mm)
+                    # ปรับจาก {4,} เป็น {1,} เพื่อให้รองรับข้อความสั้นๆ เช่น "yo"
+                    found_iter = re.finditer(rb"[ -~]{1,}", mm)
                     
                     for match in found_iter:
-                        # หยุดถ้าแสดงผลครบลิมิตแล้ว (ถ้ามี p ให้ทำงานเงียบๆ ต่อเพื่อเก็บยอด match_count)
                         if state['display_count'] >= state['max_display'] and not p:
                             if not state['warned']:
                                 self.safe_log(f"\n[⚠️] REACHED BATCH DISPLAY LIMIT ({state['max_display']}). HALTING TO PREVENT HANG.", "error", target_file=path)
@@ -562,7 +582,6 @@ class FileInspectionPage(ctk.CTkFrame):
                                 
                         if state['display_count'] < state['max_display']:
                             if matches:
-                                # ไฮไลท์เฉพาะบรรทัดที่เจอ (สาดสีฟ้า)
                                 self.safe_log("  ", newline=False, target_file=path)
                                 lp = 0
                                 for m in matches: 
@@ -572,7 +591,6 @@ class FileInspectionPage(ctk.CTkFrame):
                                     lp = en
                                 self.safe_log(line[lp:], target_file=path)
                             else:
-                                # บรรทัดปกติ พิมพ์ออกมาตามปกติ
                                 self.safe_log(f"  {line}", target_file=path)
                                 
                             state['display_count'] += 1
