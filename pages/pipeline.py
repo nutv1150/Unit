@@ -6,6 +6,11 @@ from Pipeline.pipeline_engine import PipelineEngine
 import tempfile
 import os
 
+from Tools.artifact_bridge import (
+    resolve_file_input,
+    remove_temp_artifact,
+)
+
 # ==========================================
 # ธีมสีหลัก (Cyberpunk / Terminal)
 # ให้ตรงกับหน้า Gemini CLI / App Portal / File Inspection
@@ -28,6 +33,9 @@ class PipelinePage(ctk.CTkFrame):
         self.app_root = master.master  # ใช้เรียก switch_page / send_to_* ข้ามหน้า
         self.run_logs = []
         self.engine = PipelineEngine() #เชื่อมกับ backend
+        self.temp_artifacts = []
+        # P0.4B - Original File Routing
+        self.original_file_path = None
 
         self.configure(fg_color=BG_COLOR)
         self.nodes = []      # เก็บข้อมูล Node ทั้งหมด
@@ -188,7 +196,69 @@ class PipelinePage(ctk.CTkFrame):
         # หมายเหตุ: เดิมมี popup "Pipeline Manager" ที่ผุดขึ้นบังคับทุกครั้งที่เข้าหน้านี้
         # ตัดออกแล้วเพราะ Saved Pipelines / + Add Pipeline มีอยู่แล้วในแผง ALL_TOOLS ด้านซ้าย
         # ผู้ใช้ยังเรียกดู pipeline ที่บันทึกไว้ได้ตามปกติ ไม่ต้องถูกขัดจังหวะตอนเข้าหน้า
+    
+    def set_original_file(self, path, force=False):
+        """
+        จดจำไฟล์ต้นฉบับของ pipeline
 
+        force=False:
+            จะไม่ทับ original เดิม
+
+        force=True:
+            ใช้เมื่อ user เลือก source ใหม่ใน step แรก
+        """
+
+        if not path:
+            return False
+
+        path = os.path.abspath(
+            os.path.expanduser(path)
+        )
+
+        if not os.path.isfile(path):
+            return False
+
+        if force or not self.original_file_path:
+            self.original_file_path = path
+
+        return True
+
+
+    def get_original_file(self):
+        """
+        คืน original file ถ้ายังมีอยู่จริง
+        """
+
+        if (
+            self.original_file_path
+            and os.path.isfile(
+                self.original_file_path
+            )
+        ):
+            return self.original_file_path
+
+        return None
+
+    def set_step_input_path(self, entry, path):
+        """
+        Replace path ในช่อง input ของ Step Window
+        """
+
+        entry.delete(0, "end")
+
+        if path:
+            entry.insert(0, path)
+    
+    def register_temp_artifact(self, path):
+        if path and path not in self.temp_artifacts:
+            self.temp_artifacts.append(path)
+
+
+    def cleanup_pipeline_artifacts(self):
+        for path in self.temp_artifacts:
+            remove_temp_artifact(path)
+
+        self.temp_artifacts.clear()
     # เพิ่ม node (tool) ลง canvas
     def add_tool_node(self, tool_name, user_desc=""):
         if self.node_count == 0:
@@ -253,6 +323,8 @@ class PipelinePage(ctk.CTkFrame):
     def reorder_nodes_by_position(self):
         self.nodes.sort(key=lambda n: n['frame'].winfo_x())
 
+    
+
     # วาดเส้นเชื่อมระหว่าง node
     def draw_connections(self):
         self.line_canvas.delete("line")
@@ -274,11 +346,14 @@ class PipelinePage(ctk.CTkFrame):
                 x1, y1, x1 + dist, y1, x2 - dist, y2, x2, y2,
                 fill=ACCENT_CYAN, width=2, smooth=True, tags="line", arrow=tk.LAST
             )
-
+    
     # รัน pipeline ทั้งหมด
     def run_pipeline(self):
         if not self.nodes:
             return
+
+    # ลบ artifact จาก run ก่อนหน้า
+        self.cleanup_pipeline_artifacts()
 
         current_data = b""
         self.run_logs = [] # เอา output ของตัวก่อน → input ตัวถัดไป
@@ -315,6 +390,9 @@ class PipelinePage(ctk.CTkFrame):
         self.nodes.clear()
         self.node_count = 0
         self.line_canvas.delete("line")
+        self.cleanup_pipeline_artifacts()
+        # P0.4B
+        self.original_file_path = None
 
     # สร้างไฟล์ temp จาก data
     def write_temp_file(self, data):
@@ -486,8 +564,22 @@ class PipelinePage(ctk.CTkFrame):
             win.attributes("-topmost", True)
 
             if path:
-                input_entry.delete(0, "end")
-                input_entry.insert(0, path)
+                self.set_step_input_path(
+                    input_entry,
+                    path
+                )
+
+                # P0.4B:
+                # ไฟล์แรกที่ Browse จะเป็น Original File
+                if not self.get_original_file():
+                    self.set_original_file(path)
+
+                    output_box.insert(
+                        "end",
+                        "\n>>> ORIGINAL FILE SET\n"
+                        f"[+] {path}\n"
+                    )
+
                 update_preview()
 
         ctk.CTkButton(
@@ -496,12 +588,126 @@ class PipelinePage(ctk.CTkFrame):
         ).pack(side="right", padx=5)
 
         if tool_name in self.engine.file_tools:
-            if isinstance(previous_output, bytes):
-                try:
-                    preview = previous_output.decode(errors="ignore")[:500]
-                    input_entry.insert(0, preview)
-                except:
-                    pass
+
+            resolved = resolve_file_input(
+                previous_output
+            )
+
+            mode = resolved["mode"]
+
+            # --------------------------------------------------------
+            # CASE 1:
+            # output ก่อนหน้าคือ file path จริง
+            #
+            # flow เดิมยังทำงาน
+            # --------------------------------------------------------
+
+            if mode == "existing_path":
+
+                input_entry.insert(
+                    0,
+                    resolved["path"]
+                )
+
+                output_box.insert(
+                    "end",
+                    "\n>>> INPUT ROUTING\n"
+                )
+
+                output_box.insert(
+                    "end",
+                    "[+] Existing file path detected\n"
+                )
+
+                output_box.insert(
+                    "end",
+                    f"[+] Path: {resolved['path']}\n"
+                )
+
+            # --------------------------------------------------------
+            # CASE 2:
+            # output ก่อนหน้าเป็น binary
+            #
+            # Artifact Bridge
+            # --------------------------------------------------------
+
+            elif mode == "artifact":
+
+                artifact_path = resolved["path"]
+
+                self.register_temp_artifact(
+                    artifact_path
+                )
+
+                input_entry.insert(
+                    0,
+                    artifact_path
+                )
+
+                output_box.insert(
+                    "end",
+                    "\n>>> UNIT ARTIFACT BRIDGE\n"
+                )
+
+                output_box.insert(
+                    "end",
+                    f"[+] Type : {resolved['type']}\n"
+                )
+
+                output_box.insert(
+                    "end",
+                    f"[+] Size : {resolved['size']:,} bytes\n"
+                )
+
+                output_box.insert(
+                    "end",
+                    f"[+] Temp : {artifact_path}\n"
+                )
+
+                magic = resolved.get("magic")
+
+                if magic:
+
+                    output_box.insert(
+                        "end",
+                        f"[+] Magic: {magic['magic']}\n"
+                    )
+
+                output_box.insert(
+                    "end",
+                    "[+] Binary output converted "
+                    "to temporary file automatically\n"
+                )
+
+            # --------------------------------------------------------
+            # CASE 3:
+            # ไม่มี previous output
+            # หรือ previous เป็น text ปกติ
+            #
+            # ไม่ทำอะไร
+            # user Browse เองเหมือนเดิม
+            # --------------------------------------------------------
+
+            else:
+
+                if previous_output:
+
+                    output_box.insert(
+                        "end",
+                        "\n>>> INPUT ROUTING\n"
+                    )
+
+                    output_box.insert(
+                        "end",
+                        "[i] Previous output is text, "
+                        "not a file path.\n"
+                    )
+
+                    output_box.insert(
+                        "end",
+                        "[i] Select a file manually "
+                        "if this tool requires one.\n"
+                    )
 
         # -------- Options --------
         ctk.CTkLabel(right, text="Options", text_color=TEXT_DIM).pack(anchor="w", padx=20)
@@ -510,6 +716,230 @@ class PipelinePage(ctk.CTkFrame):
         options_frame.pack(fill="x", padx=20, pady=5)
 
         option_vars = []
+        output_box.insert(
+            "end",
+            "[i] Select a file manually "
+            "if this tool requires one.\n"
+        )
+                # ============================================================
+        # P0.4B - ORIGINAL FILE ROUTING
+        # ============================================================
+
+        if tool_name in self.engine.file_tools:
+
+            source_frame = ctk.CTkFrame(
+                right,
+                fg_color="transparent"
+            )
+            source_frame.pack(
+                fill="x",
+                padx=20,
+                pady=(5, 10)
+            )
+
+            ctk.CTkLabel(
+                source_frame,
+                text="INPUT SOURCE",
+                font=("Consolas", 11, "bold"),
+                text_color=TEXT_DIM
+            ).pack(anchor="w", pady=(0, 5))
+
+            source_buttons = ctk.CTkFrame(
+                source_frame,
+                fg_color="transparent"
+            )
+            source_buttons.pack(fill="x")
+
+            # ----------------------------------------------
+            # เก็บ path ของ Previous ที่ Artifact Bridge
+            # resolve ไว้แล้ว
+            # ----------------------------------------------
+
+            previous_file_path = None
+
+            if mode in ("existing_path", "artifact"):
+                previous_file_path = resolved.get("path")
+
+            # ----------------------------------------------
+            # PREVIOUS
+            # ----------------------------------------------
+
+            def use_previous():
+
+                if not previous_file_path:
+                    output_box.insert(
+                        "end",
+                        "\n[!] Previous output is not "
+                        "a usable file.\n"
+                    )
+                    return
+
+                self.set_step_input_path(
+                    input_entry,
+                    previous_file_path
+                )
+
+                output_box.insert(
+                    "end",
+                    "\n>>> INPUT SOURCE: PREVIOUS\n"
+                    f"[+] {previous_file_path}\n"
+                )
+
+                update_preview()
+
+            # ----------------------------------------------
+            # ORIGINAL
+            # ----------------------------------------------
+
+            def use_original():
+
+                original = self.get_original_file()
+
+                if not original:
+                    output_box.insert(
+                        "end",
+                        "\n[!] Original File has not "
+                        "been selected yet.\n"
+                    )
+                    return
+
+                self.set_step_input_path(
+                    input_entry,
+                    original
+                )
+
+                output_box.insert(
+                    "end",
+                    "\n>>> INPUT SOURCE: ORIGINAL\n"
+                    f"[+] {original}\n"
+                )
+
+                update_preview()
+
+            # ----------------------------------------------
+            # SET ORIGINAL
+            # ----------------------------------------------
+
+            def set_new_original():
+
+                win.attributes(
+                    "-topmost",
+                    False
+                )
+
+                path = filedialog.askopenfilename(
+                    parent=win
+                )
+
+                win.attributes(
+                    "-topmost",
+                    True
+                )
+
+                if not path:
+                    return
+
+                self.set_original_file(
+                    path,
+                    force=True
+                )
+
+                self.set_step_input_path(
+                    input_entry,
+                    path
+                )
+
+                original_status.configure(
+                    text=(
+                        "ORIGINAL: "
+                        + os.path.basename(path)
+                    )
+                )
+
+                output_box.insert(
+                    "end",
+                    "\n>>> ORIGINAL FILE CHANGED\n"
+                    f"[+] {path}\n"
+                )
+
+                update_preview()
+
+            # ----------------------------------------------
+            # Buttons
+            # ----------------------------------------------
+
+            ctk.CTkButton(
+                source_buttons,
+                text="PREVIOUS",
+                width=90,
+                height=28,
+                command=use_previous,
+                fg_color="transparent",
+                border_width=1,
+                border_color=ACCENT_PURPLE,
+                text_color=ACCENT_PURPLE,
+                hover_color=CARD_COLOR
+            ).pack(
+                side="left",
+                padx=(0, 4)
+            )
+
+            ctk.CTkButton(
+                source_buttons,
+                text="ORIGINAL",
+                width=90,
+                height=28,
+                command=use_original,
+                fg_color="transparent",
+                border_width=1,
+                border_color=ACCENT_CYAN,
+                text_color=ACCENT_CYAN,
+                hover_color=CARD_COLOR
+            ).pack(
+                side="left",
+                padx=4
+            )
+
+            ctk.CTkButton(
+                source_buttons,
+                text="SET",
+                width=60,
+                height=28,
+                command=set_new_original,
+                fg_color="transparent",
+                border_width=1,
+                border_color=ACCENT_GREEN,
+                text_color=ACCENT_GREEN,
+                hover_color=CARD_COLOR
+            ).pack(
+                side="left",
+                padx=4
+            )
+
+            # ----------------------------------------------
+            # Status
+            # ----------------------------------------------
+
+            original = self.get_original_file()
+
+            original_status = ctk.CTkLabel(
+                source_frame,
+                text=(
+                    "ORIGINAL: "
+                    + (
+                        os.path.basename(original)
+                        if original
+                        else "NONE"
+                    )
+                ),
+                font=("Consolas", 10),
+                text_color=TEXT_DIM
+            )
+
+            original_status.pack(
+                anchor="w",
+                pady=(5, 0)
+            )
 
         # ---------------- แก้ไขบักการรวม Option ----------------
         # ป้องกันบักที่ Option ปรับแต่งไปลบ Option ดั้งเดิมของโปรแกรม
@@ -787,16 +1217,70 @@ class PipelinePage(ctk.CTkFrame):
             update_preview()
 
             if tool_name in self.engine.file_tools:
+                # =====================================================
+                # FILE TOOL
+                # input_entry จะถูกเติมโดย
+                # PREVIOUS / ORIGINAL / BROWSE
+                # =====================================================
+
                 path = input_entry.get().strip()
-                res = self.engine.run_file_tool(tool_name, path, params)
+
+                # ถ้าช่อง path ว่าง
+                # ลอง route previous_output อัตโนมัติอีกครั้ง
+                if not path and previous_output:
+
+                    try:
+                        resolved = resolve_file_input(previous_output)
+
+                        if resolved["mode"] in (
+                            "existing_path",
+                            "artifact"
+                        ):
+                            path = resolved["path"]
+
+                            if resolved["mode"] == "artifact":
+                                self.register_temp_artifact(path)
+
+                            # แสดงให้ user เห็นว่า UNIT เลือกอะไรให้
+                            input_entry.delete(0, "end")
+                            input_entry.insert(0, path)
+
+                    except Exception as e:
+                        output_box.insert(
+                            "end",
+                            f"\n[!] Input routing error: {e}\n"
+                        )
+
+                if not path:
+                    raise ValueError(
+                        "File tool requires a file.\n"
+                        "Select PREVIOUS, ORIGINAL, or BROWSE."
+                    )
+
+                res = self.engine.run_file_tool(
+                    tool_name,
+                    path,
+                    params
+                )
+
             else:
+                # =====================================================
+                # TEXT TOOL
+                # behavior เดิม
+                # =====================================================
+
                 inp_data = input_entry.get().strip()
+
                 if not inp_data and previous_output:
                     input_bytes = previous_output
                 else:
-                    input_bytes = inp_data.encode(errors="ignore") if inp_data else b""
-                res = self.engine.run_text_tool(tool_name, input_bytes, params)
+                    input_bytes = inp_data.encode("utf-8")
 
+                res = self.engine.run_text_tool(
+                    tool_name,
+                    input_bytes,
+                    params
+                )
             result["output"] = res
             output_box.insert("end", f"\n>>> output ({tool_name})\n")
             output_box.insert("end", res.decode(errors="ignore") + "\n")

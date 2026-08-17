@@ -1,7 +1,9 @@
 import subprocess
-import re
 import json
 import os
+import shlex
+
+from Tools.flag_detector import find_first_flag
 
 class PipelineEngine:
     # path ของไฟล์นี้
@@ -9,13 +11,17 @@ class PipelineEngine:
     # path ของไฟล์เก็บ tool
     CUSTOM_TOOL_FILE = os.path.join(BASE_DIR, "custom_tools.json")
     # regex สำหรับหา flag
-    FLAG_PATTERN = r"THCTT\{.*?\}|flag\{.*?\}"
 
     def __init__(self):
         self.file_tools = {} # tool ที่ใช้กับไฟล์
         self.text_tools = {} # tool ที่ใช้กับ text
         self.tool_descriptions = {} 
         self.tool_options = {} # เก็บ options ของ tool
+        
+        self.tool_input_modes = {}
+        self.tool_input_flags = {}
+        
+
         self.load_custom_tools() # โหลด tool จาก JSON
         
 
@@ -39,6 +45,18 @@ class PipelineEngine:
                 mode = tool["mode"]
 
                 params = tool.get("params", [])
+                input_mode = tool.get(
+                    "input_mode",
+                    "positional"
+                )
+
+                input_flag = tool.get(
+                    "input_flag",
+                    None
+                )
+
+                self.tool_input_modes[name] = input_mode
+                self.tool_input_flags[name] = input_flag
 
                 # description
                 self.tool_descriptions[name] = tool.get(
@@ -50,9 +68,37 @@ class PipelineEngine:
                 self.tool_options[name] = tool.get("options", [])
 
                 #command + params + input → กลายเป็น list command
-                def make_file_tool(command, params):
+                def make_file_tool(
+                    command,
+                    params,
+                    input_mode="positional",
+                    input_flag=None
+                ):
                     def tool(file_path, p=None):
-                        return [command] + params + (p.split() if p else []) + ([file_path] if file_path else [])
+
+                        cmd = [command] + params
+
+                        if p:
+                            cmd += shlex.split(p)
+
+                        if file_path:
+
+                            if (
+                                input_mode == "flag"
+                                and input_flag
+                            ):
+                                cmd += [
+                                    input_flag,
+                                    file_path
+                                ]
+
+                            else:
+                                cmd += [
+                                    file_path
+                                ]
+
+                        return cmd
+
                     return tool
 
                 def make_text_tool(command, params):
@@ -61,7 +107,13 @@ class PipelineEngine:
                     return tool
                 
                 if mode == "file":
-                    self.file_tools[name] = make_file_tool(command, params)
+
+                    self.file_tools[name] = make_file_tool(
+                        command,
+                        params,
+                        input_mode,
+                        input_flag
+                    )
                 else:
                     self.text_tools[name] = make_text_tool(command, params)
 
@@ -112,13 +164,7 @@ class PipelineEngine:
         except subprocess.TimeoutExpired:
             return b"Command timeout"
     def check_flag(self, text):
-
-        if isinstance(text, bytes):
-            text = text.decode("utf-8", errors="ignore")
-
-        match = re.search(self.FLAG_PATTERN, text)
-
-        return match.group() if match else None
+        return find_first_flag(text)
     
     def add_tool(self, name, command, mode):
 

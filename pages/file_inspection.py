@@ -9,6 +9,8 @@ import threading
 import hashlib
 import mmap  
 
+from Tools.flag_detector import UNIVERSAL_FLAG_REGEX
+
 # ==========================================
 # ธีมสีหลัก (Cyberpunk / Terminal)
 # ==========================================
@@ -181,15 +183,20 @@ class FileInspectionPage(ctk.CTkFrame):
             r"(?:\d{1,3}\.){3}\d{1,3}": "🌐 IPv4_ADDR",
             r"https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}": "🔗 URL_LINK",
             r"[a-fA-F0-9]{32}": "🔑 MD5_HASH",
-            r"FLAG\{.*?\}": "🚩 STD_FLAG",
-            r"(flag|ctf|picoCTF)\{[^}]+\}": "🚩 MULTI_CTF_FLAG"
+
+            UNIVERSAL_FLAG_REGEX: "🚩 UNIVERSAL_CTF_FLAG"
         }
 
         self.regex_previews = {
             r"(?:0|\+66)[689]\d[- \.]?\d{3}[- \.]?\d{4}": "📱 THAI_MOBILE_NUM\nFind Thai mobile numbers (08x, 09x, 06x)",
             r"FLAG\{.*?\}": "🎯 STD_FLAG\nStandard CTF flag format",
             r"(flag|ctf|picoCTF)\{[^}]+\}": "🌐 MULTI_CTF_FLAG\nCommon CTF platform formats (pico, HTB, etc.)",
-            "": "💡 HOVER FOR DETAILS"
+            "": "💡 HOVER FOR DETAILS",
+
+            UNIVERSAL_FLAG_REGEX:
+                "🚩 UNIVERSAL_CTF_FLAG\n"
+                "Detect common CTF wrappers: flag, CTF, TCTT2026, "
+                "IT_MSU_ANNIV25, HTB, picoCTF, etc.",
         }
 
         self.grid_columnconfigure(0, weight=1)
