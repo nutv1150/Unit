@@ -279,6 +279,54 @@
                     ]
                 }
             ]
+        },
+        {
+            "pipeline_name": "fater",
+            "steps": [
+                {
+                    "name": "strings",
+                    "params": "",
+                    "user_description": "",
+                    "options": []
+                },
+                {
+                    "name": "openssl enc",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-d",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-aes-128-ecb",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-nopad",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-K 4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-out",
+                            "type": "text",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-in",
+                            "type": "checkbox",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
         }
     ]
 }

@@ -2,7 +2,12 @@ import customtkinter as ctk
 from Encode.base_encoder import encode_data
 from Decode.base_decoder import decode_data
 from Hashing.hash_utils import hash_data
-from Tools.extra_tools import highlight_text, bitwise_mask, bitwise_unmask
+from Tools.extra_tools import (
+    highlight_text,
+    bitwise_mask,
+    bitwise_unmask,
+    detect_embedded_key,
+)
 from tkinter import filedialog
 
 # ==========================================
@@ -257,14 +262,67 @@ class DataHashPage(ctk.CTkFrame):
                 result = hash_data(data, algo)
 
             elif self.mode == "Bitwise":
-                key = self.key_entry.get()
-                if not key:
-                    raise ValueError("กรุณาใส่ Key")
 
-                if algo == "XOR Mask": result = bitwise_mask(data, key, "xor")
-                elif algo == "XOR Unmask": result = bitwise_unmask(data, key)
-                elif algo == "OR Mask": result = bitwise_mask(data, key, "or")
-                elif algo == "AND Mask": result = bitwise_mask(data, key, "and")
+                key = self.key_entry.get().strip()
+
+                # =====================================================
+                # P0.4A - AUTO KEY DETECTION
+                # =====================================================
+
+                if not key:
+
+                    detected_key = detect_embedded_key(
+                        data
+                    )
+
+                    if detected_key:
+
+                        key = detected_key["key"]
+
+                        # เติม key ลงช่อง UI ให้ user เห็น
+                        self.key_entry.delete(
+                            0,
+                            "end"
+                        )
+
+                        self.key_entry.insert(
+                            0,
+                            key
+                        )
+
+                    else:
+                        raise ValueError(
+                            "กรุณาใส่ Key "
+                            "หรือวางข้อมูลที่มี key เช่น "
+                            "$key = 0x4A"
+                        )
+
+                if algo == "XOR Mask":
+                    result = bitwise_mask(
+                        data,
+                        key,
+                        "xor"
+                    )
+
+                elif algo == "XOR Unmask":
+                    result = bitwise_unmask(
+                        data,
+                        key
+                    )
+
+                elif algo == "OR Mask":
+                    result = bitwise_mask(
+                        data,
+                        key,
+                        "or"
+                    )
+
+                elif algo == "AND Mask":
+                    result = bitwise_mask(
+                        data,
+                        key,
+                        "and"
+                    )
 
             self.output_box.delete("1.0", "end")
             self.output_box.insert("1.0", result)

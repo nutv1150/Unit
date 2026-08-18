@@ -6,7 +6,9 @@ import html
 
 # นำเข้า module สำหรับจัดการ URL encode/decode
 import urllib.parse
+import re
 
+from Tools.flag_detector import find_first_flag
 
 # =========================
 # Search Highlight Tool
@@ -58,67 +60,304 @@ def highlight_text(textbox, keyword):
 # ฟังก์ชัน parse input เป็น bytes พร้อมบอกชนิด
 def _parse_input_bytes(raw: str) -> tuple:
     """
-    แปลง input เป็น bytes
-    คืนค่า (bytes, ประเภทข้อมูล)
+    Smart CTF byte parser.
+
+    รองรับ:
+    - 2c 26 2b
+    - 2c:26:2b
+    - 2c-26-2b
+    - 0x2c, 0x26, 0x2b
+    - @(0x2c,0x26,...)
+    - $data = @(0x2c,...)
+    - data = [0x2c, ...]
+    - unsigned char data[] = {0x2c, ...}
+    - \\x2c\\x26\\x2b
+    - raw text fallback
     """
-    # ตัดช่องว่างหน้า-หลัง
+
     cleaned = raw.strip()
 
-    # ลองแปลงเป็น hex โดยลบตัวคั่น
-    hex_try = cleaned.replace(" ", "").replace(":", "").replace("-", "")
+    if not cleaned:
+        raise ValueError("❌ Input ว่าง")
 
-    # ตรวจว่าเป็น hex ถูกต้องไหม
+    # =====================================================
+    # 1. Variable/array assignment
+    #
+    # สำคัญ: ถ้ามีทั้ง:
+    #
+    # $key  = 0x4A
+    # $data = @(0x2c,...)
+    #
+    # ต้อง extract เฉพาะ $data
+    # ห้ามเอา 0x4A มาปนใน ciphertext
+    # =====================================================
+
+    assignment_patterns = [
+        # PowerShell
+        r"(?is)\$(?:data|bytes|payload|encoded|ciphertext)"
+        r"\s*=\s*@\((.*?)\)",
+
+        # Python / generic [...]
+        r"(?is)(?:data|bytes|payload|encoded|ciphertext)"
+        r"\s*=\s*\[(.*?)\]",
+
+        # C / generic {...}
+        r"(?is)(?:data|bytes|payload|encoded|ciphertext)"
+        r"[^\n=]*=\s*\{(.*?)\}",
+    ]
+
+    for pattern in assignment_patterns:
+        match = re.search(pattern, cleaned)
+
+        if match:
+            body = match.group(1)
+
+            tokens = re.findall(
+                r"(?i)0x([0-9a-f]{1,2})\b",
+                body
+            )
+
+            if tokens:
+                return (
+                    bytes(int(x, 16) for x in tokens),
+                    "hex array"
+                )
+
+    # =====================================================
+    # 2. Escaped hex
+    #
+    # \x2c\x26\x2b
+    # =====================================================
+
+    escaped = re.findall(
+        r"(?i)\\x([0-9a-f]{2})",
+        cleaned
+    )
+
+    if escaped:
+        return (
+            bytes(int(x, 16) for x in escaped),
+            "escaped hex"
+        )
+
+    # =====================================================
+    # 3. 0xNN byte list
+    #
+    # 0x2c,0x26,0x2b
+    # @(0x2c,0x26,...)
+    # =====================================================
+
+    hex_tokens = re.findall(
+        r"(?i)\b0x([0-9a-f]{1,2})\b",
+        cleaned
+    )
+
+    if len(hex_tokens) >= 2:
+        return (
+            bytes(int(x, 16) for x in hex_tokens),
+            "hex byte array"
+        )
+
+    # =====================================================
+    # 4. Plain hex
+    #
+    # 2c 26 2b
+    # 2c:26:2b
+    # 2c-26-2b
+    # 2c262b
+    # =====================================================
+
+    hex_try = (
+        cleaned
+        .replace(" ", "")
+        .replace("\n", "")
+        .replace("\t", "")
+        .replace(":", "")
+        .replace("-", "")
+        .replace(",", "")
+    )
+
     if (
-        len(hex_try) >= 2 and                      # ต้องมีความยาวอย่างน้อย 2
-        len(hex_try) % 2 == 0 and                  # ต้องเป็นเลขคู่
-        all(c in "0123456789abcdefABCDEF" for c in hex_try)  # ต้องเป็น hex
+        len(hex_try) >= 2
+        and len(hex_try) % 2 == 0
+        and all(
+            c in "0123456789abcdefABCDEF"
+            for c in hex_try
+        )
     ):
         try:
-            return bytes.fromhex(hex_try), "hex"   # แปลงเป็น bytes
+            return bytes.fromhex(hex_try), "hex"
         except ValueError:
-            pass  # ถ้าแปลงไม่ได้ให้ข้าม
+            pass
 
-    # ถ้าไม่ใช่ hex → แปลงเป็น UTF-8
+    # =====================================================
+    # 5. Raw text fallback
+    # =====================================================
+
     try:
         return cleaned.encode("utf-8"), "raw"
+
     except Exception:
-        # ถ้าแปลงไม่ได้ให้ error
         raise ValueError("❌ Input ไม่ถูกต้อง")
+
+def detect_embedded_key(raw: str):
+    """
+    Detect key ที่ฝังอยู่ใน CTF snippets.
+
+    ตัวอย่าง:
+        $key = 0x4A
+        key = 74
+        xor_key = "secret"
+    """
+
+    text = raw.strip()
+
+    if not text:
+        return None
+
+    # -----------------------------------------------------
+    # HEX key
+    # $key = 0x4A
+    # key = 0x41
+    # xor_key = 0xFF
+    # -----------------------------------------------------
+
+    match = re.search(
+        r"(?im)"
+        r"(?:\$?key|xor[_\s-]?key)"
+        r"\s*=\s*"
+        r"(0x[0-9a-f]+)",
+        text
+    )
+
+    if match:
+        return {
+            "key": match.group(1),
+            "type": "hex",
+            "source": match.group(0),
+        }
+
+    # -----------------------------------------------------
+    # Decimal
+    # key = 74
+    # -----------------------------------------------------
+
+    match = re.search(
+        r"(?im)"
+        r"(?:\$?key|xor[_\s-]?key)"
+        r"\s*=\s*"
+        r"([0-9]+)",
+        text
+    )
+
+    if match:
+        return {
+            "key": match.group(1),
+            "type": "decimal",
+            "source": match.group(0),
+        }
+
+    # -----------------------------------------------------
+    # Quoted ASCII
+    # key = "secret"
+    # key = 'J'
+    # -----------------------------------------------------
+
+    match = re.search(
+        r"""(?im)
+        (?:\$?key|xor[_\s-]?key)
+        \s*=\s*
+        ["']([^"']+)["']
+        """,
+        text,
+        re.VERBOSE
+    )
+
+    if match:
+        return {
+            "key": match.group(1),
+            "type": "ascii",
+            "source": match.group(0),
+        }
+
+    return None
 
 
 # ฟังก์ชัน parse key
 def _parse_key_bytes(key_str: str) -> tuple:
+    """
+    Parse XOR/bitwise key.
 
-    # ตัดช่องว่าง
+    รองรับ:
+    0x4A        -> hex number -> b'\x4a'
+    74          -> decimal    -> b'\x4a'
+    4A4B        -> hex string -> b'\x4a\x4b'
+    4A:4B       -> hex string
+    hello       -> ASCII
+    """
+
     k = key_str.strip()
 
-    # ถ้า key ว่าง → error
     if not k:
         raise ValueError("❌ Key ว่าง")
 
-    # ถ้าเป็นรูปแบบ 0x (hex number)
+    # =====================================================
+    # 1. HEX NUMBER
+    # เช่น 0x4A, 0xff, 0X4142
+    # =====================================================
     if k.lower().startswith("0x"):
-        val = int(k, 16)  # แปลงเป็น int base 16
-        # แปลงเป็น bytes
-        return val.to_bytes((val.bit_length() + 7) // 8 or 1, "big"), "hex number"
+        hex_part = k[2:].strip()
 
-    # ถ้าเป็นตัวเลขล้วน (decimal)
+        if not hex_part:
+            raise ValueError("❌ Invalid hex key")
+
+        if not all(c in "0123456789abcdefABCDEF" for c in hex_part):
+            raise ValueError(f"❌ Invalid hex key: {k}")
+
+        # bytes.fromhex ต้องจำนวน hex เป็นเลขคู่
+        if len(hex_part) % 2 != 0:
+            hex_part = "0" + hex_part
+
+        return bytes.fromhex(hex_part), "hex number"
+
+    # =====================================================
+    # 2. DECIMAL NUMBER
+    # 74 -> 0x4A
+    # =====================================================
     if k.isdigit():
-        val = int(k)
-        b = val.to_bytes((val.bit_length() + 7) // 8 or 1, "big")
-        return b, "decimal"
+        val = int(k, 10)
 
-    # ลองเป็น hex string
-    hex_try = k.replace(" ", "").replace(":", "")
+        if val < 0:
+            raise ValueError("❌ Key must be positive")
+
+        size = max(1, (val.bit_length() + 7) // 8)
+
+        return val.to_bytes(size, "big"), "decimal"
+
+    # =====================================================
+    # 3. HEX BYTE STRING
+    # เช่น:
+    # 4A4B
+    # 4A 4B
+    # 4A:4B
+    # 4A-4B
+    # =====================================================
+    hex_try = (
+        k.replace(" ", "")
+         .replace(":", "")
+         .replace("-", "")
+    )
 
     if (
-        len(hex_try) >= 4 and
-        len(hex_try) % 2 == 0 and
-        all(c in "0123456789abcdefABCDEF" for c in hex_try)
+        len(hex_try) >= 2
+        and len(hex_try) % 2 == 0
+        and all(c in "0123456789abcdefABCDEF" for c in hex_try)
     ):
         return bytes.fromhex(hex_try), "hex string"
 
-    # ถ้าไม่เข้าเงื่อนไข → ใช้เป็น ASCII
+    # =====================================================
+    # 4. ASCII STRING
+    # =====================================================
     return k.encode("utf-8"), "ascii"
 
 
@@ -142,20 +381,10 @@ def _is_printable(b: bytes) -> bool:
 
 # ตรวจ flag pattern
 def _flag_hint(b: bytes) -> str:
-    try:
-        # decode เป็น string
-        text = b.decode("utf-8", errors="ignore")
+    flag = find_first_flag(b)
 
-        # pattern ที่ใช้ตรวจ
-        patterns = ["flag{", "CTF{", "picoCTF{","TCHTT{"]
-
-        # ตรวจทีละ pattern
-        for p in patterns:
-            if p in text:
-                return f"🚩 FLAG DETECTED: พบ pattern '{p}'"
-
-    except:
-        pass
+    if flag:
+        return f"🚩 FLAG DETECTED: {flag}"
 
     return ""
 
