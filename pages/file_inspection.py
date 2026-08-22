@@ -38,6 +38,7 @@ class ResultBox(ctk.CTkFrame):
         self.textbox.pack(fill="both", expand=True, padx=2, pady=(0, 2))
         
         self.textbox.tag_config("found", background=ACCENT_CYAN, foreground="#000000")
+        self.textbox.tag_config("highlight", background="#FFB800", foreground="#000000") # สีเหลืองสำหรับไฮไลท์คำค้นหา
         self.textbox.tag_config("error", foreground=ALERT_RED)
         
         self.app_root = app_root
@@ -55,6 +56,32 @@ class ResultBox(ctk.CTkFrame):
     def show_context_menu(self, e):
         if self.textbox.tag_ranges("sel"):
             self.context_menu.tk_popup(e.x_root, e.y_root)
+
+    def search_keyword(self, keyword):
+        # เคลียร์ไฮไลท์เก่าก่อน
+        self.textbox.tag_remove("highlight", "1.0", "end")
+        if not keyword:
+            return 0
+
+        matches = 0
+        pos = "1.0"
+        while True:
+            # ค้นหาคำแบบไม่สนตัวพิมพ์เล็กใหญ่
+            pos = self.textbox.search(keyword, pos, stopindex="end", nocase=True)
+            if not pos:
+                break
+            
+            end_pos = f"{pos}+{len(keyword)}c"
+            self.textbox.tag_add("highlight", pos, end_pos)
+            matches += 1
+            pos = end_pos
+
+        # ถ้าเจอคำ ให้เลื่อนจอไปที่จุดแรกที่พบ
+        if matches > 0:
+            first_match = self.textbox.tag_ranges("highlight")
+            if first_match:
+                self.textbox.see(first_match[0])
+        return matches
 
 
 # --- ⭐ 2. หน้าต่าง Popup สำหรับเลือก Regex ---
@@ -165,7 +192,7 @@ class RegexSelectionPopup(ctk.CTkToplevel):
         self.destroy()
 
 
-# --- ⭐ 3. หน้าหลัก File Inspection ---[cite: 1]
+# --- ⭐ 3. หน้าหลัก File Inspection ---
 class FileInspectionPage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
@@ -240,28 +267,38 @@ class FileInspectionPage(ctk.CTkFrame):
         self.tool_menu.pack(side="left", padx=15, pady=15)
 
         self.btn_analyze = ctk.CTkButton(
-            action_frame, text="[ EXECUTE ]", width=120, height=35, 
+            action_frame, text="[ EXECUTE ]", width=100, height=35, 
             font=("Consolas", 12, "bold"), fg_color=ACCENT_CYAN, text_color="black", hover_color="#00CCCC",
             state="disabled", command=self.start_analysis_thread
         )
         self.btn_analyze.pack(side="left", padx=5)
 
         self.btn_regex_popup = ctk.CTkButton(
-            action_frame, text="⚙️ CFG_REGEX", width=120, height=35,
+            action_frame, text="⚙️ CFG_REGEX", width=100, height=35,
             font=("Consolas", 12, "bold"), fg_color="transparent", border_width=1, border_color=ACCENT_GREEN, text_color=ACCENT_GREEN, hover_color="#003311",
             state="disabled", command=self.open_regex_popup
         )
-        self.btn_regex_popup.pack(side="left", padx=(15, 5))
+        self.btn_regex_popup.pack(side="left", padx=(10, 5))
 
         self.btn_clear_regex = ctk.CTkButton(
-            action_frame, text="[X]", width=40, height=35, 
+            action_frame, text="[X]", width=35, height=35, 
             font=("Consolas", 12, "bold"), fg_color="transparent", border_width=1, border_color=ALERT_RED, text_color=ALERT_RED, hover_color="#4A0011",
             state="disabled", command=self.clear_main_regex
         )
         self.btn_clear_regex.pack(side="left", padx=0)
 
-        self.progress_bar = ctk.CTkProgressBar(action_frame, mode="indeterminate", width=120, progress_color=ACCENT_CYAN, fg_color="#2B2B36")
-        self.progress_bar.pack(side="left", padx=15)
+        # ช่องกรอก Max Display
+        ctk.CTkLabel(action_frame, text="Max Display Line:", font=("Consolas", 11, "bold"), text_color=TEXT_DIM).pack(side="left", padx=(10, 2))
+        self.max_display_entry = ctk.CTkEntry(
+            action_frame, width=65, height=35,
+            font=("Consolas", 12), fg_color="#0A0A0F",
+            border_color="#333344", text_color=ACCENT_CYAN
+        )
+        self.max_display_entry.insert(0, "3000")
+        self.max_display_entry.pack(side="left", padx=(0, 10))
+
+        self.progress_bar = ctk.CTkProgressBar(action_frame, mode="indeterminate", width=80, progress_color=ACCENT_CYAN, fg_color="#2B2B36")
+        self.progress_bar.pack(side="left", padx=5)
         self.progress_bar.pack_forget() 
 
         self.warning_label = ctk.CTkLabel(action_frame, text="STATUS: IDLE", text_color=TEXT_DIM, font=("Consolas", 12, "bold"))
@@ -269,15 +306,25 @@ class FileInspectionPage(ctk.CTkFrame):
 
         self.regex_status_label = ctk.CTkLabel(
             action_frame, text=" 🔍 REGEX: NONE ", font=("Consolas", 12, "bold"), 
-            fg_color="#0A0A0F", text_color=TEXT_DIM, corner_radius=4, width=150, height=30
+            fg_color="#0A0A0F", text_color=TEXT_DIM, corner_radius=4, width=130, height=30
         )
-        self.regex_status_label.pack(side="right", padx=10)
+        self.regex_status_label.pack(side="right", padx=5)
 
-        # 5. Output Container (Split View)
+        # 5. Output Container (Split View + In-App Search Bar)
         output_header = ctk.CTkFrame(self, fg_color="transparent")
         output_header.grid(row=4, column=0, sticky="ew", padx=30, pady=(5, 0))
+        
         ctk.CTkLabel(output_header, text=">_ ANALYSIS_OUTPUT", font=("Consolas", 14, "bold"), text_color=ALERT_RED).pack(side="left")
-        ctk.CTkButton(output_header, text="[ CLEAR_ALL ]", font=("Consolas", 12, "bold"), width=100, height=28, fg_color="transparent", border_width=1, border_color=ALERT_RED, text_color=ALERT_RED, hover_color="#4A0011", command=self.clear_terminal).pack(side="right")
+        
+        # 🔍 ช่องค้นหาคำด่วน (In-App Search) ไว้มุมขวาบนของ Output
+        ctk.CTkButton(output_header, text="[ CLEAR_ALL ]", font=("Consolas", 12, "bold"), width=90, height=28, fg_color="transparent", border_width=1, border_color=ALERT_RED, text_color=ALERT_RED, hover_color="#4A0011", command=self.clear_terminal).pack(side="right", padx=(5, 0))
+        
+        self.search_btn = ctk.CTkButton(output_header, text="[ FIND ]", font=("Consolas", 11, "bold"), width=60, height=28, fg_color="transparent", border_width=1, border_color=ACCENT_CYAN, text_color=ACCENT_CYAN, hover_color="#003344", command=self.trigger_in_app_search)
+        self.search_btn.pack(side="right", padx=5)
+
+        self.search_entry = ctk.CTkEntry(output_header, placeholder_text="Search in output...", font=("Consolas", 11), width=150, height=28, fg_color="#0A0A0F", border_color="#333344", text_color=ACCENT_CYAN)
+        self.search_entry.pack(side="right", padx=5)
+        self.search_entry.bind("<Return>", lambda e: self.trigger_in_app_search())
 
         self.output_container = ctk.CTkFrame(self, fg_color="transparent")
         self.output_container.grid(row=5, column=0, sticky="nsew", padx=30, pady=(5, 20))
@@ -294,6 +341,16 @@ class FileInspectionPage(ctk.CTkFrame):
         self.result_boxes = {}  
         self.nav_buttons = {}   
         self.current_view_id = "ALL"
+
+    def trigger_in_app_search(self):
+        keyword = self.search_entry.get().strip()
+        total_found = 0
+        for path, box in self.result_boxes.items():
+            found = box.search_keyword(keyword)
+            total_found += found
+        
+        if keyword:
+            self.warning_label.configure(text=f"STATUS: FOUND {total_found} MATCHES", text_color=ACCENT_GREEN)
 
     def populate_file_nav(self):
         for widget in self.file_nav_panel.winfo_children():
@@ -394,7 +451,6 @@ class FileInspectionPage(ctk.CTkFrame):
         self.toggle_regex_button(self.tool_menu.get())
 
         self.update_metadata_card()
-        # ทำงานอัตโนมัติทันทีเมื่อโหลดไฟล์เสร็จ
         self.start_analysis_thread()
 
     def format_size(self, size_bytes):
@@ -472,13 +528,18 @@ class FileInspectionPage(ctk.CTkFrame):
         self.btn_analyze.configure(state="disabled")
         self.tool_menu.configure(state="disabled")
         self.warning_label.configure(text="STATUS: PROCESSING...", text_color="#FFB800")
-        self.progress_bar.pack(side="left", padx=15)
+        self.progress_bar.pack(side="left", padx=5)
         self.progress_bar.start()
 
         threading.Thread(target=self._run_analysis_logic, args=(choice,), daemon=True).start()
 
     def _run_analysis_logic(self, choice):
-        state = {'match_count': 0, 'display_count': 0, 'max_display': 3000, 'warned': False}
+        try:
+            max_limit = int(self.max_display_entry.get().strip())
+        except ValueError:
+            max_limit = 3000
+
+        state = {'match_count': 0, 'display_count': 0, 'max_display': max_limit, 'warned': False}
 
         for path in self.selected_files:
             if choice == "Strings" and not self.regex_var.get() and state['warned']:
@@ -559,46 +620,49 @@ class FileInspectionPage(ctk.CTkFrame):
                 self.safe_log("[!] TARGET FILE IS EMPTY.", target_file=path)
                 return
 
-            with open(path, "rb") as f:
-                with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
-                    # ปรับจาก {4,} เป็น {1,} เพื่อให้รองรับข้อความสั้นๆ เช่น "yo"
-                    found_iter = re.finditer(rb"[ -~]{1,}", mm)
-                    
-                    for match in found_iter:
-                        if state['display_count'] >= state['max_display'] and not p:
-                            if not state['warned']:
-                                self.safe_log(f"\n[⚠️] REACHED BATCH DISPLAY LIMIT ({state['max_display']}). HALTING TO PREVENT HANG.", "error", target_file=path)
-                                state['warned'] = True
-                            break 
+            buffer_lines = []
 
-                        s = match.group()
-                        line = s.decode(errors="ignore")
+            # เปลี่ยนมาใช้วิธีอ่านไฟล์แบบปกติ ปลอดภัยและไม่มีปัญหาเรื่อง mmap pointer ค้าง
+            with open(path, "rb") as f:
+                content = f.read()
+                
+            # ค้นหาชุดข้อความที่พิมพ์ได้ (Strings)
+            found_iter = re.finditer(rb"[ -~]{1,}", content)
+            
+            for match in found_iter:
+                if state['display_count'] >= state['max_display']:
+                    if not state['warned']:
+                        buffer_lines.append(f"\n[⚠️] REACHED MAX DISPLAY LIMIT ({state['max_display']} LINES).")
+                        state['warned'] = True
+                    break 
+
+                s = match.group()
+                line = s.decode(errors="ignore")
+                
+                matches = []
+                if p:
+                    matches = list(re.finditer(p, line, re.IGNORECASE))
+                    if matches:
+                        state['match_count'] += len(matches)
                         
-                        matches = []
-                        if p:
-                            matches = list(re.finditer(p, line, re.IGNORECASE))
-                            if matches:
-                                state['match_count'] += len(matches)
-                                
-                        if state['display_count'] < state['max_display']:
-                            if matches:
-                                self.safe_log("  ", newline=False, target_file=path)
-                                lp = 0
-                                for m in matches: 
-                                    st, en = m.span()
-                                    self.safe_log(line[lp:st], newline=False, target_file=path)
-                                    self.safe_log(line[st:en], "found", newline=False, target_file=path)
-                                    lp = en
-                                self.safe_log(line[lp:], target_file=path)
-                            else:
-                                self.safe_log(f"  {line}", target_file=path)
-                                
-                            state['display_count'] += 1
-                        elif state['display_count'] == state['max_display']:
-                            if not state['warned']:
-                                self.safe_log(f"\n[⚠️] REACHED DISPLAY LIMIT ({state['max_display']}). PROCESSING REMAINDER IN BACKGROUND...", "error", target_file=path)
-                                state['warned'] = True
-                            state['display_count'] += 1 
+                if matches:
+                    formatted_line = "  "
+                    lp = 0
+                    for m in matches: 
+                        st, en = m.span()
+                        formatted_line += line[lp:st] + f"[{line[st:en]}]"
+                        lp = en
+                    formatted_line += line[lp:]
+                    buffer_lines.append(formatted_line)
+                else:
+                    buffer_lines.append(f"  {line}")
+                    
+                state['display_count'] += 1
+            
+            if buffer_lines:
+                self.safe_log("\n".join(buffer_lines), target_file=path)
+            else:
+                self.safe_log("[?] NO STRINGS FOUND.", target_file=path)
                                 
         except Exception as e: 
             self.safe_log(f"[!] STRINGS EXTRACTION ERROR: {str(e)}", "error", target_file=path)
