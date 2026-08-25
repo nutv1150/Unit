@@ -619,6 +619,7 @@ class FileInspectionPage(ctk.CTkFrame):
     # 🌟 [อัปเดต]: แสดงผลทุกบรรทัดเสมอ และไฮไลท์บรรทัดที่ตรงกับ Regex 
     # 🔄 ปรับฟังก์ชัน Strings ให้อ่านไฟล์ Binary, สกัด Printable, และรองรับ Regex ข้ามบรรทัด
     # 🔄 ปรับปรุง Strings ให้อ่านไฟล์ Text ปกติได้ (รวมถึงไฟล์บรรทัดเดียว) และรองรับ Binary 
+    # 🔄 ปรับปรุง Strings ให้เตรียมข้อมูลให้เสร็จก่อนแสดงผล เพื่อไม่ให้ข้อความค่อยๆ ไหล
     def extract_all_strings(self, path, state):
         p = self.regex_var.get()
         try:
@@ -627,8 +628,12 @@ class FileInspectionPage(ctk.CTkFrame):
                 self.safe_log("[!] TARGET FILE IS EMPTY.", target_file=path)
                 return
 
-            if path in self.result_boxes:
-                self.result_boxes[path].textbox.delete("1.0", "end")
+            if path not in self.result_boxes:
+                return
+            
+            textbox = self.result_boxes[path].textbox
+            # เคลียร์หน้าจอให้เรียบร้อยก่อน
+            self.after(0, lambda: textbox.delete("1.0", "end"))
 
             # 1. ลองอ่านแบบ Text file (UTF-8) ก่อน
             try:
@@ -645,70 +650,74 @@ class FileInspectionPage(ctk.CTkFrame):
                 ascii_strings = re.findall(b"[\x20-\x7E]{4,}", data)
                 file_content = "\n".join([b.decode('ascii', errors='ignore') for b in ascii_strings])
 
-            # ถ้าไม่มี Regex ให้พิมพ์ข้อความทั้งหมดออกมาเลย
+            # จำกัดจำนวนบรรทัดที่จะแสดงผล เพื่อป้องกันหน้าจอค้าง
+            lines = file_content.splitlines()
+            if len(lines) > state['max_display']:
+                lines = lines[:state['max_display']]
+                warning_msg = f"\n[⚠️] REACHED MAX DISPLAY LIMIT ({state['max_display']} LINES)."
+                state['warned'] = True
+            else:
+                warning_msg = ""
+            
+            # รวมข้อความกลับมาเฉพาะส่วนที่จะแสดงผล
+            display_content = "\n".join(lines)
+            prefix = "" if is_text_file else "  "
+            
+            # ถ้าเป็นไฟล์ Binary ให้เติม prefix เว้นวรรคข้างหน้าทุกบรรทัด
+            if not is_text_file:
+                display_content = prefix + display_content.replace("\n", "\n" + prefix)
+
+            # ถ้าไม่มี Regex ให้พิมพ์ข้อความทั้งหมดออกมารวดเดียว
             if not p:
-                for line in file_content.splitlines():
-                    if state['display_count'] >= state['max_display']:
-                        if not state['warned']:
-                            self.safe_log(f"\n[⚠️] REACHED MAX DISPLAY LIMIT ({state['max_display']} LINES).", target_file=path)
-                            state['warned'] = True
-                        return
-                    # ถ้าเป็นไฟล์ text พิมพ์ออกมาตรงๆ, ถ้าเป็น binary พิมพ์เว้นวรรคนำหน้าให้ดูง่าย
-                    prefix = "" if is_text_file else "  "
-                    self.safe_log(f"{prefix}{line}", target_file=path)
-                    state['display_count'] += 1
+                self.after(0, lambda: textbox.insert("end", display_content + warning_msg))
+                state['display_count'] += len(lines)
                 return
 
-            # ถ้ามี Regex ให้ค้นหาและไฮไลท์
-            matches = list(re.finditer(p, file_content, re.IGNORECASE))
+            # --- ถ้ามี Regex ให้ค้นหาและเตรียมข้อมูลการไฮไลท์ ---
+            matches = list(re.finditer(p, display_content, re.IGNORECASE))
             
             if not matches:
-                # ถ้าหาไม่เจอเลย ก็โชว์ทั้งหมด (ตามที่ต้องการ)
-                for line in file_content.splitlines():
-                    if state['display_count'] >= state['max_display']:
-                        break
-                    prefix = "" if is_text_file else "  "
-                    self.safe_log(f"{prefix}{line}", target_file=path)
-                    state['display_count'] += 1
+                # ถ้าหาไม่เจอเลย ก็โชว์ทั้งหมดรวดเดียว
+                self.after(0, lambda: textbox.insert("end", display_content + warning_msg))
+                state['display_count'] += len(lines)
                 return
 
             state['match_count'] += len(matches)
             
-            # --- แสดงผลพร้อมไฮไลท์ ---
+            # 🌟 จุดสำคัญ: สร้าง List เก็บคำสั่งว่าส่วนไหนข้อความธรรมดา ส่วนไหนต้องไฮไลท์
+            # รูปแบบ: [("ข้อความธรรมดา", None), ("ข้อความไฮไลท์", "found"), ...]
+            insert_data = []
             last_pos = 0
+            
             for m in matches:
                 st, en = m.span()
+                # ข้อความก่อนหน้า match
+                if st > last_pos:
+                    insert_data.append((display_content[last_pos:st], None))
                 
-                # พิมพ์ส่วนก่อนหน้า
-                text_before = file_content[last_pos:st]
-                if text_before:
-                    for line in text_before.splitlines(keepends=True):
-                        if state['display_count'] >= state['max_display']:
-                            if not state['warned']:
-                                self.safe_log(f"\n[⚠️] REACHED MAX DISPLAY LIMIT.", target_file=path)
-                                state['warned'] = True
-                            return
-                        self.safe_log(line, newline=False, target_file=path)
-                        state['display_count'] += line.count('\n')
-                
-                # พิมพ์ส่วนไฮไลท์
-                match_text = file_content[st:en]
-                self.safe_log(match_text, tag="found", newline=False, target_file=path)
-                state['display_count'] += match_text.count('\n')
-                
+                # ข้อความที่ match
+                insert_data.append((display_content[st:en], "found"))
                 last_pos = en
+            
+            # ข้อความส่วนที่เหลือ
+            if last_pos < len(display_content):
+                insert_data.append((display_content[last_pos:], None))
+                
+            if warning_msg:
+                insert_data.append((warning_msg, None))
 
-            # พิมพ์ส่วนที่เหลือ
-            text_after = file_content[last_pos:]
-            if text_after:
-                 for line in text_after.splitlines(keepends=True):
-                        if state['display_count'] >= state['max_display']:
-                            if not state['warned']:
-                                self.safe_log(f"\n[⚠️] REACHED MAX DISPLAY LIMIT.", target_file=path)
-                                state['warned'] = True
-                            return
-                        self.safe_log(line, newline=False, target_file=path)
-                        state['display_count'] += line.count('\n')
+            # ฟังก์ชันช่วยนำข้อมูลไปแสดงผลใน UI Thread รวดเดียว
+            def update_ui(data):
+                for text, tag in data:
+                    if tag:
+                        textbox.insert("end", text, tag)
+                    else:
+                        textbox.insert("end", text)
+                textbox.see("end")
+
+            # ส่งก้อนข้อมูลทั้งหมดไปวาดบนหน้าจอทีเดียว
+            self.after(0, lambda: update_ui(insert_data))
+            state['display_count'] += len(lines)
 
         except MemoryError:
             self.safe_log("[!] ERROR: FILE IS TOO LARGE TO PROCESS IN MEMORY.", "error", target_file=path)
