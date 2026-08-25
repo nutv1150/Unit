@@ -19,7 +19,7 @@ ACCENT_GREEN = "#00FF41"
 TEXT_DIM = "#8892B0"        
 ALERT_RED = "#FF3366"       
 
-# --- ⭐ 1. คลาสสำหรับการสร้าง "กรอบ" ผลลัพธ์แยกแต่ละไฟล์ ---
+# --- ⭐ 1. คลาสสำหรับการสร้าง "กรอบ" ผลลัพธ์ (ขยายความสูงให้ยาวขึ้นแล้ว) ---
 class ResultBox(ctk.CTkFrame):
     def __init__(self, master, filename, app_root, **kwargs):
         super().__init__(master, border_width=1, border_color="#333344", corner_radius=6, fg_color="#0A0A0F", **kwargs)
@@ -31,14 +31,15 @@ class ResultBox(ctk.CTkFrame):
         self.title = ctk.CTkLabel(self.header, text=f" 📄 {filename} ", font=("Consolas", 13, "bold"), text_color=ACCENT_CYAN)
         self.title.pack(side="left", padx=10, pady=5)
         
+        # 🔍 ขยายความสูงกล่องแสดงผลจาก 180 เป็น 350 ให้ยาวจุใจขึ้น
         self.textbox = ctk.CTkTextbox(
             self, fg_color="#050508", text_color=ACCENT_GREEN, 
-            font=("Consolas", 12), height=180, border_width=0
+            font=("Consolas", 12), height=350, border_width=0
         )
         self.textbox.pack(fill="both", expand=True, padx=2, pady=(0, 2))
         
         self.textbox.tag_config("found", background=ACCENT_CYAN, foreground="#000000")
-        self.textbox.tag_config("highlight", background="#FFB800", foreground="#000000") # สีเหลืองสำหรับไฮไลท์คำค้นหา
+        self.textbox.tag_config("highlight", background="#FFB800", foreground="#000000") 
         self.textbox.tag_config("error", foreground=ALERT_RED)
         
         self.app_root = app_root
@@ -58,7 +59,6 @@ class ResultBox(ctk.CTkFrame):
             self.context_menu.tk_popup(e.x_root, e.y_root)
 
     def search_keyword(self, keyword):
-        # เคลียร์ไฮไลท์เก่าก่อน
         self.textbox.tag_remove("highlight", "1.0", "end")
         if not keyword:
             return 0
@@ -66,7 +66,6 @@ class ResultBox(ctk.CTkFrame):
         matches = 0
         pos = "1.0"
         while True:
-            # ค้นหาคำแบบไม่สนตัวพิมพ์เล็กใหญ่
             pos = self.textbox.search(keyword, pos, stopindex="end", nocase=True)
             if not pos:
                 break
@@ -76,7 +75,6 @@ class ResultBox(ctk.CTkFrame):
             matches += 1
             pos = end_pos
 
-        # ถ้าเจอคำ ให้เลื่อนจอไปที่จุดแรกที่พบ
         if matches > 0:
             first_match = self.textbox.tag_ranges("highlight")
             if first_match:
@@ -192,7 +190,7 @@ class RegexSelectionPopup(ctk.CTkToplevel):
         self.destroy()
 
 
-# --- ⭐ 3. หน้าหลัก File Inspection ---
+# --- ⭐ 3. หน้าหลัก File Inspection ---[cite: 1]
 class FileInspectionPage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
@@ -204,7 +202,9 @@ class FileInspectionPage(ctk.CTkFrame):
 
         self.smart_db = {
             r"(?:0|\+66)[689]\d[- \.]?\d{3}[- \.]?\d{4}": "📱 THAI_MOBILE_NUM",
-            r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}": "📧 EMAIL_ADDR",
+            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b": "📧 EMAIL_ADDR",
+            # ไม้ตาย Base64: 1. ต้องมี = ปิดท้าย หรือ 2. ถ้าไม่มี = ต้องยาว 20 ตัวอักษรขึ้นไป (หาร 4 ลงตัว)
+            r"\b(?:(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)|(?:[A-Za-z0-9+/]{4}){5,})\b": "🔐 BASE64_STRING",
             r"(?:\d{1,3}\.){3}\d{1,3}": "🌐 IPv4_ADDR",
             r"https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}": "🔗 URL_LINK",
             r"[a-fA-F0-9]{32}": "🔑 MD5_HASH",
@@ -214,11 +214,12 @@ class FileInspectionPage(ctk.CTkFrame):
 
         self.regex_previews = {
             r"(?:0|\+66)[689]\d[- \.]?\d{3}[- \.]?\d{4}": "📱 THAI_MOBILE_NUM\nFind Thai mobile numbers (08x, 09x, 06x)",
+            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b": "📧 EMAIL_ADDR\nStrict standard email pattern",
+            r"\b(?:(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)|(?:[A-Za-z0-9+/]{4}){5,})\b": "🔐 BASE64_STRING\nStrict Base64 (Requires Padding OR Length >= 20)",
             r"FLAG\{.*?\}": "🎯 STD_FLAG\nStandard CTF flag format",
             r"(flag|ctf|picoCTF)\{[^}]+\}": "🌐 MULTI_CTF_FLAG\nCommon CTF platform formats (pico, HTB, etc.)",
             "": "💡 HOVER FOR DETAILS"
         }
-
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(5, weight=1) 
 
@@ -288,7 +289,7 @@ class FileInspectionPage(ctk.CTkFrame):
         self.btn_clear_regex.pack(side="left", padx=0)
 
         # ช่องกรอก Max Display
-        ctk.CTkLabel(action_frame, text="Max Display Line:", font=("Consolas", 11, "bold"), text_color=TEXT_DIM).pack(side="left", padx=(10, 2))
+        ctk.CTkLabel(action_frame, text="Max:", font=("Consolas", 11, "bold"), text_color=TEXT_DIM).pack(side="left", padx=(10, 2))
         self.max_display_entry = ctk.CTkEntry(
             action_frame, width=65, height=35,
             font=("Consolas", 12), fg_color="#0A0A0F",
@@ -316,7 +317,6 @@ class FileInspectionPage(ctk.CTkFrame):
         
         ctk.CTkLabel(output_header, text=">_ ANALYSIS_OUTPUT", font=("Consolas", 14, "bold"), text_color=ALERT_RED).pack(side="left")
         
-        # 🔍 ช่องค้นหาคำด่วน (In-App Search) ไว้มุมขวาบนของ Output
         ctk.CTkButton(output_header, text="[ CLEAR_ALL ]", font=("Consolas", 12, "bold"), width=90, height=28, fg_color="transparent", border_width=1, border_color=ALERT_RED, text_color=ALERT_RED, hover_color="#4A0011", command=self.clear_terminal).pack(side="right", padx=(5, 0))
         
         self.search_btn = ctk.CTkButton(output_header, text="[ FIND ]", font=("Consolas", 11, "bold"), width=60, height=28, fg_color="transparent", border_width=1, border_color=ACCENT_CYAN, text_color=ACCENT_CYAN, hover_color="#003344", command=self.trigger_in_app_search)
@@ -350,7 +350,7 @@ class FileInspectionPage(ctk.CTkFrame):
             total_found += found
         
         if keyword:
-            self.warning_label.configure(text=f"STATUS: FOUND {total_found} MATCHES", text_color=ACCENT_GREEN)
+            self.warning_label.configure(text=f"STATUS: FOUND {total_matches} MATCHES", text_color=ACCENT_GREEN)
 
     def populate_file_nav(self):
         for widget in self.file_nav_panel.winfo_children():
@@ -612,6 +612,7 @@ class FileInspectionPage(ctk.CTkFrame):
         except Exception as e:
             self.safe_log(f"[!] ERROR READING FILE: {str(e)}", "error", target_file=path)
 
+    # 🔄 ปรับฟังก์ชัน Strings ให้อ่านและแสดงผลทีละบรรทัดเหมือน VS Code (ตามต้นฉบับไฟล์)
     def extract_all_strings(self, path, state):
         p = self.regex_var.get()
         try:
@@ -620,49 +621,42 @@ class FileInspectionPage(ctk.CTkFrame):
                 self.safe_log("[!] TARGET FILE IS EMPTY.", target_file=path)
                 return
 
-            buffer_lines = []
+            if path in self.result_boxes:
+                self.result_boxes[path].textbox.delete("1.0", "end")
 
-            # เปลี่ยนมาใช้วิธีอ่านไฟล์แบบปกติ ปลอดภัยและไม่มีปัญหาเรื่อง mmap pointer ค้าง
-            with open(path, "rb") as f:
-                content = f.read()
-                
-            # ค้นหาชุดข้อความที่พิมพ์ได้ (Strings)
-            found_iter = re.finditer(rb"[ -~]{1,}", content)
-            
-            for match in found_iter:
+            with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()
+
+            for line in lines:
                 if state['display_count'] >= state['max_display']:
                     if not state['warned']:
-                        buffer_lines.append(f"\n[⚠️] REACHED MAX DISPLAY LIMIT ({state['max_display']} LINES).")
+                        self.safe_log(f"\n[⚠️] REACHED MAX DISPLAY LIMIT ({state['max_display']} LINES).", target_file=path)
                         state['warned'] = True
                     break 
 
-                s = match.group()
-                line = s.decode(errors="ignore")
+                clean_line = line.rstrip("\r\n")
                 
                 matches = []
                 if p:
-                    matches = list(re.finditer(p, line, re.IGNORECASE))
+                    matches = list(re.finditer(p, clean_line, re.IGNORECASE))
                     if matches:
                         state['match_count'] += len(matches)
                         
-                if matches:
-                    formatted_line = "  "
+                # ถ้ามี Regex และเจอคำในบรรทัดนี้ ให้ทำการพิมพ์แยกส่วนและใส่ไฮไลท์สีฟ้า
+                if p and matches:
+                    self.safe_log("  ", newline=False, target_file=path)
                     lp = 0
                     for m in matches: 
                         st, en = m.span()
-                        formatted_line += line[lp:st] + f"[{line[st:en]}]"
+                        if st > lp:
+                            self.safe_log(clean_line[lp:st], newline=False, target_file=path)
+                        self.safe_log(clean_line[st:en], tag="found", newline=False, target_file=path)
                         lp = en
-                    formatted_line += line[lp:]
-                    buffer_lines.append(formatted_line)
+                    self.safe_log(clean_line[lp:], newline=True, target_file=path)
                 else:
-                    buffer_lines.append(f"  {line}")
+                    self.safe_log(f"  {clean_line}", target_file=path)
                     
                 state['display_count'] += 1
-            
-            if buffer_lines:
-                self.safe_log("\n".join(buffer_lines), target_file=path)
-            else:
-                self.safe_log("[?] NO STRINGS FOUND.", target_file=path)
                                 
         except Exception as e: 
             self.safe_log(f"[!] STRINGS EXTRACTION ERROR: {str(e)}", "error", target_file=path)
