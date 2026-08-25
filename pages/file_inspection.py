@@ -21,7 +21,7 @@ ACCENT_GREEN = "#00FF41"
 TEXT_DIM = "#8892B0"        
 ALERT_RED = "#FF3366"       
 
-# --- ⭐ 1. คลาสสำหรับการสร้าง "กรอบ" ผลลัพธ์แยกแต่ละไฟล์ ---
+# --- ⭐ 1. คลาสสำหรับการสร้าง "กรอบ" ผลลัพธ์ (ขยายความสูงให้ยาวขึ้นแล้ว) ---
 class ResultBox(ctk.CTkFrame):
     def __init__(self, master, filename, app_root, **kwargs):
         super().__init__(master, border_width=1, border_color="#333344", corner_radius=6, fg_color="#0A0A0F", **kwargs)
@@ -33,13 +33,15 @@ class ResultBox(ctk.CTkFrame):
         self.title = ctk.CTkLabel(self.header, text=f" 📄 {filename} ", font=("Consolas", 13, "bold"), text_color=ACCENT_CYAN)
         self.title.pack(side="left", padx=10, pady=5)
         
+        # 👇 ลดความสูง (height) จาก 350 เหลือ 280
         self.textbox = ctk.CTkTextbox(
             self, fg_color="#050508", text_color=ACCENT_GREEN, 
-            font=("Consolas", 12), height=180, border_width=0
+            font=("Consolas", 12), height=280, border_width=0
         )
         self.textbox.pack(fill="both", expand=True, padx=2, pady=(0, 2))
         
         self.textbox.tag_config("found", background=ACCENT_CYAN, foreground="#000000")
+        self.textbox.tag_config("highlight", background="#FFB800", foreground="#000000") 
         self.textbox.tag_config("error", foreground=ALERT_RED)
         
         self.app_root = app_root
@@ -57,6 +59,29 @@ class ResultBox(ctk.CTkFrame):
     def show_context_menu(self, e):
         if self.textbox.tag_ranges("sel"):
             self.context_menu.tk_popup(e.x_root, e.y_root)
+
+    def search_keyword(self, keyword):
+        self.textbox.tag_remove("highlight", "1.0", "end")
+        if not keyword:
+            return 0
+
+        matches = 0
+        pos = "1.0"
+        while True:
+            pos = self.textbox.search(keyword, pos, stopindex="end", nocase=True)
+            if not pos:
+                break
+            
+            end_pos = f"{pos}+{len(keyword)}c"
+            self.textbox.tag_add("highlight", pos, end_pos)
+            matches += 1
+            pos = end_pos
+
+        if matches > 0:
+            first_match = self.textbox.tag_ranges("highlight")
+            if first_match:
+                self.textbox.see(first_match[0])
+        return matches
 
 
 # --- ⭐ 2. หน้าต่าง Popup สำหรับเลือก Regex ---
@@ -179,7 +204,9 @@ class FileInspectionPage(ctk.CTkFrame):
 
         self.smart_db = {
             r"(?:0|\+66)[689]\d[- \.]?\d{3}[- \.]?\d{4}": "📱 THAI_MOBILE_NUM",
-            r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}": "📧 EMAIL_ADDR",
+            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b": "📧 EMAIL_ADDR",
+            # 👇 ปรับ Pattern Base64 ใหม่ ให้จับได้ทั้งยาวๆ หรือมี = ปิดท้าย โดยไม่ต้องสนใจ \b เข้มงวดมาก
+            r"(?<![A-Za-z0-9+/=])(?:[A-Za-z0-9+/]{4}){5,}(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?(?![A-Za-z0-9+/=])": "🔐 BASE64_STRING",
             r"(?:\d{1,3}\.){3}\d{1,3}": "🌐 IPv4_ADDR",
             r"https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}": "🔗 URL_LINK",
             r"[a-fA-F0-9]{32}": "🔑 MD5_HASH",
@@ -189,6 +216,8 @@ class FileInspectionPage(ctk.CTkFrame):
 
         self.regex_previews = {
             r"(?:0|\+66)[689]\d[- \.]?\d{3}[- \.]?\d{4}": "📱 THAI_MOBILE_NUM\nFind Thai mobile numbers (08x, 09x, 06x)",
+            r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b": "📧 EMAIL_ADDR\nStrict standard email pattern",
+            r"(?:[A-Za-z0-9+/]{4}){5,}|(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)": "🔐 BASE64_STRING\nFlexible Base64 (Catches padded strings or long blocks)",
             r"FLAG\{.*?\}": "🎯 STD_FLAG\nStandard CTF flag format",
             r"(flag|ctf|picoCTF)\{[^}]+\}": "🌐 MULTI_CTF_FLAG\nCommon CTF platform formats (pico, HTB, etc.)",
             "": "💡 HOVER FOR DETAILS",
@@ -198,7 +227,6 @@ class FileInspectionPage(ctk.CTkFrame):
                 "Detect common CTF wrappers: flag, CTF, TCTT2026, "
                 "IT_MSU_ANNIV25, HTB, picoCTF, etc.",
         }
-
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(5, weight=1) 
 
@@ -247,28 +275,38 @@ class FileInspectionPage(ctk.CTkFrame):
         self.tool_menu.pack(side="left", padx=15, pady=15)
 
         self.btn_analyze = ctk.CTkButton(
-            action_frame, text="[ EXECUTE ]", width=120, height=35, 
+            action_frame, text="[ EXECUTE ]", width=100, height=35, 
             font=("Consolas", 12, "bold"), fg_color=ACCENT_CYAN, text_color="black", hover_color="#00CCCC",
             state="disabled", command=self.start_analysis_thread
         )
         self.btn_analyze.pack(side="left", padx=5)
 
         self.btn_regex_popup = ctk.CTkButton(
-            action_frame, text="⚙️ CFG_REGEX", width=120, height=35,
+            action_frame, text="⚙️ CFG_REGEX", width=100, height=35,
             font=("Consolas", 12, "bold"), fg_color="transparent", border_width=1, border_color=ACCENT_GREEN, text_color=ACCENT_GREEN, hover_color="#003311",
             state="disabled", command=self.open_regex_popup
         )
-        self.btn_regex_popup.pack(side="left", padx=(15, 5))
+        self.btn_regex_popup.pack(side="left", padx=(10, 5))
 
         self.btn_clear_regex = ctk.CTkButton(
-            action_frame, text="[X]", width=40, height=35, 
+            action_frame, text="[X]", width=35, height=35, 
             font=("Consolas", 12, "bold"), fg_color="transparent", border_width=1, border_color=ALERT_RED, text_color=ALERT_RED, hover_color="#4A0011",
             state="disabled", command=self.clear_main_regex
         )
         self.btn_clear_regex.pack(side="left", padx=0)
 
-        self.progress_bar = ctk.CTkProgressBar(action_frame, mode="indeterminate", width=120, progress_color=ACCENT_CYAN, fg_color="#2B2B36")
-        self.progress_bar.pack(side="left", padx=15)
+        # ช่องกรอก Max Display
+        ctk.CTkLabel(action_frame, text="Max:", font=("Consolas", 11, "bold"), text_color=TEXT_DIM).pack(side="left", padx=(10, 2))
+        self.max_display_entry = ctk.CTkEntry(
+            action_frame, width=65, height=35,
+            font=("Consolas", 12), fg_color="#0A0A0F",
+            border_color="#333344", text_color=ACCENT_CYAN
+        )
+        self.max_display_entry.insert(0, "3000")
+        self.max_display_entry.pack(side="left", padx=(0, 10))
+
+        self.progress_bar = ctk.CTkProgressBar(action_frame, mode="indeterminate", width=80, progress_color=ACCENT_CYAN, fg_color="#2B2B36")
+        self.progress_bar.pack(side="left", padx=5)
         self.progress_bar.pack_forget() 
 
         self.warning_label = ctk.CTkLabel(action_frame, text="STATUS: IDLE", text_color=TEXT_DIM, font=("Consolas", 12, "bold"))
@@ -276,15 +314,24 @@ class FileInspectionPage(ctk.CTkFrame):
 
         self.regex_status_label = ctk.CTkLabel(
             action_frame, text=" 🔍 REGEX: NONE ", font=("Consolas", 12, "bold"), 
-            fg_color="#0A0A0F", text_color=TEXT_DIM, corner_radius=4, width=150, height=30
+            fg_color="#0A0A0F", text_color=TEXT_DIM, corner_radius=4, width=130, height=30
         )
-        self.regex_status_label.pack(side="right", padx=10)
+        self.regex_status_label.pack(side="right", padx=5)
 
-        # 5. Output Container (Split View)
+        # 5. Output Container (Split View + In-App Search Bar)
         output_header = ctk.CTkFrame(self, fg_color="transparent")
         output_header.grid(row=4, column=0, sticky="ew", padx=30, pady=(5, 0))
+        
         ctk.CTkLabel(output_header, text=">_ ANALYSIS_OUTPUT", font=("Consolas", 14, "bold"), text_color=ALERT_RED).pack(side="left")
-        ctk.CTkButton(output_header, text="[ CLEAR_ALL ]", font=("Consolas", 12, "bold"), width=100, height=28, fg_color="transparent", border_width=1, border_color=ALERT_RED, text_color=ALERT_RED, hover_color="#4A0011", command=self.clear_terminal).pack(side="right")
+        
+        ctk.CTkButton(output_header, text="[ CLEAR_ALL ]", font=("Consolas", 12, "bold"), width=90, height=28, fg_color="transparent", border_width=1, border_color=ALERT_RED, text_color=ALERT_RED, hover_color="#4A0011", command=self.clear_terminal).pack(side="right", padx=(5, 0))
+        
+        self.search_btn = ctk.CTkButton(output_header, text="[ FIND ]", font=("Consolas", 11, "bold"), width=60, height=28, fg_color="transparent", border_width=1, border_color=ACCENT_CYAN, text_color=ACCENT_CYAN, hover_color="#003344", command=self.trigger_in_app_search)
+        self.search_btn.pack(side="right", padx=5)
+
+        self.search_entry = ctk.CTkEntry(output_header, placeholder_text="Search in output...", font=("Consolas", 11), width=150, height=28, fg_color="#0A0A0F", border_color="#333344", text_color=ACCENT_CYAN)
+        self.search_entry.pack(side="right", padx=5)
+        self.search_entry.bind("<Return>", lambda e: self.trigger_in_app_search())
 
         self.output_container = ctk.CTkFrame(self, fg_color="transparent")
         self.output_container.grid(row=5, column=0, sticky="nsew", padx=30, pady=(5, 20))
@@ -301,6 +348,16 @@ class FileInspectionPage(ctk.CTkFrame):
         self.result_boxes = {}  
         self.nav_buttons = {}   
         self.current_view_id = "ALL"
+
+    def trigger_in_app_search(self):
+        keyword = self.search_entry.get().strip()
+        total_found = 0
+        for path, box in self.result_boxes.items():
+            found = box.search_keyword(keyword)
+            total_found += found
+        
+        if keyword:
+            self.warning_label.configure(text=f"STATUS: FOUND {total_matches} MATCHES", text_color=ACCENT_GREEN)
 
     def populate_file_nav(self):
         for widget in self.file_nav_panel.winfo_children():
@@ -401,7 +458,6 @@ class FileInspectionPage(ctk.CTkFrame):
         self.toggle_regex_button(self.tool_menu.get())
 
         self.update_metadata_card()
-        # ทำงานอัตโนมัติทันทีเมื่อโหลดไฟล์เสร็จ
         self.start_analysis_thread()
 
     def format_size(self, size_bytes):
@@ -479,13 +535,18 @@ class FileInspectionPage(ctk.CTkFrame):
         self.btn_analyze.configure(state="disabled")
         self.tool_menu.configure(state="disabled")
         self.warning_label.configure(text="STATUS: PROCESSING...", text_color="#FFB800")
-        self.progress_bar.pack(side="left", padx=15)
+        self.progress_bar.pack(side="left", padx=5)
         self.progress_bar.start()
 
         threading.Thread(target=self._run_analysis_logic, args=(choice,), daemon=True).start()
 
     def _run_analysis_logic(self, choice):
-        state = {'match_count': 0, 'display_count': 0, 'max_display': 3000, 'warned': False}
+        try:
+            max_limit = int(self.max_display_entry.get().strip())
+        except ValueError:
+            max_limit = 3000
+
+        state = {'match_count': 0, 'display_count': 0, 'max_display': max_limit, 'warned': False}
 
         for path in self.selected_files:
             if choice == "Strings" and not self.regex_var.get() and state['warned']:
@@ -558,6 +619,14 @@ class FileInspectionPage(ctk.CTkFrame):
         except Exception as e:
             self.safe_log(f"[!] ERROR READING FILE: {str(e)}", "error", target_file=path)
 
+    # 🔄 ปรับฟังก์ชัน Strings ให้อ่านและแสดงผลทีละบรรทัดเหมือน VS Code (ตามต้นฉบับไฟล์)
+    # 🔄 ปรับฟังก์ชัน Strings ให้อ่านไฟล์ทีละส่วน (Chunk) เพื่อป้องกันการค้างเมื่อเจอไฟล์ขนาดใหญ่
+    # 🔄 ปรับฟังก์ชัน Strings ให้อ่านไฟล์ Binary และสกัดเฉพาะข้อความที่อ่านได้ (Printable)
+    # 🔄 ปรับฟังก์ชัน Strings ให้อ่านไฟล์ Binary และสกัดเฉพาะข้อความที่อ่านได้ (Printable)
+    # 🌟 [อัปเดต]: แสดงผลทุกบรรทัดเสมอ และไฮไลท์บรรทัดที่ตรงกับ Regex 
+    # 🔄 ปรับฟังก์ชัน Strings ให้อ่านไฟล์ Binary, สกัด Printable, และรองรับ Regex ข้ามบรรทัด
+    # 🔄 ปรับปรุง Strings ให้อ่านไฟล์ Text ปกติได้ (รวมถึงไฟล์บรรทัดเดียว) และรองรับ Binary 
+    # 🔄 ปรับปรุง Strings ให้เตรียมข้อมูลให้เสร็จก่อนแสดงผล เพื่อไม่ให้ข้อความค่อยๆ ไหล
     def extract_all_strings(self, path, state):
         p = self.regex_var.get()
         try:
@@ -566,47 +635,99 @@ class FileInspectionPage(ctk.CTkFrame):
                 self.safe_log("[!] TARGET FILE IS EMPTY.", target_file=path)
                 return
 
-            with open(path, "rb") as f:
-                with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
-                    # ปรับจาก {4,} เป็น {1,} เพื่อให้รองรับข้อความสั้นๆ เช่น "yo"
-                    found_iter = re.finditer(rb"[ -~]{1,}", mm)
-                    
-                    for match in found_iter:
-                        if state['display_count'] >= state['max_display'] and not p:
-                            if not state['warned']:
-                                self.safe_log(f"\n[⚠️] REACHED BATCH DISPLAY LIMIT ({state['max_display']}). HALTING TO PREVENT HANG.", "error", target_file=path)
-                                state['warned'] = True
-                            break 
+            if path not in self.result_boxes:
+                return
+            
+            textbox = self.result_boxes[path].textbox
+            # เคลียร์หน้าจอให้เรียบร้อยก่อน
+            self.after(0, lambda: textbox.delete("1.0", "end"))
 
-                        s = match.group()
-                        line = s.decode(errors="ignore")
-                        
-                        matches = []
-                        if p:
-                            matches = list(re.finditer(p, line, re.IGNORECASE))
-                            if matches:
-                                state['match_count'] += len(matches)
-                                
-                        if state['display_count'] < state['max_display']:
-                            if matches:
-                                self.safe_log("  ", newline=False, target_file=path)
-                                lp = 0
-                                for m in matches: 
-                                    st, en = m.span()
-                                    self.safe_log(line[lp:st], newline=False, target_file=path)
-                                    self.safe_log(line[st:en], "found", newline=False, target_file=path)
-                                    lp = en
-                                self.safe_log(line[lp:], target_file=path)
-                            else:
-                                self.safe_log(f"  {line}", target_file=path)
-                                
-                            state['display_count'] += 1
-                        elif state['display_count'] == state['max_display']:
-                            if not state['warned']:
-                                self.safe_log(f"\n[⚠️] REACHED DISPLAY LIMIT ({state['max_display']}). PROCESSING REMAINDER IN BACKGROUND...", "error", target_file=path)
-                                state['warned'] = True
-                            state['display_count'] += 1 
-                                
+            # 1. ลองอ่านแบบ Text file (UTF-8) ก่อน
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    file_content = f.read()
+                is_text_file = True
+            except UnicodeDecodeError:
+                # 2. ถ้าอ่านแบบ UTF-8 ไม่ได้ แสดงว่าเป็น Binary file
+                is_text_file = False
+                with open(path, "rb") as f:
+                    data = f.read()
+                
+                # สกัดเฉพาะข้อความที่อ่านได้
+                ascii_strings = re.findall(b"[\x20-\x7E]{4,}", data)
+                file_content = "\n".join([b.decode('ascii', errors='ignore') for b in ascii_strings])
+
+            # จำกัดจำนวนบรรทัดที่จะแสดงผล เพื่อป้องกันหน้าจอค้าง
+            lines = file_content.splitlines()
+            if len(lines) > state['max_display']:
+                lines = lines[:state['max_display']]
+                warning_msg = f"\n[⚠️] REACHED MAX DISPLAY LIMIT ({state['max_display']} LINES)."
+                state['warned'] = True
+            else:
+                warning_msg = ""
+            
+            # รวมข้อความกลับมาเฉพาะส่วนที่จะแสดงผล
+            display_content = "\n".join(lines)
+            prefix = "" if is_text_file else "  "
+            
+            # ถ้าเป็นไฟล์ Binary ให้เติม prefix เว้นวรรคข้างหน้าทุกบรรทัด
+            if not is_text_file:
+                display_content = prefix + display_content.replace("\n", "\n" + prefix)
+
+            # ถ้าไม่มี Regex ให้พิมพ์ข้อความทั้งหมดออกมารวดเดียว
+            if not p:
+                self.after(0, lambda: textbox.insert("end", display_content + warning_msg))
+                state['display_count'] += len(lines)
+                return
+
+            # --- ถ้ามี Regex ให้ค้นหาและเตรียมข้อมูลการไฮไลท์ ---
+            matches = list(re.finditer(p, display_content, re.IGNORECASE))
+            
+            if not matches:
+                # ถ้าหาไม่เจอเลย ก็โชว์ทั้งหมดรวดเดียว
+                self.after(0, lambda: textbox.insert("end", display_content + warning_msg))
+                state['display_count'] += len(lines)
+                return
+
+            state['match_count'] += len(matches)
+            
+            # 🌟 จุดสำคัญ: สร้าง List เก็บคำสั่งว่าส่วนไหนข้อความธรรมดา ส่วนไหนต้องไฮไลท์
+            # รูปแบบ: [("ข้อความธรรมดา", None), ("ข้อความไฮไลท์", "found"), ...]
+            insert_data = []
+            last_pos = 0
+            
+            for m in matches:
+                st, en = m.span()
+                # ข้อความก่อนหน้า match
+                if st > last_pos:
+                    insert_data.append((display_content[last_pos:st], None))
+                
+                # ข้อความที่ match
+                insert_data.append((display_content[st:en], "found"))
+                last_pos = en
+            
+            # ข้อความส่วนที่เหลือ
+            if last_pos < len(display_content):
+                insert_data.append((display_content[last_pos:], None))
+                
+            if warning_msg:
+                insert_data.append((warning_msg, None))
+
+            # ฟังก์ชันช่วยนำข้อมูลไปแสดงผลใน UI Thread รวดเดียว
+            def update_ui(data):
+                for text, tag in data:
+                    if tag:
+                        textbox.insert("end", text, tag)
+                    else:
+                        textbox.insert("end", text)
+                textbox.see("end")
+
+            # ส่งก้อนข้อมูลทั้งหมดไปวาดบนหน้าจอทีเดียว
+            self.after(0, lambda: update_ui(insert_data))
+            state['display_count'] += len(lines)
+
+        except MemoryError:
+            self.safe_log("[!] ERROR: FILE IS TOO LARGE TO PROCESS IN MEMORY.", "error", target_file=path)
         except Exception as e: 
             self.safe_log(f"[!] STRINGS EXTRACTION ERROR: {str(e)}", "error", target_file=path)
 
