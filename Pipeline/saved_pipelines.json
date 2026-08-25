@@ -327,6 +327,55 @@
                     ]
                 }
             ]
+        },
+        {
+            "pipeline_name": "tsh",
+            "steps": [
+                {
+                    "name": "tshark",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-r",
+                            "type": "checkbox",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "pipeline_name": "chl5",
+            "steps": [
+                {
+                    "name": "tshark",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-r",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-Y",
+                            "type": "text",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-T",
+                            "type": "text",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-e",
+                            "type": "text",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
         }
     ]
 }

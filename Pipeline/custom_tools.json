@@ -142,11 +142,6 @@
       "mode": "file",
       "description": "Analyze packet capture files",
       "options": [
-        {
-          "flag": "-r",
-          "type": "file",
-          "description": "Read packet capture file"
-        }
       ]
     }
   ],
