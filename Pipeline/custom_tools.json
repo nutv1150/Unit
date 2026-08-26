@@ -148,7 +148,19 @@
           "description": "Read packet capture file"
         }
       ]
-    }
+    },
+    {
+  "name": "dd",
+  "command": "dd",
+  "mode": "file",
+  "description": "Extract byte range from a file",
+  "params": [],
+  "input_mode": "flag",
+  "input_flag": "if",
+  "options": [
+    
+  ]
+}
   ],
   "Cryptography": [
     {
