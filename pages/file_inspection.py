@@ -31,10 +31,10 @@ class ResultBox(ctk.CTkFrame):
         self.title = ctk.CTkLabel(self.header, text=f" 📄 {filename} ", font=("Consolas", 13, "bold"), text_color=ACCENT_CYAN)
         self.title.pack(side="left", padx=10, pady=5)
         
-        # 🔍 ขยายความสูงกล่องแสดงผลจาก 180 เป็น 350 ให้ยาวจุใจขึ้น
+        # 👇 ลดความสูง (height) จาก 350 เหลือ 280
         self.textbox = ctk.CTkTextbox(
             self, fg_color="#050508", text_color=ACCENT_GREEN, 
-            font=("Consolas", 12), height=350, border_width=0
+            font=("Consolas", 12), height=280, border_width=0
         )
         self.textbox.pack(fill="both", expand=True, padx=2, pady=(0, 2))
         
@@ -203,8 +203,8 @@ class FileInspectionPage(ctk.CTkFrame):
         self.smart_db = {
             r"(?:0|\+66)[689]\d[- \.]?\d{3}[- \.]?\d{4}": "📱 THAI_MOBILE_NUM",
             r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b": "📧 EMAIL_ADDR",
-            # ไม้ตาย Base64: 1. ต้องมี = ปิดท้าย หรือ 2. ถ้าไม่มี = ต้องยาว 20 ตัวอักษรขึ้นไป (หาร 4 ลงตัว)
-            r"\b(?:(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)|(?:[A-Za-z0-9+/]{4}){5,})\b": "🔐 BASE64_STRING",
+            # 👇 ปรับ Pattern Base64 ใหม่ ให้จับได้ทั้งยาวๆ หรือมี = ปิดท้าย โดยไม่ต้องสนใจ \b เข้มงวดมาก
+            r"(?<![A-Za-z0-9+/=])(?:[A-Za-z0-9+/]{4}){5,}(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?(?![A-Za-z0-9+/=])": "🔐 BASE64_STRING",
             r"(?:\d{1,3}\.){3}\d{1,3}": "🌐 IPv4_ADDR",
             r"https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}": "🔗 URL_LINK",
             r"[a-fA-F0-9]{32}": "🔑 MD5_HASH",
@@ -215,7 +215,7 @@ class FileInspectionPage(ctk.CTkFrame):
         self.regex_previews = {
             r"(?:0|\+66)[689]\d[- \.]?\d{3}[- \.]?\d{4}": "📱 THAI_MOBILE_NUM\nFind Thai mobile numbers (08x, 09x, 06x)",
             r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b": "📧 EMAIL_ADDR\nStrict standard email pattern",
-            r"\b(?:(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)|(?:[A-Za-z0-9+/]{4}){5,})\b": "🔐 BASE64_STRING\nStrict Base64 (Requires Padding OR Length >= 20)",
+            r"(?:[A-Za-z0-9+/]{4}){5,}|(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)": "🔐 BASE64_STRING\nFlexible Base64 (Catches padded strings or long blocks)",
             r"FLAG\{.*?\}": "🎯 STD_FLAG\nStandard CTF flag format",
             r"(flag|ctf|picoCTF)\{[^}]+\}": "🌐 MULTI_CTF_FLAG\nCommon CTF platform formats (pico, HTB, etc.)",
             "": "💡 HOVER FOR DETAILS"
@@ -613,6 +613,13 @@ class FileInspectionPage(ctk.CTkFrame):
             self.safe_log(f"[!] ERROR READING FILE: {str(e)}", "error", target_file=path)
 
     # 🔄 ปรับฟังก์ชัน Strings ให้อ่านและแสดงผลทีละบรรทัดเหมือน VS Code (ตามต้นฉบับไฟล์)
+    # 🔄 ปรับฟังก์ชัน Strings ให้อ่านไฟล์ทีละส่วน (Chunk) เพื่อป้องกันการค้างเมื่อเจอไฟล์ขนาดใหญ่
+    # 🔄 ปรับฟังก์ชัน Strings ให้อ่านไฟล์ Binary และสกัดเฉพาะข้อความที่อ่านได้ (Printable)
+    # 🔄 ปรับฟังก์ชัน Strings ให้อ่านไฟล์ Binary และสกัดเฉพาะข้อความที่อ่านได้ (Printable)
+    # 🌟 [อัปเดต]: แสดงผลทุกบรรทัดเสมอ และไฮไลท์บรรทัดที่ตรงกับ Regex 
+    # 🔄 ปรับฟังก์ชัน Strings ให้อ่านไฟล์ Binary, สกัด Printable, และรองรับ Regex ข้ามบรรทัด
+    # 🔄 ปรับปรุง Strings ให้อ่านไฟล์ Text ปกติได้ (รวมถึงไฟล์บรรทัดเดียว) และรองรับ Binary 
+    # 🔄 ปรับปรุง Strings ให้เตรียมข้อมูลให้เสร็จก่อนแสดงผล เพื่อไม่ให้ข้อความค่อยๆ ไหล
     def extract_all_strings(self, path, state):
         p = self.regex_var.get()
         try:
@@ -621,43 +628,99 @@ class FileInspectionPage(ctk.CTkFrame):
                 self.safe_log("[!] TARGET FILE IS EMPTY.", target_file=path)
                 return
 
-            if path in self.result_boxes:
-                self.result_boxes[path].textbox.delete("1.0", "end")
+            if path not in self.result_boxes:
+                return
+            
+            textbox = self.result_boxes[path].textbox
+            # เคลียร์หน้าจอให้เรียบร้อยก่อน
+            self.after(0, lambda: textbox.delete("1.0", "end"))
 
-            with open(path, "r", encoding="utf-8", errors="ignore") as f:
-                lines = f.readlines()
-
-            for line in lines:
-                if state['display_count'] >= state['max_display']:
-                    if not state['warned']:
-                        self.safe_log(f"\n[⚠️] REACHED MAX DISPLAY LIMIT ({state['max_display']} LINES).", target_file=path)
-                        state['warned'] = True
-                    break 
-
-                clean_line = line.rstrip("\r\n")
+            # 1. ลองอ่านแบบ Text file (UTF-8) ก่อน
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    file_content = f.read()
+                is_text_file = True
+            except UnicodeDecodeError:
+                # 2. ถ้าอ่านแบบ UTF-8 ไม่ได้ แสดงว่าเป็น Binary file
+                is_text_file = False
+                with open(path, "rb") as f:
+                    data = f.read()
                 
-                matches = []
-                if p:
-                    matches = list(re.finditer(p, clean_line, re.IGNORECASE))
-                    if matches:
-                        state['match_count'] += len(matches)
-                        
-                # ถ้ามี Regex และเจอคำในบรรทัดนี้ ให้ทำการพิมพ์แยกส่วนและใส่ไฮไลท์สีฟ้า
-                if p and matches:
-                    self.safe_log("  ", newline=False, target_file=path)
-                    lp = 0
-                    for m in matches: 
-                        st, en = m.span()
-                        if st > lp:
-                            self.safe_log(clean_line[lp:st], newline=False, target_file=path)
-                        self.safe_log(clean_line[st:en], tag="found", newline=False, target_file=path)
-                        lp = en
-                    self.safe_log(clean_line[lp:], newline=True, target_file=path)
-                else:
-                    self.safe_log(f"  {clean_line}", target_file=path)
-                    
-                state['display_count'] += 1
-                                
+                # สกัดเฉพาะข้อความที่อ่านได้
+                ascii_strings = re.findall(b"[\x20-\x7E]{4,}", data)
+                file_content = "\n".join([b.decode('ascii', errors='ignore') for b in ascii_strings])
+
+            # จำกัดจำนวนบรรทัดที่จะแสดงผล เพื่อป้องกันหน้าจอค้าง
+            lines = file_content.splitlines()
+            if len(lines) > state['max_display']:
+                lines = lines[:state['max_display']]
+                warning_msg = f"\n[⚠️] REACHED MAX DISPLAY LIMIT ({state['max_display']} LINES)."
+                state['warned'] = True
+            else:
+                warning_msg = ""
+            
+            # รวมข้อความกลับมาเฉพาะส่วนที่จะแสดงผล
+            display_content = "\n".join(lines)
+            prefix = "" if is_text_file else "  "
+            
+            # ถ้าเป็นไฟล์ Binary ให้เติม prefix เว้นวรรคข้างหน้าทุกบรรทัด
+            if not is_text_file:
+                display_content = prefix + display_content.replace("\n", "\n" + prefix)
+
+            # ถ้าไม่มี Regex ให้พิมพ์ข้อความทั้งหมดออกมารวดเดียว
+            if not p:
+                self.after(0, lambda: textbox.insert("end", display_content + warning_msg))
+                state['display_count'] += len(lines)
+                return
+
+            # --- ถ้ามี Regex ให้ค้นหาและเตรียมข้อมูลการไฮไลท์ ---
+            matches = list(re.finditer(p, display_content, re.IGNORECASE))
+            
+            if not matches:
+                # ถ้าหาไม่เจอเลย ก็โชว์ทั้งหมดรวดเดียว
+                self.after(0, lambda: textbox.insert("end", display_content + warning_msg))
+                state['display_count'] += len(lines)
+                return
+
+            state['match_count'] += len(matches)
+            
+            # 🌟 จุดสำคัญ: สร้าง List เก็บคำสั่งว่าส่วนไหนข้อความธรรมดา ส่วนไหนต้องไฮไลท์
+            # รูปแบบ: [("ข้อความธรรมดา", None), ("ข้อความไฮไลท์", "found"), ...]
+            insert_data = []
+            last_pos = 0
+            
+            for m in matches:
+                st, en = m.span()
+                # ข้อความก่อนหน้า match
+                if st > last_pos:
+                    insert_data.append((display_content[last_pos:st], None))
+                
+                # ข้อความที่ match
+                insert_data.append((display_content[st:en], "found"))
+                last_pos = en
+            
+            # ข้อความส่วนที่เหลือ
+            if last_pos < len(display_content):
+                insert_data.append((display_content[last_pos:], None))
+                
+            if warning_msg:
+                insert_data.append((warning_msg, None))
+
+            # ฟังก์ชันช่วยนำข้อมูลไปแสดงผลใน UI Thread รวดเดียว
+            def update_ui(data):
+                for text, tag in data:
+                    if tag:
+                        textbox.insert("end", text, tag)
+                    else:
+                        textbox.insert("end", text)
+                textbox.see("end")
+
+            # ส่งก้อนข้อมูลทั้งหมดไปวาดบนหน้าจอทีเดียว
+            self.after(0, lambda: update_ui(insert_data))
+            state['display_count'] += len(lines)
+
+        except MemoryError:
+            self.safe_log("[!] ERROR: FILE IS TOO LARGE TO PROCESS IN MEMORY.", "error", target_file=path)
         except Exception as e: 
             self.safe_log(f"[!] STRINGS EXTRACTION ERROR: {str(e)}", "error", target_file=path)
 
