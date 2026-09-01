@@ -152,6 +152,15 @@ class AppPortalPage(ctk.CTkFrame):
                 command=lambda t=tool: self.delete_tool(t)
             )
             btn_del.pack(side="right")
+            
+            # 🌟 เพิ่มปุ่ม Edit (แก้ไข)
+            btn_edit = ctk.CTkButton(
+                btn_frame, text="✏️", font=("Consolas", 14), width=40,
+                fg_color="transparent", border_width=1, border_color="#FFB800", text_color="#FFB800",
+                hover_color="#4A3300", height=35,
+                command=lambda t=tool: self.open_edit_tool_popup(t)
+            )
+            btn_edit.pack(side="right", padx=(0, 5))
 
     def delete_tool(self, tool):
         if tool in self.custom_tools:
@@ -245,6 +254,82 @@ class AppPortalPage(ctk.CTkFrame):
             popup.destroy()
 
         ctk.CTkButton(btn_frame, text="[ SAVE MODULE ]", font=("Consolas", 12, "bold"), fg_color=ACCENT_GREEN, text_color="black", hover_color="#00CC33", command=save_new_tool).pack(side="left", fill="x", expand=True, padx=(0,5))
+        ctk.CTkButton(btn_frame, text="CANCEL", font=("Consolas", 12, "bold"), fg_color="transparent", border_width=1, border_color=ALERT_RED, text_color=ALERT_RED, hover_color="#4A0011", command=popup.destroy).pack(side="right", fill="x", expand=True, padx=(5,0))
+
+        popup.update_idletasks()
+        popup.focus()
+        popup.grab_set()
+
+    # 🌟 ฟังก์ชันสำหรับ Edit แอปเดิม
+    def open_edit_tool_popup(self, tool):
+        popup = ctk.CTkToplevel(self)
+        popup.title("EDIT CUSTOM TOOL :: [CONFIG]")
+        popup.geometry("500x620")
+        popup.configure(fg_color=BG_COLOR)
+        
+        ctk.CTkLabel(popup, text=">_ EDIT_MODULE", font=("Consolas", 18, "bold"), text_color="#FFB800").pack(pady=(15,5))
+        
+        btn_browse_sys = ctk.CTkButton(
+            popup, text="[ 🔍 BROWSE INSTALLED APPS ]", font=("Consolas", 11, "bold"),
+            fg_color="transparent", border_width=1, border_color=ACCENT_CYAN, text_color=ACCENT_CYAN,
+            hover_color="#003344", height=30, command=lambda: self.open_system_apps_picker(ent_name, ent_check, ent_cmd)
+        )
+        btn_browse_sys.pack(padx=30, pady=(0, 10), fill="x")
+
+        frame = ctk.CTkFrame(popup, fg_color="transparent")
+        frame.pack(fill="both", expand=True, padx=30, pady=5)
+
+        # 🌟 ดึงข้อมูลเดิมจาก tool มาใส่ใน Entry
+        ctk.CTkLabel(frame, text="MODULE NAME:", font=("Consolas", 12, "bold"), text_color="white").pack(anchor="w")
+        ent_name = ctk.CTkEntry(frame, font=("Consolas", 12), fg_color="#0A0A0F", border_color="#333344", text_color="white")
+        ent_name.insert(0, tool.get("name", ""))
+        ent_name.pack(fill="x", pady=(0, 10))
+        
+        ctk.CTkLabel(frame, text="DESCRIPTION:", font=("Consolas", 12, "bold"), text_color="white").pack(anchor="w")
+        ent_desc = ctk.CTkEntry(frame, font=("Consolas", 12), fg_color="#0A0A0F", border_color="#333344", text_color="white")
+        ent_desc.insert(0, tool.get("desc", ""))
+        ent_desc.pack(fill="x", pady=(0, 10))
+        
+        ctk.CTkLabel(frame, text="ICON (EMOJI):", font=("Consolas", 12, "bold"), text_color="white").pack(anchor="w")
+        ent_icon = ctk.CTkEntry(frame, font=("Segoe UI Emoji", 12), fg_color="#0A0A0F", border_color="#333344", text_color="white")
+        ent_icon.insert(0, tool.get("icon", "🛠️"))
+        ent_icon.pack(fill="x", pady=(0, 10))
+
+        ctk.CTkLabel(frame, text="CHECK COMMAND (e.g. sqlmap):", font=("Consolas", 12, "bold"), text_color="white").pack(anchor="w")
+        ent_check = ctk.CTkEntry(frame, font=("Consolas", 12), fg_color="#0A0A0F", border_color="#333344", text_color="white")
+        ent_check.insert(0, tool.get("check", ""))
+        ent_check.pack(fill="x", pady=(0, 10))
+
+        ctk.CTkLabel(frame, text="EXECUTE COMMAND:", font=("Consolas", 12, "bold"), text_color="white").pack(anchor="w")
+        ent_cmd = ctk.CTkEntry(frame, font=("Consolas", 12), fg_color="#0A0A0F", border_color="#333344", text_color="white")
+        ent_cmd.insert(0, tool.get("cmd", ""))
+        ent_cmd.pack(fill="x", pady=(0, 15))
+
+        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_frame.pack(fill="x")
+        
+        def save_edited_tool():
+            name = ent_name.get().strip()
+            check = ent_check.get().strip()
+            cmd = ent_cmd.get().strip()
+            if not name or not check or not cmd:
+                return 
+                
+            # 🌟 อัปเดตข้อมูลทับตัวเดิม
+            tool["name"] = name
+            tool["desc"] = ent_desc.get().strip() or "Custom Module"
+            tool["icon"] = ent_icon.get().strip() or "🛠️"
+            tool["check"] = check
+            tool["cmd"] = cmd
+            
+            # อัปเดตลิสต์และเซฟ
+            self.tools = self.default_tools + self.custom_tools
+            self.save_custom_tools()
+            self.refresh_grid()
+            self.status_label.configure(text=f"[+] UPDATED TOOL: {name.upper()}", text_color=ACCENT_GREEN)
+            popup.destroy()
+
+        ctk.CTkButton(btn_frame, text="[ SAVE CHANGES ]", font=("Consolas", 12, "bold"), fg_color="#FFB800", text_color="black", hover_color="#CC9900", command=save_edited_tool).pack(side="left", fill="x", expand=True, padx=(0,5))
         ctk.CTkButton(btn_frame, text="CANCEL", font=("Consolas", 12, "bold"), fg_color="transparent", border_width=1, border_color=ALERT_RED, text_color=ALERT_RED, hover_color="#4A0011", command=popup.destroy).pack(side="right", fill="x", expand=True, padx=(5,0))
 
         popup.update_idletasks()
