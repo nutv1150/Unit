@@ -1,4 +1,5 @@
 import customtkinter as ctk
+from tkinter import filedialog
 import threading
 import os
 import re
@@ -106,7 +107,7 @@ class GeminiPage(ctk.CTkFrame):
             command=self.on_model_change,
         ).pack(side="left")
 
-        # สถานะการเชื่อมต่อ (ย้ายมาไว้ใต้กล่องแผงควบคุม)
+        # สถานะการเชื่อมต่อ
         self.status_label = ctk.CTkLabel(
             self,
             text="[!] WAITING FOR CONNECTION...",
@@ -115,12 +116,6 @@ class GeminiPage(ctk.CTkFrame):
             anchor="w",
         )
         self.status_label.pack(fill="x", padx=40)
-
-
-        # --- 2. ส่วนหัวโปรแกรม ---
-
-        ctk.CTkLabel(self, text="GEMINI AI ", font=("Impact", 50), text_color="#A9CCE3").pack(pady=10)
-        ctk.CTkLabel(self, text="Python SDK + Auto Save & Execute (Anti-Quota Ban)", font=("Arial", 12, "italic"), text_color="#5DADE2").place(relx=0.95, rely=0.8, anchor="e")
 
         # ==========================================
         # 3. กล่องแสดงประวัติแชท (CHAT DISPLAY)
@@ -148,7 +143,7 @@ class GeminiPage(ctk.CTkFrame):
             input_container, 
             text="root@kali:~#", 
             font=("Consolas", 16, "bold"), 
-            text_color="#FF3366" # สีแดง-ชมพู ให้เด่นๆ
+            text_color="#FF3366" 
         ).pack(side="left", padx=(0, 10))
 
         self.input_field = ctk.CTkEntry(
@@ -163,6 +158,19 @@ class GeminiPage(ctk.CTkFrame):
         self.input_field.pack(side="left", fill="x", expand=True)
         self.input_field.bind("<Return>", lambda event: self.send_message())
 
+        # ปุ่ม Browse
+        self.browse_btn = ctk.CTkButton(
+            input_container, 
+            text="📁", 
+            width=45, height=45, 
+            font=("Consolas", 18),
+            fg_color="#2B2B36", 
+            text_color="white",
+            hover_color="#3A3A4A",
+            command=self.browse_file
+        )
+        self.browse_btn.pack(side="left", padx=(10, 0))
+
         self.send_btn = ctk.CTkButton(
             input_container, 
             text="EXECUTE", 
@@ -176,7 +184,7 @@ class GeminiPage(ctk.CTkFrame):
         self.send_btn.pack(side="left", padx=10)
 
         # ==========================================
-        # ตัวแปรควบคุม state & Logic (ไม่แตะต้อง)
+        # ตัวแปรควบคุม state & Logic
         # ==========================================
         self.cli_ready = False
         self.gemini_cmd = "gemini"          
@@ -194,9 +202,9 @@ class GeminiPage(ctk.CTkFrame):
         )
         self.history = []  
 
-    # --- ฟังก์ชันใหม่เสริม UI (ซ่อน/โชว์ API Key) ---
+    # --- ฟังก์ชันเสริม UI ---
     def toggle_api_visibility(self):
-        """ฟังก์ชันสำหรับปุ่ม 👁 สลับดู API Key (ไม่กระทบ Logic)"""
+        """ฟังก์ชันสำหรับปุ่ม 👁 สลับดู API Key"""
         if self.api_entry.cget("show") == "*":
             self.api_entry.configure(show="")
             self.toggle_btn.configure(text="🔒")
@@ -204,10 +212,74 @@ class GeminiPage(ctk.CTkFrame):
             self.api_entry.configure(show="*")
             self.toggle_btn.configure(text="👁")
 
+    def browse_file(self):
+        """เปิดหน้าต่างเลือกไฟล์และนำ Path มาใส่ในช่อง Input"""
+        file_path = filedialog.askopenfilename(
+            parent=self.winfo_toplevel(),
+            title="Select Target File"
+        )
+        if file_path:
+            current_text = self.input_field.get()
+            if current_text:
+                self.input_field.insert("end", f' "{file_path}"')
+            else:
+                self.input_field.insert(0, f'"{file_path}"')
+            self.input_field.focus()
+
     # ==================================================================
-    # ⬇️ LOGIC การทำงานทั้งหมดด้านล่างนี้ เหมือนเดิมเป๊ะ 100% ⬇️
+    # ระบบยืนยันคำสั่ง (Confirmation System)
     # ==================================================================
-    
+    def ask_action_confirm(self, action_type, detail):
+        """ระบบหยุด Thread เบื้องหลังเพื่อรอคำตอบจากผู้ใช้ผ่าน UI"""
+        self._confirm_result = False
+        self._confirm_event = threading.Event()
+        
+        self.after(0, self._show_confirm_dialog, action_type, detail)
+        self._confirm_event.wait()
+        return self._confirm_result
+
+    def _show_confirm_dialog(self, action_type, detail):
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("⚠️ SECURITY WARNING")
+        dialog.geometry("550x380")
+        dialog.attributes("-topmost", True)
+        dialog.configure(fg_color="#0D0D12")
+        dialog.transient(self.winfo_toplevel()) 
+        dialog.grab_set() 
+        
+        title_color = "#FF3366" if action_type == "SHELL COMMAND" else "#00FFFF"
+        ctk.CTkLabel(dialog, text=f"[ ACTION REQUIRED: {action_type} ]", font=("Consolas", 18, "bold"), text_color=title_color).pack(pady=(20, 10))
+        
+        detail_box = ctk.CTkTextbox(dialog, fg_color="#15151E", border_color="#333344", border_width=1, text_color="#00FF41", font=("Consolas", 12))
+        detail_box.pack(padx=20, pady=10, fill="both", expand=True)
+        detail_box.insert("1.0", detail)
+        detail_box.configure(state="disabled")
+        
+        ctk.CTkLabel(dialog, text="ระบบถูกระงับเพื่อความปลอดภัย ต้องการอนุญาตให้ดำเนินการนี้หรือไม่?", font=("Consolas", 12), text_color="#8892B0").pack(pady=(0, 10))
+        
+        btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=20, pady=(0, 20))
+        
+        def on_allow():
+            self._confirm_result = True
+            self._confirm_event.set()
+            dialog.grab_release()
+            dialog.destroy()
+            
+        def on_deny():
+            self._confirm_result = False
+            self._confirm_event.set()
+            dialog.grab_release()
+            dialog.destroy()
+            
+        dialog.protocol("WM_DELETE_WINDOW", on_deny)
+        
+        ctk.CTkButton(btn_frame, text="[ ALLOW ]", fg_color="#00FF41", text_color="black", hover_color="#00CC33", font=("Consolas", 14, "bold"), command=on_allow).pack(side="left", expand=True, padx=10)
+        ctk.CTkButton(btn_frame, text="[ DENY ]", fg_color="transparent", border_width=1, border_color="#FF3366", text_color="#FF3366", hover_color="#4A0011", font=("Consolas", 14, "bold"), command=on_deny).pack(side="right", expand=True, padx=10)
+
+    # ==================================================================
+    # LOGIC การทำงาน API
+    # ==================================================================
     def on_model_change(self, selected_model):
         self.model_name = selected_model
         self.update_chat_ui("System", f"🔄 เปลี่ยนไปใช้โมเดล: {selected_model}")
@@ -397,34 +469,68 @@ class GeminiPage(ctk.CTkFrame):
             self.history.append(("user", enhanced_prompt))
             self.history.append(("model", output))
 
+            # ==========================================
+            # 1. จัดการ Execution (EXEC)
+            # ==========================================
             exec_pattern = r"\[EXEC\](.*?)\[/EXEC\]"
             loop_count = 0
+            has_executed = False 
 
             while re.search(exec_pattern, output) and loop_count < 2:
                 loop_count += 1
                 match = re.search(exec_pattern, output)
                 cmd = match.group(1).strip()
+                full_exec_tag = match.group(0)
 
-                self.after(0, self.update_chat_ui, "System", f"⚙️ AI กำลังรันคำสั่ง: {cmd}")
+                if self.ask_action_confirm("SHELL COMMAND", f"Command to execute:\n{cmd}"):
+                    self.after(0, self.update_chat_ui, "System", f"⚙️ AI ได้รับอนุญาตให้รันคำสั่ง: {cmd}")
 
-                try:
-                    res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
-                    cmd_out = (res.stdout + res.stderr).strip()
-                    if not cmd_out:
-                        cmd_out = "(คำสั่งทำงานสำเร็จ แต่ไม่มีข้อความตอบกลับ)"
+                    try:
+                        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+                        cmd_out = (res.stdout + res.stderr).strip()
+                        if not cmd_out:
+                            cmd_out = "(คำสั่งทำงานสำเร็จ แต่ไม่มีข้อความตอบกลับ)"
 
-                    if len(cmd_out) > 4000:
-                        cmd_out = cmd_out[:4000] + "\n...[ข้อความถูกตัดทิ้งเนื่องจากยาวเกินไป]..."
+                        if len(cmd_out) > 4000:
+                            cmd_out = cmd_out[:4000] + "\n...[ข้อความถูกตัดทิ้งเนื่องจากยาวเกินไป]..."
 
-                except Exception as e:
-                    cmd_out = f"Error: {e}"
+                    except Exception as e:
+                        cmd_out = f"Error: {e}"
 
-                feedback_prompt = f"ผลลัพธ์จากการรัน `{cmd}`:\n```\n{cmd_out}\n```\nโปรดวิเคราะห์ผลลัพธ์นี้ต่อ"
-                full_prompt = self.build_prompt_with_history(feedback_prompt)
-                output = self.call_gemini_cli(full_prompt)
+                    feedback_prompt = f"ผลลัพธ์จากการรัน `{cmd}`:\n```\n{cmd_out}\n```\nโปรดวิเคราะห์ผลลัพธ์นี้ต่อ"
+                    full_prompt = self.build_prompt_with_history(feedback_prompt)
+                    output = self.call_gemini_cli(full_prompt)
 
-                self.history.append(("user", feedback_prompt))
-                self.history.append(("model", output))
+                    self.history.append(("user", feedback_prompt))
+                    self.history.append(("model", output))
+                    has_executed = True 
+                else:
+                    self.after(0, self.update_chat_ui, "System", f"❌ ผู้ใช้ยกเลิกคำสั่ง: {cmd}")
+                    output = output.replace(full_exec_tag, f"\n[ระบบ]: ผู้ใช้ปฏิเสธการรันคำสั่ง `{cmd}`\n")
+                    break 
+
+            # ==========================================
+            # 2. จัดการ Save File 
+            # ==========================================
+            save_pattern = r"\[SAVE:(.*?)\](.*?)\[/SAVE\]"
+            
+            if not has_executed or (has_executed and not re.search(exec_pattern, output)):
+                for match in re.finditer(save_pattern, output, re.DOTALL):
+                    file_path = match.group(1).strip()
+                    clean_content = match.group(2).strip()
+                    full_save_tag = match.group(0)
+                    
+                    if self.ask_action_confirm("SAVE FILE", f"Target Path: {file_path}\nFile Size: {len(clean_content)} bytes\n\nPreview Content:\n{clean_content[:200]}..."):
+                        try:
+                            with open(file_path, "w", encoding="utf-8") as f:
+                                f.write(clean_content)
+                            output = output.replace(full_save_tag, f"\n\n💾 [ระบบ]: ทำการแก้ไขและเซฟไฟล์ทับที่ {file_path} เรียบร้อยแล้ว!\n")
+                        except Exception as e:
+                            output = output.replace(full_save_tag, f"\n\n❌ [ระบบ]: เซฟไฟล์ไม่สำเร็จ: {e}\n")
+                    else:
+                        output = output.replace(full_save_tag, f"\n\n❌ [ระบบ]: ผู้ใช้ยกเลิกการเซฟไฟล์ที่ {file_path}\n")
+            elif has_executed and re.search(exec_pattern, output):
+                output = re.sub(save_pattern, f"\n\n⚠️ [ระบบ]: ระงับการบันทึกไฟล์ เนื่องจากตรวจพบคำสั่งเพิ่มเติมที่ยังไม่ได้ดำเนินการ\n", output, flags=re.DOTALL)
 
         except Exception as e:
             output = f"❌ Error จาก Gemini CLI:\n{e}"
@@ -432,20 +538,6 @@ class GeminiPage(ctk.CTkFrame):
         self.after(0, self.finish_response, output)
 
     def finish_response(self, output):
-        save_pattern = r"\[SAVE:(.*?)\](.*?)\[/SAVE\]"
-        matches = re.findall(save_pattern, output, re.DOTALL)
-
-        for file_path, content in matches:
-            clean_path = file_path.strip()
-            clean_content = content.strip()
-            full_tag = f"[SAVE:{file_path}]{content}[/SAVE]"
-            try:
-                with open(clean_path, "w", encoding="utf-8") as f:
-                    f.write(clean_content)
-                output = output.replace(full_tag, f"\n\n💾 [ระบบ]: ทำการแก้ไขและเซฟไฟล์ทับที่ {clean_path} เรียบร้อยแล้ว!\n")
-            except Exception as e:
-                output = output.replace(full_tag, f"\n\n❌ [ระบบ]: เซฟไฟล์ไม่สำเร็จ: {e}\n")
-
         self.chat_display.configure(state="normal")
 
         lines = self.chat_display.get("1.0", "end").split("\n")
@@ -457,7 +549,7 @@ class GeminiPage(ctk.CTkFrame):
 
         if last_you_idx > 0:
             for i in range(last_you_idx + 1, len(lines)):
-                if "[System]: กำลัง" in lines[i] or "[System]: ⚙️ AI กำลังรัน" in lines[i]:
+                if "[System]: กำลัง" in lines[i] or "[System]: ⚙️ AI" in lines[i]:
                     self.chat_display.delete(f"{i+1}.0", f"{i+2}.0")
 
         self.chat_display.configure(state="disabled")

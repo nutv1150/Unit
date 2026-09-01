@@ -188,7 +188,7 @@
                 },
                 {
                     "name": "base64_decode",
-                    "params": "",
+                    "params": "", 
                     "user_description": "Step 3: ถอด Base64 ที่กรองมาได้ → ได้ hint คีย์ Rijndael (128-bit) = ASCII 'J' x16",
                     "options": [
                         {
@@ -270,7 +270,160 @@
             ]
         },
         {
+
+
             "pipeline_name": "Untitled",
+            "steps": [
+                {
+                    "name": "dd",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "if=",
+                            "type": "checkbox",
+                            "description": ""
+                        }
+                    ]
+                },
+                {
+
+                    "name": "openssl enc",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+
+
+                            "flag": "enc -d -aes-128-ecb -nopad",
+
+
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+
+
+                            "flag": "-K 31323334353637383961626364656667",
+
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+
+                            "flag": "-in pixels_enc.bin",
+
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+
+                            "flag": "-out pixels_dec.bin",
+                            "type": "checkbox",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "pipeline_name": "Untitled",
+            "steps": [
+                {
+                    "name": "openssl enc",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "enc -d -aes-128-ecb -nopad",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-K 31323334353637383961626364656667",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-in pixels_enc.bin",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-out pixels_dec.bin",
+                            "type": "checkbox",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "pipeline_name": "Hiden2",
+            "steps": [
+                {
+                    "name": "openssl enc",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "enc -d -aes-128-ecb -nopad",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-K 31323334353637383961626364656667",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-out pixels_dec.bin",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-in",
+                            "type": "text",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "pipeline_name": "hid2",
+            "steps": [
+                {
+                    "name": "openssl enc",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "enc -d -aes-128-ecb -nopad",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-K 31323334353637383961626364656667",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-out pixels_dec.bin",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-in",
+                            "type": "checkbox",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "pipeline_name": "hidden 2",
             "steps": [
                 {
                     "name": "openssl enc",
@@ -283,7 +436,41 @@
                             "description": ""
                         },
                         {
-                            "flag": "-K 4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A",
+                            "flag": "-K 31323334353637383961626364656667",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-out pixels_dec.bin",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-in",
+                            "type": "checkbox",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "pipeline_name": "1234",
+            "steps": [
+                {
+                    "name": "openssl enc",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-d -aes-128-ecb -nopad",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-K 31323334353637383961626364656667",
+
+
                             "type": "checkbox",
                             "description": ""
                         },
@@ -300,6 +487,58 @@
                     ]
                 }
             ]
-        }
+
+
+        },
+        {
+            "pipeline_name": "tsh",
+            "steps": [
+                {
+                    "name": "tshark",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-r",
+                            "type": "checkbox",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "pipeline_name": "chl5",
+            "steps": [
+                {
+                    "name": "tshark",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-r",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-Y",
+                            "type": "text",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-T",
+                            "type": "text",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-e",
+                            "type": "text",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
+   }
+
     ]
 }
