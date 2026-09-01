@@ -9,7 +9,7 @@ import threading
 import hashlib
 import mmap  
 
-from Tools.flag_detector import UNIVERSAL_FLAG_REGEX
+from Tools.flag_detector import UNIVERSAL_FLAG_REGEX, find_flags
 
 # ==========================================
 # ธีมสีหลัก (Cyberpunk / Terminal)
@@ -200,6 +200,7 @@ class FileInspectionPage(ctk.CTkFrame):
         self.configure(fg_color=BG_COLOR)
         
         self.selected_files = [] 
+        self.analysis_flags = {}
         self.regex_var = ctk.StringVar(value="") 
 
         self.smart_db = {
@@ -357,7 +358,7 @@ class FileInspectionPage(ctk.CTkFrame):
             total_found += found
         
         if keyword:
-            self.warning_label.configure(text=f"STATUS: FOUND {total_matches} MATCHES", text_color=ACCENT_GREEN)
+            self.warning_label.configure(text=f"STATUS: FOUND {total_found} MATCHES", text_color=ACCENT_GREEN)
 
     def populate_file_nav(self):
         for widget in self.file_nav_panel.winfo_children():
@@ -558,6 +559,16 @@ class FileInspectionPage(ctk.CTkFrame):
             elif choice == "zsteg Analysis": self.run_zsteg_analysis(path)
             elif choice == "Exiftool": self.run_exiftool_analysis(path)
 
+            self._record_activity(
+                tool=choice,
+                path=path,
+                flags=(
+                    self.analysis_flags.get(path, [])
+                    if choice == "Strings"
+                    else []
+                ),
+            )
+
         self.after(0, lambda: self.finish_analysis(choice, state['match_count']))
 
     def check_if_executable(self, path):
@@ -657,6 +668,9 @@ class FileInspectionPage(ctk.CTkFrame):
                 ascii_strings = re.findall(b"[\x20-\x7E]{4,}", data)
                 file_content = "\n".join([b.decode('ascii', errors='ignore') for b in ascii_strings])
 
+            # เก็บ flag ที่พบจริงเพื่อส่งสถิติไปยัง Dashboard
+            self.analysis_flags[path] = find_flags(file_content)
+
             # จำกัดจำนวนบรรทัดที่จะแสดงผล เพื่อป้องกันหน้าจอค้าง
             lines = file_content.splitlines()
             if len(lines) > state['max_display']:
@@ -730,6 +744,19 @@ class FileInspectionPage(ctk.CTkFrame):
             self.safe_log("[!] ERROR: FILE IS TOO LARGE TO PROCESS IN MEMORY.", "error", target_file=path)
         except Exception as e: 
             self.safe_log(f"[!] STRINGS EXTRACTION ERROR: {str(e)}", "error", target_file=path)
+
+    def _record_activity(self, tool, path, flags=None, status="success", details=""):
+        if not hasattr(self.app_root, "record_activity"):
+            return
+        self.app_root.record_activity(
+            tool=tool,
+            category="File Inspection",
+            action="Analyze File",
+            status=status,
+            file_path=path,
+            flags=flags or [],
+            details=details,
+        )
 
     def finish_analysis(self, choice, total_matches):
         self.progress_bar.stop()

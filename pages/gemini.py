@@ -5,10 +5,12 @@ import re
 import subprocess
 import shutil
 import time
+from Tools.flag_detector import find_flags
 
 class GeminiPage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
+        self.app_root = master.master
         
         # --- [ ธีมสี Cyberpunk / Terminal ] ---
         BG_COLOR = "#0D0D12"        # ดำสนิทเหลือบน้ำเงิน
@@ -462,6 +464,16 @@ class GeminiPage(ctk.CTkFrame):
 
         self.update_chat_ui("Gemini (CTF)", output.strip())
         self.send_btn.configure(state="normal")
+
+        if hasattr(self.app_root, "record_activity"):
+            self.app_root.record_activity(
+                tool=f"Gemini CLI: {self.model_name}",
+                category="Gemini CLI",
+                action="AI Request",
+                status="failed" if output.startswith("❌ Error") else "success",
+                flags=find_flags(output),
+                details=f"Response length: {len(output)} characters",
+            )
 
     def update_chat_ui(self, sender, message):
         self.chat_display.configure(state="normal")

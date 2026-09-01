@@ -18,6 +18,7 @@ ALERT_RED = "#FF3366"
 class AppPortalPage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
+        self.app_root = master.master
         self.configure(fg_color=BG_COLOR)
         
         self.default_tools = [
@@ -168,6 +169,7 @@ class AppPortalPage(ctk.CTkFrame):
         
         if shutil.which(check_cmd) is None:
             self.status_label.configure(text=f"[!] ERROR: '{name.upper()}' IS NOT INSTALLED.", text_color=ALERT_RED)
+            self._record_activity(name, "failed", f"Command not found: {check_cmd}")
             return
 
         self.status_label.configure(text=f"[SYSTEM]: INITIATING {name.upper()}...", text_color="#FFB800")
@@ -176,8 +178,21 @@ class AppPortalPage(ctk.CTkFrame):
         try:
             subprocess.Popen(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             self.status_label.configure(text=f"[+] SUCCESS: {name.upper()} MODULE IS ACTIVE.", text_color=ACCENT_GREEN)
+            self._record_activity(name, "success")
         except Exception as e:
             self.status_label.configure(text=f"[!] ERROR LAUNCHING {name.upper()}: {e}", text_color=ALERT_RED)
+            self._record_activity(name, "failed", str(e))
+
+    def _record_activity(self, tool, status, details=""):
+        if not hasattr(self.app_root, "record_activity"):
+            return
+        self.app_root.record_activity(
+            tool=tool,
+            category="App Portal",
+            action="Launch Tool",
+            status=status,
+            details=details,
+        )
 
     def open_add_tool_popup(self):
         popup = ctk.CTkToplevel(self)

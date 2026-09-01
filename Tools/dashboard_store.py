@@ -17,7 +17,11 @@ class DashboardStore:
     DEFAULT_CATEGORY = "Core"
 
     def __init__(self, state_path=None):
-        default_path = Path.home() / ".unit" / "dashboard_state.json"
+        default_path = (
+            Path(__file__).resolve().parent.parent
+            / "data"
+            / "dashboard_state.json"
+        )
         self.state_path = Path(state_path or default_path)
         self._lock = threading.RLock()
         self._state = self._load_state()

@@ -8,6 +8,7 @@ from Tools.extra_tools import (
     bitwise_unmask,
     detect_embedded_key,
 )
+from Tools.flag_detector import find_flags
 from tkinter import filedialog
 
 # ==========================================
@@ -30,6 +31,8 @@ class DataHashPage(ctk.CTkFrame):
 
     def __init__(self, master):
         super().__init__(master)
+        self.app_root = master.master
+        self.current_file_path = None
         self.configure(fg_color=BG_COLOR)
 
         # =========================
@@ -327,9 +330,23 @@ class DataHashPage(ctk.CTkFrame):
             self.output_box.delete("1.0", "end")
             self.output_box.insert("1.0", result)
 
+            self._record_activity(
+                tool=f"{self.mode}: {algo}",
+                action=self.mode,
+                status="success",
+                flags=find_flags(result),
+                details=f"Input length: {len(data)} characters",
+            )
+
         except Exception as e:
             self.output_box.delete("1.0", "end")
             self.output_box.insert("1.0", f"Error: {e}")
+            self._record_activity(
+                tool=f"{self.mode}: {algo}",
+                action=self.mode,
+                status="failed",
+                details=str(e),
+            )
 
         # อัปเดต Label หลังจากประมวลผลเสร็จ
         self.update_output_label()
@@ -353,6 +370,7 @@ class DataHashPage(ctk.CTkFrame):
             return
 
         try:
+            self.current_file_path = file_path
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
@@ -362,6 +380,19 @@ class DataHashPage(ctk.CTkFrame):
 
         except Exception as e:
             print("Read file error:", e)
+
+    def _record_activity(self, tool, action, status, flags=None, details=""):
+        if not hasattr(self.app_root, "record_activity"):
+            return
+        self.app_root.record_activity(
+            tool=tool,
+            category="Data Hashing",
+            action=action,
+            status=status,
+            file_path=self.current_file_path,
+            flags=flags or [],
+            details=details,
+        )
 
     # =========================
     # Mode Selector (Segmented Control)
