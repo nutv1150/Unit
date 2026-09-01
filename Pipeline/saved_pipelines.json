@@ -281,13 +281,20 @@
             ]
         },
         {
-            "pipeline_name": "fater",
+
+            "pipeline_name": "Untitled",
             "steps": [
                 {
-                    "name": "strings",
+                    "name": "dd",
                     "params": "",
                     "user_description": "",
-                    "options": []
+                    "options": [
+                        {
+                            "flag": "if=",
+                            "type": "checkbox",
+                            "description": ""
+                        }
+                    ]
                 },
                 {
                     "name": "openssl enc",
@@ -295,22 +302,180 @@
                     "user_description": "",
                     "options": [
                         {
-                            "flag": "-d",
+
+                            "flag": "enc -d -aes-128-ecb -nopad",
+
                             "type": "checkbox",
                             "description": ""
                         },
                         {
-                            "flag": "-aes-128-ecb",
+
+                            "flag": "-K 31323334353637383961626364656667",
+
                             "type": "checkbox",
                             "description": ""
                         },
                         {
-                            "flag": "-nopad",
+
+                            "flag": "-in pixels_enc.bin",
+
                             "type": "checkbox",
                             "description": ""
                         },
                         {
-                            "flag": "-K 4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A4A",
+
+                            "flag": "-out pixels_dec.bin",
+                            "type": "checkbox",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "pipeline_name": "Untitled",
+            "steps": [
+                {
+                    "name": "openssl enc",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "enc -d -aes-128-ecb -nopad",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-K 31323334353637383961626364656667",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-in pixels_enc.bin",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-out pixels_dec.bin",
+                            "type": "checkbox",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "pipeline_name": "Hiden2",
+            "steps": [
+                {
+                    "name": "openssl enc",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "enc -d -aes-128-ecb -nopad",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-K 31323334353637383961626364656667",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-out pixels_dec.bin",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-in",
+                            "type": "text",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "pipeline_name": "hid2",
+            "steps": [
+                {
+                    "name": "openssl enc",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "enc -d -aes-128-ecb -nopad",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-K 31323334353637383961626364656667",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-out pixels_dec.bin",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-in",
+                            "type": "checkbox",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "pipeline_name": "hidden 2",
+            "steps": [
+                {
+                    "name": "openssl enc",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-d -aes-128-ecb -nopad",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-K 31323334353637383961626364656667",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-out pixels_dec.bin",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-in",
+                            "type": "checkbox",
+                            "description": ""
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "pipeline_name": "1234",
+            "steps": [
+                {
+                    "name": "openssl enc",
+                    "params": "",
+                    "user_description": "",
+                    "options": [
+                        {
+                            "flag": "-d -aes-128-ecb -nopad",
+                            "type": "checkbox",
+                            "description": ""
+                        },
+                        {
+                            "flag": "-K 31323334353637383961626364656667",
+
                             "type": "checkbox",
                             "description": ""
                         },
@@ -327,6 +492,7 @@
                     ]
                 }
             ]
+
         },
         {
             "pipeline_name": "tsh",
@@ -376,6 +542,6 @@
                     ]
                 }
             ]
-        }
+   }
     ]
 }
