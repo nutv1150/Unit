@@ -8,6 +8,7 @@ from pages.pipeline import PipelinePage
 from pages.gemini import GeminiPage
 from pages.dashboard import DashboardPage
 from pages.app_portal import AppPortalPage
+from Tools.dashboard_store import DashboardStore
 
 ctk.set_appearance_mode("Light")
 ctk.set_default_color_theme("blue")
@@ -33,6 +34,10 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.container.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
         self.container.grid_rowconfigure(0, weight=1)
         self.container.grid_columnconfigure(0, weight=1)
+
+        # DashboardStore เป็นแหล่งข้อมูลกลางของกิจกรรมทุกหน้า
+        # บันทึกข้ามการเปิด/ปิดโปรแกรมที่ ~/.unit/dashboard_state.json
+        self.dashboard_store = DashboardStore()
 
         # ---------------- จุดที่ 1: เพิ่ม Dashboard เข้าไประบบ Pages ----------------
         self.pages = {
@@ -87,6 +92,7 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.switch_page("Data Hashing")
         # 2. ใส่ข้อความลง input_box
         page = self.pages["Data Hashing"]
+        page.current_file_path = None
         page.input_box.delete("1.0", "end")
         page.input_box.insert("1.0", text)
         # 3. trigger process_data ทันที
@@ -101,6 +107,14 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         page.input_field.insert(0, text)
         # 3. trigger send_message ทันที (ถ้ายังไม่ได้ connect CLI จะโชว์คำเตือนให้เอง)
         page.send_message()
+
+    def record_activity(self, **event):
+        """ให้ทุกหน้าเขียนสถิติ Dashboard ผ่านจุดเดียวกัน"""
+        try:
+            return self.dashboard_store.record_event(**event)
+        except Exception as error:
+            print(f"[DASHBOARD] บันทึกกิจกรรมไม่สำเร็จ: {error}")
+            return None
 
 if __name__ == "__main__":
     app = UNITApp()
