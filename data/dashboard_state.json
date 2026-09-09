@@ -857,6 +857,58 @@
         "flag{powershell_xor_hidden_so_easy}"
       ],
       "details": "Input length: 200 characters"
+    },
+    {
+      "id": "a03c7feed4e5477fb16e741c76185338",
+      "timestamp": "2026-09-09T15:07:52.267072+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-3.1-flash-lite",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "failed",
+      "file_path": null,
+      "flags": [],
+      "details": "Response length: 723 characters"
+    },
+    {
+      "id": "0f90e3b1feea4b0e8e2b93e505303877",
+      "timestamp": "2026-09-09T15:11:04.579907+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-3.1-flash-lite",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Response length: 35 characters"
+    },
+    {
+      "id": "5698cc35c02d40b5bedfac1cd963c651",
+      "timestamp": "2026-09-09T15:15:22.851360+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-2.5-pro",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "failed",
+      "file_path": null,
+      "flags": [],
+      "details": "Response length: 205 characters"
+    },
+    {
+      "id": "e1546eb702c244559dd2071e178839e0",
+      "timestamp": "2026-09-09T15:19:16.711518+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-3.5-flash",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "failed",
+      "file_path": null,
+      "flags": [
+        "nflag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Response length: 1263 characters"
     }
   ]
 }
