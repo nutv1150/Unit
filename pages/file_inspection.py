@@ -21,7 +21,7 @@ ACCENT_GREEN = "#00FF41"
 TEXT_DIM = "#8892B0"        
 ALERT_RED = "#FF3366"       
 
-# --- ⭐ 1. คลาสสำหรับการสร้าง "กรอบ" ผลลัพธ์ (ขยายความสูงให้ยาวขึ้นแล้ว) ---
+# --- ⭐ 1. คลาสสำหรับการสร้าง "กรอบ" ผลลัพธ์ ---
 class ResultBox(ctk.CTkFrame):
     def __init__(self, master, filename, app_root, **kwargs):
         super().__init__(master, border_width=1, border_color="#333344", corner_radius=6, fg_color="#0A0A0F", **kwargs)
@@ -33,7 +33,7 @@ class ResultBox(ctk.CTkFrame):
         self.title = ctk.CTkLabel(self.header, text=f" 📄 {filename} ", font=("Consolas", 13, "bold"), text_color=ACCENT_CYAN)
         self.title.pack(side="left", padx=10, pady=5)
         
-        # 👇 ลดความสูง (height) จาก 350 เหลือ 280
+        # ลดความสูง (height) จาก 350 เหลือ 280
         self.textbox = ctk.CTkTextbox(
             self, fg_color="#050508", text_color=ACCENT_GREEN, 
             font=("Consolas", 12), height=280, border_width=0
@@ -192,7 +192,7 @@ class RegexSelectionPopup(ctk.CTkToplevel):
         self.destroy()
 
 
-# --- ⭐ 3. หน้าหลัก File Inspection ---[cite: 1]
+# --- ⭐ 3. หน้าหลัก File Inspection ---
 class FileInspectionPage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
@@ -206,7 +206,6 @@ class FileInspectionPage(ctk.CTkFrame):
         self.smart_db = {
             r"(?:0|\+66)[689]\d[- \.]?\d{3}[- \.]?\d{4}": "📱 THAI_MOBILE_NUM",
             r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b": "📧 EMAIL_ADDR",
-            # 👇 ปรับ Pattern Base64 ใหม่ ให้จับได้ทั้งยาวๆ หรือมี = ปิดท้าย โดยไม่ต้องสนใจ \b เข้มงวดมาก
             r"(?<![A-Za-z0-9+/=])(?:[A-Za-z0-9+/]{4}){5,}(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?(?![A-Za-z0-9+/=])": "🔐 BASE64_STRING",
             r"(?:\d{1,3}\.){3}\d{1,3}": "🌐 IPv4_ADDR",
             r"https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}": "🔗 URL_LINK",
@@ -268,7 +267,7 @@ class FileInspectionPage(ctk.CTkFrame):
         action_frame.grid(row=3, column=0, sticky="ew", padx=30, pady=10)
 
         self.tool_menu = ctk.CTkOptionMenu(
-            action_frame, values=["Header Check", "Executable Check", "Strings", "zsteg Analysis", "Exiftool"], 
+            action_frame, values=["'file' Command", "Header Check", "Executable Check", "Strings", "zsteg Analysis", "Exiftool"], 
             width=180, height=35, font=("Consolas", 12),
             fg_color="#1E1E2E", button_color="#2B2B36", button_hover_color="#3A3A4A",
             state="disabled", command=self.on_tool_change
@@ -553,7 +552,8 @@ class FileInspectionPage(ctk.CTkFrame):
             if choice == "Strings" and not self.regex_var.get() and state['warned']:
                 break
             
-            if choice == "Header Check": self.inspect_file_header(path)
+            if choice == "'file' Command": self.run_file_command(path)
+            elif choice == "Header Check": self.inspect_file_header(path)
             elif choice == "Executable Check": self.check_if_executable(path)
             elif choice == "Strings": self.extract_all_strings(path, state)
             elif choice == "zsteg Analysis": self.run_zsteg_analysis(path)
@@ -630,14 +630,6 @@ class FileInspectionPage(ctk.CTkFrame):
         except Exception as e:
             self.safe_log(f"[!] ERROR READING FILE: {str(e)}", "error", target_file=path)
 
-    # 🔄 ปรับฟังก์ชัน Strings ให้อ่านและแสดงผลทีละบรรทัดเหมือน VS Code (ตามต้นฉบับไฟล์)
-    # 🔄 ปรับฟังก์ชัน Strings ให้อ่านไฟล์ทีละส่วน (Chunk) เพื่อป้องกันการค้างเมื่อเจอไฟล์ขนาดใหญ่
-    # 🔄 ปรับฟังก์ชัน Strings ให้อ่านไฟล์ Binary และสกัดเฉพาะข้อความที่อ่านได้ (Printable)
-    # 🔄 ปรับฟังก์ชัน Strings ให้อ่านไฟล์ Binary และสกัดเฉพาะข้อความที่อ่านได้ (Printable)
-    # 🌟 [อัปเดต]: แสดงผลทุกบรรทัดเสมอ และไฮไลท์บรรทัดที่ตรงกับ Regex 
-    # 🔄 ปรับฟังก์ชัน Strings ให้อ่านไฟล์ Binary, สกัด Printable, และรองรับ Regex ข้ามบรรทัด
-    # 🔄 ปรับปรุง Strings ให้อ่านไฟล์ Text ปกติได้ (รวมถึงไฟล์บรรทัดเดียว) และรองรับ Binary 
-    # 🔄 ปรับปรุง Strings ให้เตรียมข้อมูลให้เสร็จก่อนแสดงผล เพื่อไม่ให้ข้อความค่อยๆ ไหล
     def extract_all_strings(self, path, state):
         p = self.regex_var.get()
         try:
@@ -650,28 +642,22 @@ class FileInspectionPage(ctk.CTkFrame):
                 return
             
             textbox = self.result_boxes[path].textbox
-            # เคลียร์หน้าจอให้เรียบร้อยก่อน
             self.after(0, lambda: textbox.delete("1.0", "end"))
 
-            # 1. ลองอ่านแบบ Text file (UTF-8) ก่อน
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     file_content = f.read()
                 is_text_file = True
             except UnicodeDecodeError:
-                # 2. ถ้าอ่านแบบ UTF-8 ไม่ได้ แสดงว่าเป็น Binary file
                 is_text_file = False
                 with open(path, "rb") as f:
                     data = f.read()
                 
-                # สกัดเฉพาะข้อความที่อ่านได้
                 ascii_strings = re.findall(b"[\x20-\x7E]{4,}", data)
                 file_content = "\n".join([b.decode('ascii', errors='ignore') for b in ascii_strings])
 
-            # เก็บ flag ที่พบจริงเพื่อส่งสถิติไปยัง Dashboard
             self.analysis_flags[path] = find_flags(file_content)
 
-            # จำกัดจำนวนบรรทัดที่จะแสดงผล เพื่อป้องกันหน้าจอค้าง
             lines = file_content.splitlines()
             if len(lines) > state['max_display']:
                 lines = lines[:state['max_display']]
@@ -680,54 +666,42 @@ class FileInspectionPage(ctk.CTkFrame):
             else:
                 warning_msg = ""
             
-            # รวมข้อความกลับมาเฉพาะส่วนที่จะแสดงผล
             display_content = "\n".join(lines)
             prefix = "" if is_text_file else "  "
             
-            # ถ้าเป็นไฟล์ Binary ให้เติม prefix เว้นวรรคข้างหน้าทุกบรรทัด
             if not is_text_file:
                 display_content = prefix + display_content.replace("\n", "\n" + prefix)
 
-            # ถ้าไม่มี Regex ให้พิมพ์ข้อความทั้งหมดออกมารวดเดียว
             if not p:
                 self.after(0, lambda: textbox.insert("end", display_content + warning_msg))
                 state['display_count'] += len(lines)
                 return
 
-            # --- ถ้ามี Regex ให้ค้นหาและเตรียมข้อมูลการไฮไลท์ ---
             matches = list(re.finditer(p, display_content, re.IGNORECASE))
             
             if not matches:
-                # ถ้าหาไม่เจอเลย ก็โชว์ทั้งหมดรวดเดียว
                 self.after(0, lambda: textbox.insert("end", display_content + warning_msg))
                 state['display_count'] += len(lines)
                 return
 
             state['match_count'] += len(matches)
             
-            # 🌟 จุดสำคัญ: สร้าง List เก็บคำสั่งว่าส่วนไหนข้อความธรรมดา ส่วนไหนต้องไฮไลท์
-            # รูปแบบ: [("ข้อความธรรมดา", None), ("ข้อความไฮไลท์", "found"), ...]
             insert_data = []
             last_pos = 0
             
             for m in matches:
                 st, en = m.span()
-                # ข้อความก่อนหน้า match
                 if st > last_pos:
                     insert_data.append((display_content[last_pos:st], None))
-                
-                # ข้อความที่ match
                 insert_data.append((display_content[st:en], "found"))
                 last_pos = en
             
-            # ข้อความส่วนที่เหลือ
             if last_pos < len(display_content):
                 insert_data.append((display_content[last_pos:], None))
                 
             if warning_msg:
                 insert_data.append((warning_msg, None))
 
-            # ฟังก์ชันช่วยนำข้อมูลไปแสดงผลใน UI Thread รวดเดียว
             def update_ui(data):
                 for text, tag in data:
                     if tag:
@@ -736,7 +710,6 @@ class FileInspectionPage(ctk.CTkFrame):
                         textbox.insert("end", text)
                 textbox.see("end")
 
-            # ส่งก้อนข้อมูลทั้งหมดไปวาดบนหน้าจอทีเดียว
             self.after(0, lambda: update_ui(insert_data))
             state['display_count'] += len(lines)
 
@@ -744,6 +717,30 @@ class FileInspectionPage(ctk.CTkFrame):
             self.safe_log("[!] ERROR: FILE IS TOO LARGE TO PROCESS IN MEMORY.", "error", target_file=path)
         except Exception as e: 
             self.safe_log(f"[!] STRINGS EXTRACTION ERROR: {str(e)}", "error", target_file=path)
+
+    # 🌟 ฟังก์ชันรันคำสั่ง file ดิบๆ (แก้ไข Error text_color แล้ว)
+    def run_file_command(self, path):
+        if path not in self.result_boxes:
+            return
+
+        self.safe_log(f"\n[{'='*40}]", target_file=path)
+        self.safe_log(">>> RUNNING COMMAND: file <<<", tag="highlight", target_file=path)
+        
+        try:
+            result = subprocess.run(['file', path], capture_output=True, text=True, timeout=5)
+            
+            if result.returncode == 0:
+                file_info = result.stdout.strip()
+                self.safe_log(f"{file_info}", tag="found", target_file=path)
+            else:
+                self.safe_log(f"[!] ERROR: {result.stderr.strip()}", "error", target_file=path)
+                
+        except FileNotFoundError:
+            self.safe_log("[!] COMMAND 'file' NOT FOUND (อาจไม่ได้รันบน Linux/WSL)", "error", target_file=path)
+        except Exception as e:
+            self.safe_log(f"[!] UNKNOWN ERROR: {str(e)}", "error", target_file=path)
+            
+        self.safe_log(f"[{'='*40}]\n", target_file=path)
 
     def _record_activity(self, tool, path, flags=None, status="success", details=""):
         if not hasattr(self.app_root, "record_activity"):

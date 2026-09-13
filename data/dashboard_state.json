@@ -309,24 +309,136 @@
     {
       "id": "85f9201c01ed447aa23142be354c7ef1",
       "timestamp": "2026-09-02T04:21:13.837471+00:00",
+      "id": "5005151929fd4426beaee755a522b234",
+      "timestamp": "2026-09-12T08:40:15.081631+00:00",
       "competition": "General",
       "tool": "Header Check",
       "category": "File Inspection",
       "action": "Analyze File",
       "status": "success",
-      "file_path": "/home/nutvv/Documents/present/hidden_payload.iso",
+      "file_path": "/home/kali/Downloads/result.txt",
       "flags": [],
       "details": ""
     },
     {
       "id": "667cf7c41eed4299aa54003a094748ae",
       "timestamp": "2026-09-02T04:21:15.480736+00:00",
+      "id": "31751625a6ac438d9f3009283284951c",
+      "timestamp": "2026-09-12T08:44:21.585513+00:00",
+      "competition": "General",
+      "tool": "File Type (Magic Bytes)",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/result.txt",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "2f17b8e73b314e1686754b6f12b730a4",
+      "timestamp": "2026-09-12T08:44:25.432894+00:00",
+      "competition": "General",
+      "tool": "File Type (Magic Bytes)",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/result.txt",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "d0502f8962eb4c3ca778eed32044b411",
+      "timestamp": "2026-09-12T08:44:26.455284+00:00",
+      "competition": "General",
+      "tool": "File Type (Magic Bytes)",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/result.txt",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "3d996faab1954cbda9d48f00a0d5b8de",
+      "timestamp": "2026-09-12T08:44:37.242798+00:00",
+      "competition": "General",
+      "tool": "File Type (Magic Bytes)",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/pic1.png",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "0b660babe6ea4d33998fbffd99b01228",
+      "timestamp": "2026-09-12T08:44:39.604591+00:00",
+      "competition": "General",
+      "tool": "File Type (Magic Bytes)",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/pic1.png",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "01d3118b91f1428db3bd234503eb3c9d",
+      "timestamp": "2026-09-12T08:58:02.603391+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/result.txt",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "a2fe3cfbf39f4efd9b11b4905e33dc22",
+      "timestamp": "2026-09-12T08:59:39.220696+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/Senior-recycle_secrets-20260825T131749Z-1-001.zip",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "06517058ee6c4a7f81147c1103fc23e8",
+      "timestamp": "2026-09-12T09:00:44.285854+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/Senior-recycle_secrets/recycle_secrets.img",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "20b2c983ebe44508b474b014b95bda33",
+      "timestamp": "2026-09-12T09:01:43.442598+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/cat.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "fe3e55617a0f45b18547be5c5135f78f",
+      "timestamp": "2026-09-12T09:01:46.163116+00:00",
       "competition": "General",
       "tool": "Strings",
       "category": "File Inspection",
       "action": "Analyze File",
       "status": "success",
-      "file_path": "/home/nutvv/Documents/present/hidden_payload.iso",
+      "file_path": "/home/kali/Downloads/cat.jpg",
       "flags": [],
       "details": ""
     },
@@ -399,6 +511,14 @@
       "action": "Analyze File",
       "status": "success",
       "file_path": "/home/nutvv/Documents/present/hidden_payload_decrypt.iso",
+      "id": "bb008f8747a5489cba9b7c6f009ba0da",
+      "timestamp": "2026-09-12T09:01:52.456690+00:00",
+      "competition": "General",
+      "tool": "zsteg Analysis",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/cat.jpg",
       "flags": [],
       "details": ""
     },
@@ -569,12 +689,14 @@
     {
       "id": "27cc6c20338347a78f8b38deb864b582",
       "timestamp": "2026-09-02T04:33:08.918750+00:00",
+      "id": "a4a9d439e67d4148b83ff87b2f140860",
+      "timestamp": "2026-09-12T09:01:54.323720+00:00",
       "competition": "General",
       "tool": "Exiftool",
       "category": "File Inspection",
       "action": "Analyze File",
       "status": "success",
-      "file_path": "/home/nutvv/Documents/present/CTF_Test/cat.jpg",
+      "file_path": "/home/kali/Downloads/cat.jpg",
       "flags": [],
       "details": ""
     },
@@ -605,6 +727,8 @@
     {
       "id": "2f2180923e9546b186f8496058bc2074",
       "timestamp": "2026-09-02T04:33:35.769142+00:00",
+      "id": "13de515c90874b9f8c39933d2c5e8d41",
+      "timestamp": "2026-09-12T09:02:05.161781+00:00",
       "competition": "General",
       "tool": "Decode: Auto Detect",
       "category": "Data Hashing",
@@ -649,24 +773,114 @@
       "action": "Analyze File",
       "status": "success",
       "file_path": "/home/nutvv/Documents/present/CTF_Test/0nLy0ne.txt",
+      "id": "9a94008979a142009be41f185dea9712",
+      "timestamp": "2026-09-12T09:02:09.601511+00:00",
+      "competition": "General",
+      "tool": "Exiftool",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/garden.jpg",
       "flags": [],
       "details": ""
     },
     {
       "id": "47fe8f3c4d464fceb3237b1663aa1c82",
       "timestamp": "2026-09-02T05:23:06.643176+00:00",
+      "id": "e4aaa1a3d4094f528ad07000d6d88efa",
+      "timestamp": "2026-09-12T09:02:12.022399+00:00",
       "competition": "General",
       "tool": "Strings",
       "category": "File Inspection",
       "action": "Analyze File",
       "status": "success",
-      "file_path": "/home/nutvv/Documents/present/CTF_Test/0nLy0ne.txt",
+      "file_path": "/home/kali/Downloads/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
+    },
+    {
+      "id": "0d23407ceebc4e9b9bb63fc7e372ffd0",
+      "timestamp": "2026-09-12T09:02:15.784044+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
+    },
+    {
+      "id": "5a4afff003554b81af8daf88d6e2479f",
+      "timestamp": "2026-09-12T09:02:34.777953+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
+    },
+    {
+      "id": "79ab0e404b5d410ea6aee3754bfaf103",
+      "timestamp": "2026-09-13T16:46:30.027499+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 44 characters"
+    },
+    {
+      "id": "0853a07e131448ff90cc14640f93957b",
+      "timestamp": "2026-09-13T16:46:30.068898+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 44 characters"
+    },
+    {
+      "id": "c758065b479344f381962c3b4f0f55b5",
+      "timestamp": "2026-09-13T16:53:46.633493+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/0nLy0ne.txt",
       "flags": [],
       "details": ""
     },
     {
       "id": "340d8ee08519475cb85ee8eae98c08d7",
       "timestamp": "2026-09-02T05:23:16.174941+00:00",
+      "id": "09814b258ecf41a5a954b2de0623e41e",
+      "timestamp": "2026-09-13T16:53:49.426603+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/0nLy0ne.txt",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "e4a4c9e03eff439ea0980b75fcbea6e6",
+      "timestamp": "2026-09-13T16:54:47.925805+00:00",
       "competition": "General",
       "tool": "Decode: Auto Detect",
       "category": "Data Hashing",
@@ -847,6 +1061,32 @@
     {
       "id": "f69b53c1bea145e6a80141f79b487be6",
       "timestamp": "2026-09-02T05:30:42.700127+00:00",
+      "id": "1493a2cbb57d492e9e60f5178c941fc7",
+      "timestamp": "2026-09-13T17:04:52.003198+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "failed",
+      "file_path": null,
+      "flags": [],
+      "details": "กรุณาใส่ Key หรือวางข้อมูลที่มี key เช่น $key = 0x4A"
+    },
+    {
+      "id": "609cd925689545fca798f2927484e5f0",
+      "timestamp": "2026-09-13T17:04:52.006910+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "failed",
+      "file_path": null,
+      "flags": [],
+      "details": "กรุณาใส่ Key หรือวางข้อมูลที่มี key เช่น $key = 0x4A"
+    },
+    {
+      "id": "e49f6beec00143d19090868788d27f6d",
+      "timestamp": "2026-09-13T17:05:02.641625+00:00",
       "competition": "General",
       "tool": "Bitwise: XOR Mask",
       "category": "Data Hashing",
@@ -919,6 +1159,18 @@
       "action": "Analyze File",
       "status": "success",
       "file_path": "/home/nutvv/Documents/present/hidden_payload.iso",
+      "flags": [],
+      "details": "Input length: 32 characters"
+    },
+    {
+      "id": "37f3d5f2e0b247809661134fc9ce0677",
+      "timestamp": "2026-09-13T17:29:48.061918+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/Senior-recycle_secrets/recycle_secrets.img",
       "flags": [],
       "details": ""
     },
@@ -1189,6 +1441,8 @@
     {
       "id": "2adc69d08e744743a95c12f5f44d7ffb",
       "timestamp": "2026-09-12T09:01:50.112320+00:00",
+      "id": "51d465e34a41403c96dd489c45472e7b",
+      "timestamp": "2026-09-13T17:46:56.662210+00:00",
       "competition": "General",
       "tool": "Bitwise: XOR Mask",
       "category": "Data Hashing",
@@ -1198,7 +1452,141 @@
       "flags": [
         "flag{powershell_xor_hidden_so_easy}"
       ],
-      "details": "Input length: 199 characters"
+      "details": "Input length: 199 characters",
+      "flags": [],
+      "details": "Input length: 39 characters"
+    },
+    {
+      "id": "681bc95b5dde4000b597f7b1f451f3fb",
+      "timestamp": "2026-09-13T17:46:56.694297+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 39 characters"
+    },
+    {
+      "id": "0ee15f14e237446493fa88fa6082bc45",
+      "timestamp": "2026-09-13T17:46:57.968225+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{recycle_bin_caught_you}"
+      ],
+      "details": "Input length: 39 characters"
+    },
+    {
+      "id": "29fd552b1fb141b0ae8c793518e50bb3",
+      "timestamp": "2026-09-13T18:02:17.756428+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/garden.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "004799eb6ae048ff988f88257af8fcde",
+      "timestamp": "2026-09-13T18:03:56.136406+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
+    },
+    {
+      "id": "e2925cef45a44fd29482d61cdfec518e",
+      "timestamp": "2026-09-13T18:04:13.866428+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
+    },
+    {
+      "id": "5f6278e0cd224388b9311ede0a1703e4",
+      "timestamp": "2026-09-13T18:04:18.362891+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
+    },
+    {
+      "id": "c4fa844d4f6c4d94ae25c5f6edeeea7a",
+      "timestamp": "2026-09-13T18:05:02.550592+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
+    },
+    {
+      "id": "d9ca116225704e4bb485bf98ea6bf214",
+      "timestamp": "2026-09-13T18:14:39.560307+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/cat.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "102e0f78d3714ce3b47949f33fb8ed57",
+      "timestamp": "2026-09-13T18:14:41.349105+00:00",
+      "competition": "General",
+      "tool": "Exiftool",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/cat.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "ccd18e2ace7140efaefaff8660d5b50a",
+      "timestamp": "2026-09-13T18:19:19.115639+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "picoCTF{the_m3tadata_1s_modified}"
+      ],
+      "details": "Input length: 44 characters"
     }
   ]
 }
