@@ -29,206 +29,598 @@
   ],
   "events": [
     {
-      "id": "98141452a4ac4e0192665a81bfc1fca6",
-      "timestamp": "2026-09-14T08:10:07.604801+00:00",
+      "id": "eedb0c677cfe40eab1159460f7afeb37",
+      "timestamp": "2026-09-01T16:38:26.400066+00:00",
       "competition": "General",
-      "tool": "Decode: Auto Detect",
+      "tool": "Encode: Base64",
       "category": "Data Hashing",
-      "action": "Decode",
+      "action": "Encode",
       "status": "success",
-      "file_path": null,
+      "file_path": "/home/nutvv/Documents/GitHub/Unit/secret.txt",
       "flags": [],
-      "details": "Input length: 39 characters"
+      "details": "Input length: 33 characters"
     },
     {
-      "id": "b8663af3b3f744879b91b9ae0825f9d8",
-      "timestamp": "2026-09-14T08:10:07.709381+00:00",
+      "id": "97b716fb825c431ab4d683cb4e727d02",
+      "timestamp": "2026-09-01T16:38:35.575771+00:00",
       "competition": "General",
-      "tool": "Decode: Auto Detect",
+      "tool": "Bitwise: XOR Mask",
       "category": "Data Hashing",
-      "action": "Decode",
-      "status": "success",
-      "file_path": null,
-      "flags": [],
-      "details": "Input length: 39 characters"
-    },
-    {
-      "id": "4247ce589b20407fb948565e87a98f8d",
-      "timestamp": "2026-09-14T08:10:09.182184+00:00",
-      "competition": "General",
-      "tool": "Decode: Auto Detect",
-      "category": "Data Hashing",
-      "action": "Decode",
-      "status": "success",
-      "file_path": null,
-      "flags": [],
-      "details": "Input length: 40 characters"
-    },
-    {
-      "id": "9a7d4417c74447e3a63df4aa360605ad",
-      "timestamp": "2026-09-14T08:56:12.988422+00:00",
-      "competition": "General",
-      "tool": "Decode: ROT:47:ascii",
-      "category": "Data Hashing",
-      "action": "Decode",
-      "status": "success",
-      "file_path": null,
-      "flags": [
-        "flag{wtctt-dcode-master-2025}"
-      ],
-      "details": "Input length: 29 characters"
-    },
-    {
-      "id": "b514cb489fa74616af21e67ace589a5a",
-      "timestamp": "2026-09-14T08:56:13.040737+00:00",
-      "competition": "General",
-      "tool": "Decode: ROT:47:ascii",
-      "category": "Data Hashing",
-      "action": "Decode",
-      "status": "success",
-      "file_path": null,
-      "flags": [
-        "flag{wtctt-dcode-master-2025}"
-      ],
-      "details": "Input length: 29 characters"
-    },
-    {
-      "id": "8ad6d5873e0b4a32a04a623e6e2275a1",
-      "timestamp": "2026-09-14T08:56:24.435798+00:00",
-      "competition": "General",
-      "tool": "Decode: ROT:47:ascii",
-      "category": "Data Hashing",
-      "action": "Decode",
-      "status": "success",
-      "file_path": null,
-      "flags": [
-        "flag{wtctt-dcode-master-2025}"
-      ],
-      "details": "Input length: 29 characters"
-    },
-    {
-      "id": "37e315c41ac747c2acb49eb0daae5606",
-      "timestamp": "2026-09-14T08:56:24.442724+00:00",
-      "competition": "General",
-      "tool": "Decode: ROT:47:ascii",
-      "category": "Data Hashing",
-      "action": "Decode",
-      "status": "success",
-      "file_path": null,
-      "flags": [
-        "flag{wtctt-dcode-master-2025}"
-      ],
-      "details": "Input length: 29 characters"
-    },
-    {
-      "id": "e28b3e49c1a74530af091067eae2765f",
-      "timestamp": "2026-09-14T08:57:09.598135+00:00",
-      "competition": "General",
-      "tool": "Decode: ROT:47:ascii",
-      "category": "Data Hashing",
-      "action": "Decode",
-      "status": "success",
-      "file_path": null,
-      "flags": [
-        "flag{wtctt-dcode-master-2025}"
-      ],
-      "details": "Input length: 29 characters"
-    },
-    {
-      "id": "854c374a94414632a218bd204c23687c",
-      "timestamp": "2026-09-14T08:57:10.406253+00:00",
-      "competition": "General",
-      "tool": "Decode: ROT:47:alpha",
-      "category": "Data Hashing",
-      "action": "Decode",
+      "action": "Bitwise",
       "status": "failed",
-      "file_path": null,
+      "file_path": "/home/nutvv/Documents/GitHub/Unit/secret.txt",
       "flags": [],
-      "details": "ROT n must be 1–25 for alpha"
+      "details": "กรุณาใส่ Key หรือวางข้อมูลที่มี key เช่น $key = 0x4A"
     },
     {
-      "id": "303f5656ccd3480d86bf09f1b59369d2",
-      "timestamp": "2026-09-14T08:57:12.241315+00:00",
+      "id": "f1a0136f1e8d47078d252fa2fdad9479",
+      "timestamp": "2026-09-01T16:38:51.372545+00:00",
       "competition": "General",
-      "tool": "Decode: ROT:47:ascii",
+      "tool": "Header Check",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/GitHub/Unit/payload.iso",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "f140bb15c73f4dacb1a979a57850a762",
+      "timestamp": "2026-09-01T16:38:52.999841+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/GitHub/Unit/payload.iso",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "794672948b5248179db6f1e807ca72d2",
+      "timestamp": "2026-09-01T16:38:57.225190+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
       "category": "Data Hashing",
-      "action": "Decode",
+      "action": "Bitwise",
       "status": "success",
       "file_path": null,
       "flags": [
-        "flag{wtctt-dcode-master-2025}"
+        "flag{powershell_xor_hidden_so_easy}"
       ],
-      "details": "Input length: 29 characters"
+      "details": "Input length: 199 characters"
     },
     {
-      "id": "aa100dd2a1f64a52ab0b5f5dad3bd78d",
-      "timestamp": "2026-09-14T08:59:31.478099+00:00",
+      "id": "7d80c95901d241d5a0f32c917a46b324",
+      "timestamp": "2026-09-01T16:40:02.990878+00:00",
       "competition": "General",
-      "tool": "Decode: ROT:47:ascii",
+      "tool": "Hash: sha256",
       "category": "Data Hashing",
-      "action": "Decode",
-      "status": "success",
-      "file_path": null,
-      "flags": [
-        "flag{wtctt-dcode-master-2025}"
-      ],
-      "details": "Input length: 30 characters"
-    },
-    {
-      "id": "560a2503b7704625bfe3636a3e538788",
-      "timestamp": "2026-09-14T08:59:31.545097+00:00",
-      "competition": "General",
-      "tool": "Decode: ROT:47:ascii",
-      "category": "Data Hashing",
-      "action": "Decode",
-      "status": "success",
-      "file_path": null,
-      "flags": [
-        "flag{wtctt-dcode-master-2025}"
-      ],
-      "details": "Input length: 30 characters"
-    },
-    {
-      "id": "09e46242c557420eaaea749c69b4866f",
-      "timestamp": "2026-09-14T08:59:31.585549+00:00",
-      "competition": "General",
-      "tool": "Decode: ROT:47:ascii",
-      "category": "Data Hashing",
-      "action": "Decode",
-      "status": "success",
-      "file_path": null,
-      "flags": [
-        "flag{wtctt-dcode-master-2025}"
-      ],
-      "details": "Input length: 30 characters"
-    },
-    {
-      "id": "a7bc40360a2f4f45923f8edf1a58f49d",
-      "timestamp": "2026-09-14T09:04:15.911808+00:00",
-      "competition": "General",
-      "tool": "Decode: ROT:47:ascii",
-      "category": "Data Hashing",
-      "action": "Decode",
+      "action": "Hash",
       "status": "success",
       "file_path": null,
       "flags": [],
-      "details": "Input length: 40 characters"
+      "details": "Input length: 199 characters"
     },
     {
-      "id": "f48c0845801b42a0a1b02d869eff113f",
-      "timestamp": "2026-09-14T09:04:16.030809+00:00",
+      "id": "4b846a252fdc4c258487de69df783d22",
+      "timestamp": "2026-09-01T16:40:03.230278+00:00",
       "competition": "General",
-      "tool": "Decode: ROT:47:ascii",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 199 characters"
+    },
+    {
+      "id": "29e2bcfd67364a1ea5abdb647e29582b",
+      "timestamp": "2026-09-01T16:40:13.892995+00:00",
+      "competition": "General",
+      "tool": "Hash: sha256",
+      "category": "Data Hashing",
+      "action": "Hash",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 199 characters"
+    },
+    {
+      "id": "eb7a671e90d74731ac7b7f25a8cb7e83",
+      "timestamp": "2026-09-01T16:40:14.376343+00:00",
+      "competition": "General",
+      "tool": "Encode: Base64",
+      "category": "Data Hashing",
+      "action": "Encode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 199 characters"
+    },
+    {
+      "id": "518d63d25e0843bf9bea0910200a0141",
+      "timestamp": "2026-09-01T16:40:14.825093+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
       "category": "Data Hashing",
       "action": "Decode",
       "status": "success",
       "file_path": null,
       "flags": [],
-      "details": "Input length: 40 characters"
+      "details": "Input length: 199 characters"
     },
     {
-      "id": "21c8f2afd9fb4c61ab6f295a1f98d3f2",
-      "timestamp": "2026-09-14T09:04:17.094524+00:00",
+      "id": "218638a534de47b0b2268f9f8bb43266",
+      "timestamp": "2026-09-01T16:40:15.281730+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 199 characters"
+    },
+    {
+      "id": "0f62e53792564946a34f909d4fa2815b",
+      "timestamp": "2026-09-01T16:40:30.327448+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 199 characters"
+    },
+    {
+      "id": "f5feb6e8a95e4db7b8be50949003e09c",
+      "timestamp": "2026-09-01T16:40:30.340188+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 199 characters"
+    },
+    {
+      "id": "b6a7db9c686545729ac88e43ce92eb4a",
+      "timestamp": "2026-09-01T16:40:32.344293+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 199 characters"
+    },
+    {
+      "id": "54e959851d364446b5a6688da12afa26",
+      "timestamp": "2026-09-01T16:40:32.404422+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 199 characters"
+    },
+    {
+      "id": "7c9e321b53b64046b6e59644449d303f",
+      "timestamp": "2026-09-01T16:46:16.656018+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-3.1-flash-lite",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Response length: 564 characters"
+    },
+    {
+      "id": "c41f7b33c9ba42708952c993590a2dc8",
+      "timestamp": "2026-09-02T04:05:40.960885+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 36 characters"
+    },
+    {
+      "id": "a487f563281e42a39018d39d9f71d075",
+      "timestamp": "2026-09-02T04:05:41.070734+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 36 characters"
+    },
+    {
+      "id": "501a97eacfce4521aa0b4e9a36ba7d6d",
+      "timestamp": "2026-09-02T04:05:42.851872+00:00",
+      "competition": "General",
+      "tool": "Hash: sha256",
+      "category": "Data Hashing",
+      "action": "Hash",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 36 characters"
+    },
+    {
+      "id": "6da029a7b065420c9a0783d874dc1435",
+      "timestamp": "2026-09-02T04:05:43.665965+00:00",
+      "competition": "General",
+      "tool": "Hash: md5",
+      "category": "Data Hashing",
+      "action": "Hash",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 36 characters"
+    },
+    {
+      "id": "68c86d018427497db8a18c765ee60b29",
+      "timestamp": "2026-09-02T04:19:52.231902+00:00",
+      "competition": "General",
+      "tool": "Encode: Hex",
+      "category": "Data Hashing",
+      "action": "Encode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 16 characters"
+    },
+    {
+      "id": "61c035f7dd3b4b39afd7111dd5781a0a",
+      "timestamp": "2026-09-02T04:19:52.389799+00:00",
+      "competition": "General",
+      "tool": "Encode: Hex",
+      "category": "Data Hashing",
+      "action": "Encode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 16 characters"
+    },
+    {
+      "id": "85f9201c01ed447aa23142be354c7ef1",
+      "timestamp": "2026-09-02T04:21:13.837471+00:00",
+
+      "id": "5005151929fd4426beaee755a522b234",
+      "timestamp": "2026-09-12T08:40:15.081631+00:00",
+      "competition": "General",
+      "tool": "Header Check",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+
+      "file_path": "/home/nutvv/Documents/present/hidden_payload.iso",
+
+      "file_path": "/home/kali/Downloads/result.txt",
+      "flags": [],
+      "details": ""
+    },
+    {
+
+      "id": "667cf7c41eed4299aa54003a094748ae",
+      "timestamp": "2026-09-02T04:21:15.480736+00:00",
+      "id": "31751625a6ac438d9f3009283284951c",
+      "timestamp": "2026-09-12T08:44:21.585513+00:00",
+      "competition": "General",
+      "tool": "File Type (Magic Bytes)",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/result.txt",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "2f17b8e73b314e1686754b6f12b730a4",
+      "timestamp": "2026-09-12T08:44:25.432894+00:00",
+      "competition": "General",
+      "tool": "File Type (Magic Bytes)",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/result.txt",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "d0502f8962eb4c3ca778eed32044b411",
+      "timestamp": "2026-09-12T08:44:26.455284+00:00",
+      "competition": "General",
+      "tool": "File Type (Magic Bytes)",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/result.txt",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "3d996faab1954cbda9d48f00a0d5b8de",
+      "timestamp": "2026-09-12T08:44:37.242798+00:00",
+      "competition": "General",
+      "tool": "File Type (Magic Bytes)",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/pic1.png",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "0b660babe6ea4d33998fbffd99b01228",
+      "timestamp": "2026-09-12T08:44:39.604591+00:00",
+      "competition": "General",
+      "tool": "File Type (Magic Bytes)",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/pic1.png",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "01d3118b91f1428db3bd234503eb3c9d",
+      "timestamp": "2026-09-12T08:58:02.603391+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/result.txt",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "a2fe3cfbf39f4efd9b11b4905e33dc22",
+      "timestamp": "2026-09-12T08:59:39.220696+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/Senior-recycle_secrets-20260825T131749Z-1-001.zip",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "06517058ee6c4a7f81147c1103fc23e8",
+      "timestamp": "2026-09-12T09:00:44.285854+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/Senior-recycle_secrets/recycle_secrets.img",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "20b2c983ebe44508b474b014b95bda33",
+      "timestamp": "2026-09-12T09:01:43.442598+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/cat.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "fe3e55617a0f45b18547be5c5135f78f",
+      "timestamp": "2026-09-12T09:01:46.163116+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+
+      "file_path": "/home/nutvv/Documents/present/hidden_payload.iso",
+
+      "file_path": "/home/kali/Downloads/cat.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+
+      "id": "e9e9d8c92d304d9288e81058d9fc75b9",
+      "timestamp": "2026-09-02T04:21:25.895225+00:00",
+      "competition": "General",
+      "tool": "Encode: Hex",
+      "category": "Data Hashing",
+      "action": "Encode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 95 characters"
+    },
+    {
+      "id": "7c3472dfca404fb9a0ba695c306d7cb1",
+      "timestamp": "2026-09-02T04:21:28.810327+00:00",
+      "competition": "General",
+      "tool": "Encode: Hex",
+      "category": "Data Hashing",
+      "action": "Encode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 94 characters"
+    },
+    {
+      "id": "9b71ddfa25354f6b8d6b6bff7f6efbd1",
+      "timestamp": "2026-09-02T04:21:30.177348+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 94 characters"
+    },
+    {
+      "id": "695d6b650f074a0ab5dab10edb903299",
+      "timestamp": "2026-09-02T04:21:32.531837+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 93 characters"
+    },
+    {
+      "id": "b97f084ed3a943f6b1fea932eaf82891",
+      "timestamp": "2026-09-02T04:21:33.136626+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 92 characters"
+    },
+    {
+      "id": "acfc265e2c4342bbbdec1129cb277361",
+      "timestamp": "2026-09-02T04:24:57.947969+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/hidden_payload_decrypt.iso",
+      "id": "bb008f8747a5489cba9b7c6f009ba0da",
+      "timestamp": "2026-09-12T09:01:52.456690+00:00",
+      "competition": "General",
+      "tool": "zsteg Analysis",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/cat.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+
+      "id": "9b9590b26abf4bbd8a100b57724e5b0c",
+      "timestamp": "2026-09-02T04:25:02.849564+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 200 characters"
+    },
+    {
+      "id": "c4beb2c26c3649789e40bcf2c229e1a8",
+      "timestamp": "2026-09-02T04:25:04.277374+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 200 characters"
+    },
+    {
+      "id": "b1ed54d121704b6cb3349e652ce77ecc",
+      "timestamp": "2026-09-02T04:28:03.719928+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-3.1-flash-lite",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Response length: 186 characters"
+    },
+    {
+      "id": "757558cc627e488891f698e11d5f4b79",
+      "timestamp": "2026-09-02T04:30:02.102506+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/CTF_Test/0nLy0ne.txt",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "b84589a6f0df4ca6a1595908434525af",
+      "timestamp": "2026-09-02T04:30:10.380184+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 72 characters"
+    },
+    {
+      "id": "cef98122762446e58336f940d9d0f5b1",
+      "timestamp": "2026-09-02T04:30:11.936507+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 72 characters"
+    },
+    {
+      "id": "1c103e17df6b41d48214ade16c55ea10",
+      "timestamp": "2026-09-02T04:31:18.939679+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 816 characters"
+    },
+    {
+      "id": "80da53c67f804eac8fe52d6968c9f9ad",
+      "timestamp": "2026-09-02T04:31:22.093922+00:00",
       "competition": "General",
       "tool": "Decode: Base64",
       "category": "Data Hashing",
@@ -236,11 +628,110 @@
       "status": "success",
       "file_path": null,
       "flags": [],
-      "details": "Input length: 40 characters"
+      "details": "Input length: 816 characters"
     },
     {
-      "id": "bf2ea06e5cee4d6f949ba1f89a5c3bce",
-      "timestamp": "2026-09-14T09:04:18.606143+00:00",
+      "id": "1329421505a849a398e9378fcd23993e",
+      "timestamp": "2026-09-02T04:31:48.518934+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/CTF_Test/0nLy0ne.txt",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "233c1b7297c2497fa2c385c3adff7361",
+      "timestamp": "2026-09-02T04:32:27.969287+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/CTF_Test/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
+    },
+    {
+      "id": "22fff7b507e44046b5a56b677b2e36e4",
+      "timestamp": "2026-09-02T04:32:40.248866+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/CTF_Test/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
+    },
+    {
+      "id": "2756412bdb414a7a98f3e42f78d04b7b",
+      "timestamp": "2026-09-02T04:32:45.983056+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/CTF_Test/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
+    },
+    {
+      "id": "acaa1a47bccb414aa9d86020752c3331",
+      "timestamp": "2026-09-02T04:32:57.729611+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/CTF_Test/cat.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "27cc6c20338347a78f8b38deb864b582",
+      "timestamp": "2026-09-02T04:33:08.918750+00:00",
+
+      "id": "a4a9d439e67d4148b83ff87b2f140860",
+      "timestamp": "2026-09-12T09:01:54.323720+00:00",
+
+      "competition": "General",
+      "tool": "Exiftool",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+
+      "file_path": "/home/nutvv/Documents/present/CTF_Test/cat.jpg",
+
+      "file_path": "/home/kali/Downloads/cat.jpg",
+
+      "flags": [],
+      "details": ""
+    },
+    {
+
+      "id": "dcd19aa2677c4ecb8223ced0d6b3aa97",
+      "timestamp": "2026-09-02T04:33:22.162063+00:00",
+      "competition": "General",
+      "tool": "Decode: Base64",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 32 characters"
+    },
+    {
+      "id": "2b76cca0b64244b098acbdcbc4948993",
+      "timestamp": "2026-09-02T04:33:24.443404+00:00",
       "competition": "General",
       "tool": "Decode: Auto Detect",
       "category": "Data Hashing",
@@ -248,11 +739,30 @@
       "status": "success",
       "file_path": null,
       "flags": [],
-      "details": "Input length: 40 characters"
+      "details": "Input length: 32 characters"
     },
     {
-      "id": "fe73a6cc88bc469bb136ab46eb009873",
-      "timestamp": "2026-09-14T09:04:20.482122+00:00",
+      "id": "2f2180923e9546b186f8496058bc2074",
+      "timestamp": "2026-09-02T04:33:35.769142+00:00",
+
+      "id": "13de515c90874b9f8c39933d2c5e8d41",
+      "timestamp": "2026-09-12T09:02:05.161781+00:00",
+
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "picoCTF{the_m3tadata_1s_modified}"
+      ],
+      "details": "Input length: 44 characters"
+    },
+    {
+
+      "id": "989fb8d2c49d4056825bbd164b365b83",
+      "timestamp": "2026-09-02T05:22:32.077061+00:00",
       "competition": "General",
       "tool": "Decode: Auto Detect",
       "category": "Data Hashing",
@@ -260,11 +770,11 @@
       "status": "success",
       "file_path": null,
       "flags": [],
-      "details": "Input length: 79 characters"
+      "details": "Input length: 44 characters"
     },
     {
-      "id": "f934612f17da460f8dc1556e01b695c2",
-      "timestamp": "2026-09-14T09:04:20.502488+00:00",
+      "id": "bc3a3df2a2cf445a91276d6643709306",
+      "timestamp": "2026-09-02T05:22:32.122177+00:00",
       "competition": "General",
       "tool": "Decode: Auto Detect",
       "category": "Data Hashing",
@@ -272,11 +782,83 @@
       "status": "success",
       "file_path": null,
       "flags": [],
-      "details": "Input length: 79 characters"
+      "details": "Input length: 44 characters"
     },
     {
-      "id": "eb10625558c442d2a5c30183f5208b3f",
-      "timestamp": "2026-09-14T09:04:21.552973+00:00",
+      "id": "213c0df2ebea4592899dee8dbf61c5a1",
+      "timestamp": "2026-09-02T05:23:04.486779+00:00",
+      "competition": "General",
+      "tool": "Header Check",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/CTF_Test/0nLy0ne.txt",
+
+      "id": "9a94008979a142009be41f185dea9712",
+      "timestamp": "2026-09-12T09:02:09.601511+00:00",
+      "competition": "General",
+      "tool": "Exiftool",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/garden.jpg",
+
+      "flags": [],
+      "details": ""
+    },
+    {
+
+      "id": "47fe8f3c4d464fceb3237b1663aa1c82",
+      "timestamp": "2026-09-02T05:23:06.643176+00:00",
+
+      "id": "e4aaa1a3d4094f528ad07000d6d88efa",
+      "timestamp": "2026-09-12T09:02:12.022399+00:00",
+
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+
+      "file_path": "/home/nutvv/Documents/present/CTF_Test/0nLy0ne.txt",
+
+      "file_path": "/home/kali/Downloads/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
+    },
+    {
+      "id": "0d23407ceebc4e9b9bb63fc7e372ffd0",
+      "timestamp": "2026-09-12T09:02:15.784044+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
+    },
+    {
+      "id": "5a4afff003554b81af8daf88d6e2479f",
+      "timestamp": "2026-09-12T09:02:34.777953+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
+    },
+    {
+      "id": "79ab0e404b5d410ea6aee3754bfaf103",
+      "timestamp": "2026-09-13T16:46:30.027499+00:00",
       "competition": "General",
       "tool": "Decode: Auto Detect",
       "category": "Data Hashing",
@@ -284,11 +866,11 @@
       "status": "success",
       "file_path": null,
       "flags": [],
-      "details": "Input length: 78 characters"
+      "details": "Input length: 44 characters"
     },
     {
-      "id": "d35931fbe952489cbc5ce618a0a31bee",
-      "timestamp": "2026-09-14T09:04:22.001780+00:00",
+      "id": "0853a07e131448ff90cc14640f93957b",
+      "timestamp": "2026-09-13T16:46:30.068898+00:00",
       "competition": "General",
       "tool": "Decode: Auto Detect",
       "category": "Data Hashing",
@@ -296,11 +878,40 @@
       "status": "success",
       "file_path": null,
       "flags": [],
-      "details": "Input length: 79 characters"
+      "details": "Input length: 44 characters"
     },
     {
-      "id": "ddcbf8a374fe42969860088b72648746",
-      "timestamp": "2026-09-14T09:04:22.631028+00:00",
+      "id": "c758065b479344f381962c3b4f0f55b5",
+      "timestamp": "2026-09-13T16:53:46.633493+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/0nLy0ne.txt",
+      "flags": [],
+      "details": ""
+    },
+    {
+
+      "id": "340d8ee08519475cb85ee8eae98c08d7",
+      "timestamp": "2026-09-02T05:23:16.174941+00:00",
+
+      "id": "09814b258ecf41a5a954b2de0623e41e",
+      "timestamp": "2026-09-13T16:53:49.426603+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/0nLy0ne.txt",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "e4a4c9e03eff439ea0980b75fcbea6e6",
+      "timestamp": "2026-09-13T16:54:47.925805+00:00",
+
       "competition": "General",
       "tool": "Decode: Auto Detect",
       "category": "Data Hashing",
@@ -308,11 +919,12 @@
       "status": "success",
       "file_path": null,
       "flags": [],
-      "details": "Input length: 78 characters"
+      "details": "Input length: 72 characters"
     },
     {
-      "id": "00da6643cd924f9fa02cce014cad6aa0",
-      "timestamp": "2026-09-14T09:04:23.216469+00:00",
+
+      "id": "b89d7eaf4d1545f6841560afaa4117a1",
+      "timestamp": "2026-09-02T05:23:35.927553+00:00",
       "competition": "General",
       "tool": "Decode: Auto Detect",
       "category": "Data Hashing",
@@ -320,11 +932,47 @@
       "status": "success",
       "file_path": null,
       "flags": [],
-      "details": "Input length: 78 characters"
+      "details": "Input length: 92 characters"
     },
     {
-      "id": "de852945b26845c2b405538b80e72be7",
-      "timestamp": "2026-09-14T09:04:23.417709+00:00",
+      "id": "905bded334834d43b74ca77711739eae",
+      "timestamp": "2026-09-02T05:23:54.446678+00:00",
+      "competition": "General",
+      "tool": "Hash: sha256",
+      "category": "Data Hashing",
+      "action": "Hash",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 92 characters"
+    },
+    {
+      "id": "cfa432d4e64b4c52862e2f818de995dc",
+      "timestamp": "2026-09-02T05:23:59.403426+00:00",
+      "competition": "General",
+      "tool": "Hash: sha256",
+      "category": "Data Hashing",
+      "action": "Hash",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 59 characters"
+    },
+    {
+      "id": "23dd43285be24e6d813827b26d50a193",
+      "timestamp": "2026-09-02T05:23:59.470998+00:00",
+      "competition": "General",
+      "tool": "Hash: sha256",
+      "category": "Data Hashing",
+      "action": "Hash",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 59 characters"
+    },
+    {
+      "id": "50b20badb45b4f8aafed2c03fa2eb7b9",
+      "timestamp": "2026-09-02T05:24:06.955388+00:00",
       "competition": "General",
       "tool": "Decode: Auto Detect",
       "category": "Data Hashing",
@@ -332,11 +980,23 @@
       "status": "success",
       "file_path": null,
       "flags": [],
-      "details": "Input length: 78 characters"
+      "details": "Input length: 59 characters"
     },
     {
-      "id": "294933e58ec84b04a87bb282d114793f",
-      "timestamp": "2026-09-14T09:04:27.715433+00:00",
+      "id": "485c64b890544a7bb9cc20139357d9f3",
+      "timestamp": "2026-09-02T05:28:47.703061+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/hidden_payload.iso",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "5c47277ed568424280fbf20a93e76ead",
+      "timestamp": "2026-09-02T05:28:55.324317+00:00",
       "competition": "General",
       "tool": "Decode: Auto Detect",
       "category": "Data Hashing",
@@ -344,97 +1004,632 @@
       "status": "success",
       "file_path": null,
       "flags": [],
-      "details": "Input length: 40 characters"
+      "details": "Input length: 95 characters"
     },
     {
-      "id": "7ab068ce544e4df0a00aa755080bb54c",
-      "timestamp": "2026-09-14T09:04:27.878796+00:00",
+      "id": "017f281a7b8e417e999c19c01d121992",
+      "timestamp": "2026-09-02T05:28:59.411253+00:00",
       "competition": "General",
       "tool": "Decode: Auto Detect",
       "category": "Data Hashing",
       "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 96 characters"
+    },
+    {
+      "id": "0d49b89e82b44a55ae09a19770ee7fce",
+      "timestamp": "2026-09-02T05:28:59.771648+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 95 characters"
+    },
+    {
+      "id": "084c634cb44f41f18d7742e15d06ce4b",
+      "timestamp": "2026-09-02T05:28:59.933057+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 94 characters"
+    },
+    {
+      "id": "bec576c95ea346df907b261262bb074e",
+      "timestamp": "2026-09-02T05:29:00.116115+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 93 characters"
+    },
+    {
+      "id": "fd6088a5109d40c38173f805b3fcfc94",
+      "timestamp": "2026-09-02T05:29:00.432410+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 92 characters"
+    },
+    {
+      "id": "3b0ca9c534434c71badfaa40eb9dc6f8",
+      "timestamp": "2026-09-02T05:30:35.102428+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/hidden_payload123.iso",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "1eaa59934a7f432991b3c6ced1f1b9aa",
+      "timestamp": "2026-09-02T05:30:41.930871+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 200 characters"
+    },
+    {
+      "id": "f69b53c1bea145e6a80141f79b487be6",
+      "timestamp": "2026-09-02T05:30:42.700127+00:00",
+
+      "id": "1493a2cbb57d492e9e60f5178c941fc7",
+      "timestamp": "2026-09-13T17:04:52.003198+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "failed",
+      "file_path": null,
+      "flags": [],
+      "details": "กรุณาใส่ Key หรือวางข้อมูลที่มี key เช่น $key = 0x4A"
+    },
+    {
+      "id": "609cd925689545fca798f2927484e5f0",
+      "timestamp": "2026-09-13T17:04:52.006910+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "failed",
+      "file_path": null,
+      "flags": [],
+      "details": "กรุณาใส่ Key หรือวางข้อมูลที่มี key เช่น $key = 0x4A"
+    },
+    {
+      "id": "e49f6beec00143d19090868788d27f6d",
+      "timestamp": "2026-09-13T17:05:02.641625+00:00",
+
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 200 characters"
+    },
+    {
+      "id": "a03c7feed4e5477fb16e741c76185338",
+      "timestamp": "2026-09-09T15:07:52.267072+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-3.1-flash-lite",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "failed",
+      "file_path": null,
+      "flags": [],
+      "details": "Response length: 723 characters"
+    },
+    {
+      "id": "0f90e3b1feea4b0e8e2b93e505303877",
+      "timestamp": "2026-09-09T15:11:04.579907+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-3.1-flash-lite",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Response length: 35 characters"
+    },
+    {
+      "id": "5698cc35c02d40b5bedfac1cd963c651",
+      "timestamp": "2026-09-09T15:15:22.851360+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-2.5-pro",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "failed",
+      "file_path": null,
+      "flags": [],
+      "details": "Response length: 205 characters"
+    },
+    {
+      "id": "e1546eb702c244559dd2071e178839e0",
+      "timestamp": "2026-09-09T15:19:16.711518+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-3.5-flash",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "failed",
+      "file_path": null,
+      "flags": [
+        "nflag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Response length: 1263 characters"
+    },
+    {
+      "id": "cb1e64a2515945fa9e9624df4afc4242",
+      "timestamp": "2026-09-12T08:43:09.350876+00:00",
+      "competition": "General",
+      "tool": "Header Check",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/hidden_payload.iso",
+
+      "flags": [],
+      "details": "Input length: 32 characters"
+    },
+    {
+      "id": "37f3d5f2e0b247809661134fc9ce0677",
+      "timestamp": "2026-09-13T17:29:48.061918+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/Senior-recycle_secrets/recycle_secrets.img",
+
+      "flags": [],
+      "details": ""
+    },
+    {
+
+      "id": "979fae0389ae4b2fa2405c660c81427d",
+      "timestamp": "2026-09-12T08:43:12.380163+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/hidden_payload.iso",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "14cb2801f773409e8b989c403cced5a4",
+      "timestamp": "2026-09-12T08:43:18.961024+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 95 characters"
+    },
+    {
+      "id": "2a847161cda94fc8b6fe37fe3d17b4d2",
+      "timestamp": "2026-09-12T08:43:37.315890+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/hidden_payload.iso",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "4d29827406134238b7a570666b0a5a7e",
+      "timestamp": "2026-09-12T08:45:05.234482+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 95 characters"
+    },
+    {
+      "id": "f7d44cd3867e4e85ba9b6bba1a2ce926",
+      "timestamp": "2026-09-12T08:45:07.224595+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 94 characters"
+    },
+    {
+      "id": "a0c08b4eea084e08a66eeefa35bc3d32",
+      "timestamp": "2026-09-12T08:45:07.587618+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 93 characters"
+    },
+    {
+      "id": "2fa02d5d3b8b4a3fa73d353e8f828931",
+      "timestamp": "2026-09-12T08:45:08.184562+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 92 characters"
+    },
+    {
+      "id": "265028415e6b4b6daef53b4574739fa5",
+      "timestamp": "2026-09-12T08:45:43.348008+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 93 characters"
+    },
+    {
+      "id": "74b42919282c41c3ab0c5d5a8f925df6",
+      "timestamp": "2026-09-12T08:45:43.397700+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 93 characters"
+    },
+    {
+      "id": "484662d5b34d4f12a97b19890c9cf9bd",
+      "timestamp": "2026-09-12T08:45:43.445873+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 93 characters"
+    },
+    {
+      "id": "fb6ba8effd6a48748aedca0caa2b2af3",
+      "timestamp": "2026-09-12T08:45:48.704087+00:00",
+      "competition": "General",
+      "tool": "Decode: Base64",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 93 characters"
+    },
+    {
+      "id": "b8d4ed1b9ce74e79af1e5d5a7f25bbc1",
+      "timestamp": "2026-09-12T08:45:49.947467+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 93 characters"
+    },
+    {
+      "id": "fee41a91f27c4e44be21196a7d5841ba",
+      "timestamp": "2026-09-12T08:47:50.552688+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 95 characters"
+    },
+    {
+      "id": "779037d63ee84d1ab44086842ea0e2dc",
+      "timestamp": "2026-09-12T08:47:53.430801+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 94 characters"
+    },
+    {
+      "id": "b05fc9f1b908450bb3b907f4548e3c74",
+      "timestamp": "2026-09-12T08:47:53.803772+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 93 characters"
+    },
+    {
+      "id": "df29c96e971a477d99f11e14ac62773c",
+      "timestamp": "2026-09-12T08:47:54.336188+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 92 characters"
+    },
+    {
+      "id": "253f33d3056d40bf9645ac48eebbbf40",
+      "timestamp": "2026-09-12T08:52:43.095692+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 92 characters"
+    },
+    {
+      "id": "4e539cc080f34b5eb781efeb7dea9579",
+      "timestamp": "2026-09-12T08:58:55.529747+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/result.iso",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "1326e7389815437f8871fcf2c64c8c19",
+      "timestamp": "2026-09-12T08:58:59.975359+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 93 characters"
+    },
+    {
+      "id": "11bc4bc7721a461aaba21d5b54f94a13",
+      "timestamp": "2026-09-12T08:59:00.043880+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 93 characters"
+    },
+    {
+      "id": "f2ef2d99af254b01a203abaf0381d306",
+      "timestamp": "2026-09-12T08:59:00.115958+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 93 characters"
+    },
+    {
+      "id": "3cb9cb0ab0a44383b1809b29c2b1aa89",
+      "timestamp": "2026-09-12T09:01:48.103677+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 199 characters"
+    },
+    {
+      "id": "2adc69d08e744743a95c12f5f44d7ffb",
+      "timestamp": "2026-09-12T09:01:50.112320+00:00",
+
+      "id": "51d465e34a41403c96dd489c45472e7b",
+      "timestamp": "2026-09-13T17:46:56.662210+00:00",
+
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 199 characters",
+
+      "flags": [],
+      "details": "Input length: 39 characters"
+    },
+    {
+      "id": "681bc95b5dde4000b597f7b1f451f3fb",
+      "timestamp": "2026-09-13T17:46:56.694297+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
       "status": "success",
       "file_path": null,
       "flags": [],
       "details": "Input length: 39 characters"
     },
     {
-      "id": "3e93a921e3ad419b97e96df0953e2dd4",
-      "timestamp": "2026-09-14T09:04:29.113100+00:00",
+      "id": "0ee15f14e237446493fa88fa6082bc45",
+      "timestamp": "2026-09-13T17:46:57.968225+00:00",
       "competition": "General",
       "tool": "Decode: Auto Detect",
       "category": "Data Hashing",
       "action": "Decode",
       "status": "success",
       "file_path": null,
-      "flags": [],
-      "details": "Input length: 40 characters"
+      "flags": [
+        "flag{recycle_bin_caught_you}"
+      ],
+      "details": "Input length: 39 characters"
     },
     {
-      "id": "7990b51ebeee4e3ba059278b9b7b86d6",
-      "timestamp": "2026-09-14T09:05:10.570365+00:00",
+      "id": "29fd552b1fb141b0ae8c793518e50bb3",
+      "timestamp": "2026-09-13T18:02:17.756428+00:00",
       "competition": "General",
-      "tool": "Decode: Reverse",
-      "category": "Data Hashing",
-      "action": "Decode",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
       "status": "success",
-      "file_path": null,
+      "file_path": "/home/kali/Downloads/garden.jpg",
       "flags": [],
-      "details": "Input length: 40 characters"
+      "details": ""
     },
     {
-      "id": "87fe9eb118214e7bae57b15df1e3b024",
-      "timestamp": "2026-09-14T09:05:12.194028+00:00",
+      "id": "004799eb6ae048ff988f88257af8fcde",
+      "timestamp": "2026-09-13T18:03:56.136406+00:00",
       "competition": "General",
-      "tool": "Decode: ROT:47:ascii",
-      "category": "Data Hashing",
-      "action": "Decode",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
       "status": "success",
-      "file_path": null,
-      "flags": [],
-      "details": "Input length: 40 characters"
+      "file_path": "/home/kali/Downloads/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
     },
     {
-      "id": "ad0741a4815047b8a0dcb1cde25c72f0",
-      "timestamp": "2026-09-14T09:05:15.416631+00:00",
+      "id": "e2925cef45a44fd29482d61cdfec518e",
+      "timestamp": "2026-09-13T18:04:13.866428+00:00",
       "competition": "General",
-      "tool": "Decode: ROT:47:ascii",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
+    },
+    {
+      "id": "5f6278e0cd224388b9311ede0a1703e4",
+      "timestamp": "2026-09-13T18:04:18.362891+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
+    },
+    {
+      "id": "c4fa844d4f6c4d94ae25c5f6edeeea7a",
+      "timestamp": "2026-09-13T18:05:02.550592+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/garden.jpg",
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": ""
+    },
+    {
+      "id": "d9ca116225704e4bb485bf98ea6bf214",
+      "timestamp": "2026-09-13T18:14:39.560307+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/cat.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "102e0f78d3714ce3b47949f33fb8ed57",
+      "timestamp": "2026-09-13T18:14:41.349105+00:00",
+      "competition": "General",
+      "tool": "Exiftool",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/cat.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "ccd18e2ace7140efaefaff8660d5b50a",
+      "timestamp": "2026-09-13T18:19:19.115639+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
       "category": "Data Hashing",
       "action": "Decode",
       "status": "success",
       "file_path": null,
       "flags": [
-        "flag{wtctt-dcode-master-2025}"
+        "picoCTF{the_m3tadata_1s_modified}"
       ],
-      "details": "Input length: 69 characters"
-    },
-    {
-      "id": "16f9aa28f8354efa95aaf968fc85a6b2",
-      "timestamp": "2026-09-14T09:05:15.755064+00:00",
-      "competition": "General",
-      "tool": "Decode: ROT:47:ascii",
-      "category": "Data Hashing",
-      "action": "Decode",
-      "status": "success",
-      "file_path": null,
-      "flags": [
-        "flag{wtctt-dcode-master-2025}"
-      ],
-      "details": "Input length: 69 characters"
-    },
-    {
-      "id": "87b9b9b8f0e14660aa57eda09e9ba5d4",
-      "timestamp": "2026-09-14T09:05:16.715696+00:00",
-      "competition": "General",
-      "tool": "Decode: ROT:47:ascii",
-      "category": "Data Hashing",
-      "action": "Decode",
-      "status": "success",
-      "file_path": null,
-      "flags": [
-        "flag{wtctt-dcode-master-2025}"
-      ],
-      "details": "Input length: 29 characters"
+      "details": "Input length: 44 characters"
+
     }
   ]
 }
