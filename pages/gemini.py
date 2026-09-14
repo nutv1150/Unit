@@ -14,11 +14,11 @@ class GeminiPage(ctk.CTkFrame):
         self.app_root = master.master
         
         # --- [ ธีมสี Cyberpunk / Terminal ] ---
-        BG_COLOR = "#0D0D12"        # ดำสนิทเหลือบน้ำเงิน
-        PANEL_COLOR = "#15151E"     # สีพื้นหลังกล่องควบคุม
-        ACCENT_CYAN = "#00FFFF"     # สีฟ้า Neon
-        ACCENT_GREEN = "#00FF41"    # สีเขียว Terminal
-        TEXT_DIM = "#8892B0"        # สีเทาตัวหนังสือทั่วไป
+        BG_COLOR = "#0D0D12"        
+        PANEL_COLOR = "#15151E"     
+        ACCENT_CYAN = "#00FFFF"     
+        ACCENT_GREEN = "#00FF41"    
+        TEXT_DIM = "#8892B0"        
         
         self.configure(fg_color=BG_COLOR)
 
@@ -54,14 +54,11 @@ class GeminiPage(ctk.CTkFrame):
         )
         api_container.pack(pady=10, fill="x", padx=40)
         
-        # จัด Layout ภายในแผงควบคุม
         api_inner = ctk.CTkFrame(api_container, fg_color="transparent")
         api_inner.pack(pady=15, padx=20, fill="x")
 
-        # Label API
         ctk.CTkLabel(api_inner, text="🔑 API_KEY:", font=("Consolas", 14, "bold"), text_color=ACCENT_CYAN).pack(side="left", padx=(0, 10))
 
-        # ช่องใส่ API Key ดีไซน์ใหม่
         self.api_entry = ctk.CTkEntry(
             api_inner,
             placeholder_text="Paste your token here (Leave blank if CLI is authenticated)...",
@@ -74,7 +71,6 @@ class GeminiPage(ctk.CTkFrame):
         )
         self.api_entry.pack(side="left", fill="x", expand=True)
 
-        # ปุ่มโชว์/ซ่อน API Key
         self.toggle_btn = ctk.CTkButton(
             api_inner, text="👁", width=35, height=35, 
             fg_color="#2B2B36", hover_color="#3A3A4A", text_color="white",
@@ -82,7 +78,6 @@ class GeminiPage(ctk.CTkFrame):
         )
         self.toggle_btn.pack(side="left", padx=5)
 
-        # ปุ่มเชื่อมต่อ
         ctk.CTkButton(
             api_inner, text="[ CONNECT_CLI ]", width=120, height=35,
             font=("Consolas", 12, "bold"),
@@ -91,7 +86,6 @@ class GeminiPage(ctk.CTkFrame):
             command=self.init_api
         ).pack(side="left", padx=10)
 
-        # Dropdown Model
         self.model_options = [
             "gemini-3.1-flash-lite",
             "gemini-2.5-flash",
@@ -107,7 +101,6 @@ class GeminiPage(ctk.CTkFrame):
             command=self.on_model_change,
         ).pack(side="left")
 
-        # สถานะการเชื่อมต่อ
         self.status_label = ctk.CTkLabel(
             self,
             text="[!] WAITING FOR CONNECTION...",
@@ -138,7 +131,6 @@ class GeminiPage(ctk.CTkFrame):
         input_container = ctk.CTkFrame(self, fg_color="transparent")
         input_container.pack(side="bottom", fill="x", padx=40, pady=(5, 20))
         
-        # Label หลอกให้ดูเหมือน Terminal Prompt
         ctk.CTkLabel(
             input_container, 
             text="root@kali:~#", 
@@ -158,7 +150,6 @@ class GeminiPage(ctk.CTkFrame):
         self.input_field.pack(side="left", fill="x", expand=True)
         self.input_field.bind("<Return>", lambda event: self.send_message())
 
-        # ปุ่ม Browse
         self.browse_btn = ctk.CTkButton(
             input_container, 
             text="📁", 
@@ -171,6 +162,7 @@ class GeminiPage(ctk.CTkFrame):
         )
         self.browse_btn.pack(side="left", padx=(10, 0))
 
+        # ⭐ ปุ่มสำหรับรันคำสั่ง (EXECUTE)
         self.send_btn = ctk.CTkButton(
             input_container, 
             text="EXECUTE", 
@@ -181,7 +173,23 @@ class GeminiPage(ctk.CTkFrame):
             hover_color="#00CCCC",
             command=self.send_message
         )
-        self.send_btn.pack(side="left", padx=10)
+        self.send_btn.pack(side="left", padx=(10, 5))
+        
+        # ⭐ ปุ่มใหม่สำหรับหยุดรัน (STOP)
+        self.stop_btn = ctk.CTkButton(
+            input_container, 
+            text="STOP", 
+            width=70, height=45, 
+            font=("Consolas", 14, "bold"),
+            fg_color="transparent", 
+            border_width=1,
+            border_color="#FF3366",
+            text_color="#FF3366",
+            hover_color="#4A0011",
+            state="disabled",
+            command=self.request_stop
+        )
+        self.stop_btn.pack(side="left")
 
         # ==========================================
         # ตัวแปรควบคุม state & Logic
@@ -191,6 +199,9 @@ class GeminiPage(ctk.CTkFrame):
         self.model_name = self.model_options[0]  
         self.api_key = None  
         self.cli_workdir = os.path.expanduser("~")
+        
+        self.current_process = None  # เก็บ Process ของ Subprocess ที่กำลังทำงาน
+        self._stop_requested = False # Flag เช็คว่าผู้ใช้กดหยุดหรือไม่
 
         self.system_prompt = (
             "คุณคือ Cybersecurity Expert และ AI Assistant สำหรับแข่ง CTF "
@@ -204,7 +215,6 @@ class GeminiPage(ctk.CTkFrame):
 
     # --- ฟังก์ชันเสริม UI ---
     def toggle_api_visibility(self):
-        """ฟังก์ชันสำหรับปุ่ม 👁 สลับดู API Key"""
         if self.api_entry.cget("show") == "*":
             self.api_entry.configure(show="")
             self.toggle_btn.configure(text="🔒")
@@ -213,7 +223,6 @@ class GeminiPage(ctk.CTkFrame):
             self.toggle_btn.configure(text="👁")
 
     def browse_file(self):
-        """เปิดหน้าต่างเลือกไฟล์และนำ Path มาใส่ในช่อง Input"""
         file_path = filedialog.askopenfilename(
             parent=self.winfo_toplevel(),
             title="Select Target File"
@@ -230,7 +239,6 @@ class GeminiPage(ctk.CTkFrame):
     # ระบบยืนยันคำสั่ง (Confirmation System)
     # ==================================================================
     def ask_action_confirm(self, action_type, detail):
-        """ระบบหยุด Thread เบื้องหลังเพื่อรอคำตอบจากผู้ใช้ผ่าน UI"""
         self._confirm_result = False
         self._confirm_event = threading.Event()
         
@@ -365,6 +373,17 @@ class GeminiPage(ctk.CTkFrame):
         env["GEMINI_CLI_TRUST_WORKSPACE"] = "true"
         return env
 
+    # ⭐ ฟังก์ชันสำหรับกดยกเลิกกลางคัน
+    def request_stop(self):
+        self._stop_requested = True
+        if self.current_process:
+            try:
+                self.current_process.kill()
+            except Exception:
+                pass
+            self.update_chat_ui("System", "🛑 ผู้ใช้กดยกเลิกการทำงาน...")
+            self.stop_btn.configure(state="disabled")
+
     def send_message(self):
         user_text = self.input_field.get().strip()
         if not user_text:
@@ -373,67 +392,91 @@ class GeminiPage(ctk.CTkFrame):
             self.update_chat_ui("System", "⚠️ กรุณาเชื่อมต่อ Gemini CLI ก่อนครับ!")
             return
 
+        self._stop_requested = False
         self.update_chat_ui("You", user_text)
         self.input_field.delete(0, "end")
+        
         self.send_btn.configure(state="disabled")
-        self.update_chat_ui("System", "กำลังวิเคราะห์...")
+        self.stop_btn.configure(state="normal")
+        self.update_chat_ui("System", "กำลังวิเคราะห์ (สามารถกด STOP เพื่อยกเลิกได้)...")
 
         threading.Thread(target=self.process_request, args=(user_text,), daemon=True).start()
 
+    # ⭐ แก้ไขให้ใช้ Popen แทนการกำหนด timeout ตายตัว
     def call_gemini_cli(self, prompt_text, max_retries=3):
         cmd = [self.gemini_cmd, "-m", self.model_name, "-p", prompt_text]
         last_error = None
 
         for attempt in range(1, max_retries + 1):
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=180,
-                env=self._build_env(),
-                stdin=subprocess.DEVNULL,
-                cwd=self.cli_workdir,
-            )
-            combined_err = result.stderr.strip()
-            combined_out = (result.stdout or "").strip()
-            full_text = combined_out + combined_err
+            if self._stop_requested:
+                return "❌ [ระบบ]: ถูกยกเลิกโดยผู้ใช้"
 
-            if "UNAUTHENTICATED" in combined_err or "invalid authentication" in combined_err.lower():
-                raise RuntimeError(
-                    "Auth ไม่ผ่าน: กรุณา login ผ่าน `gemini` ในเทอร์มินัล หรือใส่ API Key แล้วกด 'เชื่อมต่อ CLI' ใหม่"
+            try:
+                self.current_process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    env=self._build_env(),
+                    stdin=subprocess.DEVNULL,
+                    cwd=self.cli_workdir,
                 )
+                
+                # รันไปเรื่อยๆ จนกว่าจะเสร็จ หรือถูก Kill จากปุ่ม STOP
+                out, err = self.current_process.communicate()
 
-            if "exhausted your daily quota" in full_text.lower() or "quotaerror" in full_text.lower():
-                raise RuntimeError(
-                    f"โควตารายวันของโมเดล '{self.model_name}' หมดแล้ว "
-                    f"ลองเปลี่ยนโมเดลจาก dropdown ด้านบน (เช่น gemini-3.1-flash-lite) แล้วลองใหม่ครับ"
+                if self._stop_requested:
+                    return "❌ [ระบบ]: ถูกยกเลิกโดยผู้ใช้"
+
+                combined_err = (err or "").strip()
+                combined_out = (out or "").strip()
+                full_text = combined_out + combined_err
+
+                if "UNAUTHENTICATED" in combined_err or "invalid authentication" in combined_err.lower():
+                    raise RuntimeError(
+                        "Auth ไม่ผ่าน: กรุณา login ผ่าน `gemini` ในเทอร์มินัล หรือใส่ API Key แล้วกด 'เชื่อมต่อ CLI' ใหม่"
+                    )
+
+                if "exhausted your daily quota" in full_text.lower() or "quotaerror" in full_text.lower():
+                    raise RuntimeError(
+                        f"โควตารายวันของโมเดล '{self.model_name}' หมดแล้ว "
+                        f"ลองเปลี่ยนโมเดลจาก dropdown ด้านบน (เช่น gemini-3.1-flash-lite) แล้วลองใหม่ครับ"
+                    )
+
+                if "modelnotfounderror" in full_text.lower() or "no longer available to new users" in full_text.lower():
+                    raise RuntimeError(
+                        f"โมเดล '{self.model_name}' ไม่พร้อมใช้งานสำหรับ API key นี้ (อาจถูกจำกัดสำหรับ key ใหม่) "
+                        f"ลองเปลี่ยนโมเดลจาก dropdown ด้านบนเป็นตัวอื่น (เช่น gemini-2.5-flash หรือ gemini-3.5-flash) ครับ"
+                    )
+
+                is_overloaded = (
+                    '"status":503' in full_text.replace(" ", "")
+                    or "UNAVAILABLE" in full_text
+                    or "experiencing high demand" in full_text.lower()
                 )
+                
+                if is_overloaded and attempt < max_retries:
+                    last_error = full_text
+                    self.after(
+                        0,
+                        self.update_chat_ui,
+                        "System",
+                        f"⏳ โมเดลกำลังโหลดสูง (503) กำลังลองใหม่ ({attempt}/{max_retries})...",
+                    )
+                    time.sleep(3 * attempt)
+                    continue
 
-            if "modelnotfounderror" in full_text.lower() or "no longer available to new users" in full_text.lower():
-                raise RuntimeError(
-                    f"โมเดล '{self.model_name}' ไม่พร้อมใช้งานสำหรับ API key นี้ (อาจถูกจำกัดสำหรับ key ใหม่) "
-                    f"ลองเปลี่ยนโมเดลจาก dropdown ด้านบนเป็นตัวอื่น (เช่น gemini-2.5-flash หรือ gemini-3.5-flash) ครับ"
-                )
+                if self.current_process.returncode != 0 and not combined_out:
+                    raise RuntimeError(combined_err or "Gemini CLI คืนค่า error โดยไม่มีรายละเอียด")
+                
+                return (combined_out or combined_err).strip()
 
-            is_overloaded = (
-                '"status":503' in full_text.replace(" ", "")
-                or "UNAVAILABLE" in full_text
-                or "experiencing high demand" in full_text.lower()
-            )
-            if is_overloaded and attempt < max_retries:
-                last_error = full_text
-                self.after(
-                    0,
-                    self.update_chat_ui,
-                    "System",
-                    f"⏳ โมเดลกำลังโหลดสูง (503) กำลังลองใหม่ ({attempt}/{max_retries})...",
-                )
-                time.sleep(3 * attempt)
-                continue
-
-            if result.returncode != 0 and not combined_out:
-                raise RuntimeError(combined_err or "Gemini CLI คืนค่า error โดยไม่มีรายละเอียด")
-            return (combined_out or combined_err).strip()
+            except Exception as e:
+                if self._stop_requested:
+                    return "❌ [ระบบ]: ถูกยกเลิกโดยผู้ใช้"
+                raise RuntimeError(f"Unexpected error: {e}")
+            finally:
+                self.current_process = None
 
         raise RuntimeError(f"โมเดลโหลดสูงต่อเนื่อง (503) ลองใหม่อีกครั้งภายหลังครับ\n\n{last_error}")
 
@@ -476,7 +519,7 @@ class GeminiPage(ctk.CTkFrame):
             loop_count = 0
             has_executed = False 
 
-            while re.search(exec_pattern, output) and loop_count < 2:
+            while re.search(exec_pattern, output) and loop_count < 2 and not self._stop_requested:
                 loop_count += 1
                 match = re.search(exec_pattern, output)
                 cmd = match.group(1).strip()
@@ -514,26 +557,27 @@ class GeminiPage(ctk.CTkFrame):
             # ==========================================
             save_pattern = r"\[SAVE:(.*?)\](.*?)\[/SAVE\]"
             
-            if not has_executed or (has_executed and not re.search(exec_pattern, output)):
-                for match in re.finditer(save_pattern, output, re.DOTALL):
-                    file_path = match.group(1).strip()
-                    clean_content = match.group(2).strip()
-                    full_save_tag = match.group(0)
-                    
-                    if self.ask_action_confirm("SAVE FILE", f"Target Path: {file_path}\nFile Size: {len(clean_content)} bytes\n\nPreview Content:\n{clean_content[:200]}..."):
-                        try:
-                            with open(file_path, "w", encoding="utf-8") as f:
-                                f.write(clean_content)
-                            output = output.replace(full_save_tag, f"\n\n💾 [ระบบ]: ทำการแก้ไขและเซฟไฟล์ทับที่ {file_path} เรียบร้อยแล้ว!\n")
-                        except Exception as e:
-                            output = output.replace(full_save_tag, f"\n\n❌ [ระบบ]: เซฟไฟล์ไม่สำเร็จ: {e}\n")
-                    else:
-                        output = output.replace(full_save_tag, f"\n\n❌ [ระบบ]: ผู้ใช้ยกเลิกการเซฟไฟล์ที่ {file_path}\n")
-            elif has_executed and re.search(exec_pattern, output):
-                output = re.sub(save_pattern, f"\n\n⚠️ [ระบบ]: ระงับการบันทึกไฟล์ เนื่องจากตรวจพบคำสั่งเพิ่มเติมที่ยังไม่ได้ดำเนินการ\n", output, flags=re.DOTALL)
+            if not self._stop_requested:
+                if not has_executed or (has_executed and not re.search(exec_pattern, output)):
+                    for match in re.finditer(save_pattern, output, re.DOTALL):
+                        file_path = match.group(1).strip()
+                        clean_content = match.group(2).strip()
+                        full_save_tag = match.group(0)
+                        
+                        if self.ask_action_confirm("SAVE FILE", f"Target Path: {file_path}\nFile Size: {len(clean_content)} bytes\n\nPreview Content:\n{clean_content[:200]}..."):
+                            try:
+                                with open(file_path, "w", encoding="utf-8") as f:
+                                    f.write(clean_content)
+                                output = output.replace(full_save_tag, f"\n\n💾 [ระบบ]: ทำการแก้ไขและเซฟไฟล์ทับที่ {file_path} เรียบร้อยแล้ว!\n")
+                            except Exception as e:
+                                output = output.replace(full_save_tag, f"\n\n❌ [ระบบ]: เซฟไฟล์ไม่สำเร็จ: {e}\n")
+                        else:
+                            output = output.replace(full_save_tag, f"\n\n❌ [ระบบ]: ผู้ใช้ยกเลิกการเซฟไฟล์ที่ {file_path}\n")
+                elif has_executed and re.search(exec_pattern, output):
+                    output = re.sub(save_pattern, f"\n\n⚠️ [ระบบ]: ระงับการบันทึกไฟล์ เนื่องจากตรวจพบคำสั่งเพิ่มเติมที่ยังไม่ได้ดำเนินการ\n", output, flags=re.DOTALL)
 
         except Exception as e:
-            output = f"❌ Error จาก Gemini CLI:\n{e}"
+            output = f"❌ Error:\n{e}"
 
         self.after(0, self.finish_response, output)
 
@@ -555,7 +599,11 @@ class GeminiPage(ctk.CTkFrame):
         self.chat_display.configure(state="disabled")
 
         self.update_chat_ui("Gemini (CTF)", output.strip())
+        
+        # รีเซ็ตสถานะปุ่มกลับเป็นปกติ
         self.send_btn.configure(state="normal")
+        self.stop_btn.configure(state="disabled")
+        self.current_process = None
 
         if hasattr(self.app_root, "record_activity"):
             self.app_root.record_activity(

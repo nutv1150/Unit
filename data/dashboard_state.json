@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "active_competition": "General",
+  "competitions": [
+    "General"
+  ],
+  "categories": [
+    "Core"
+  ],
+  "favorites": [
+    {
+      "name": "Data Hashing",
+      "target": "page:Data Hashing",
+      "category": "Core",
+      "shortcut": "Ctrl+1"
+    },
+    {
+      "name": "File Inspection",
+      "target": "page:File Inspection",
+      "category": "Core",
+      "shortcut": "Ctrl+2"
+    },
+    {
+      "name": "Pipeline",
+      "target": "page:Pipeline",
+      "category": "Core",
+      "shortcut": "Ctrl+3"
+    }
+  ],
+  "events": [
+    {
+      "id": "40e17e16997a4cf09acb01af052219e7",
+      "timestamp": "2026-09-14T14:15:08.429749+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/cat.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "278ac653e0544b6fa6cd4536ea1cf4b7",
+      "timestamp": "2026-09-14T14:15:10.310184+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/cat.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "caa56cc5d7254bb290926b795ecc9781",
+      "timestamp": "2026-09-14T14:15:12.677245+00:00",
+      "competition": "General",
+      "tool": "zsteg Analysis",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/cat.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "8f52890a7b1b4d02a8c07512ad00615c",
+      "timestamp": "2026-09-14T14:15:13.972499+00:00",
+      "competition": "General",
+      "tool": "Exiftool",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/kali/Downloads/cat.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "af4ba1ab47974c76b82bedde43f4ebb4",
+      "timestamp": "2026-09-14T14:15:19.737278+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "picoCTF{the_m3tadata_1s_modified}"
+      ],
+      "details": "Input length: 44 characters"
+    },
+    {
+      "id": "40678152ba9548128be87ad6de85190b",
+      "timestamp": "2026-09-14T14:26:18.428494+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-3.1-flash-lite",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Response length: 86 characters"
+    },
+    {
+      "id": "37ec656784e24de0aa144c1c800d726a",
+      "timestamp": "2026-09-14T14:26:57.657198+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-3.1-flash-lite",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "picoCTF{the_m3tadata_1s_modified}"
+      ],
+      "details": "Response length: 192 characters"
+    },
+    {
+      "id": "947600e523ae4ffba4833ce06a6ec509",
+      "timestamp": "2026-09-14T14:29:38.760139+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-3.1-flash-lite",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": "Response length: 101 characters"
+    }
+  ]
+}
