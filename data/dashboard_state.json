@@ -28,6 +28,41 @@
     }
   ],
   "events": [
-    
+    {
+      "id": "98141452a4ac4e0192665a81bfc1fca6",
+      "timestamp": "2026-09-14T08:10:07.604801+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 39 characters"
+    },
+    {
+      "id": "b8663af3b3f744879b91b9ae0825f9d8",
+      "timestamp": "2026-09-14T08:10:07.709381+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 39 characters"
+    },
+    {
+      "id": "4247ce589b20407fb948565e87a98f8d",
+      "timestamp": "2026-09-14T08:10:09.182184+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 40 characters"
+    }
   ]
 }
