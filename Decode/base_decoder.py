@@ -2,6 +2,8 @@ import base64
 import urllib.parse
 import html
 import codecs
+from Tools.rot import rot_n, parse_rot_algo
+from Tools.flag_detector import find_flags
 
 BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -33,9 +35,16 @@ def auto_detect_decode(data):
         ("HTML Entity", lambda d: html.unescape(text).encode()),
         ("Unicode Escape", lambda d: codecs.decode(text, "unicode_escape").encode()),
         ("Reverse", lambda d: text[::-1].encode()), # เพิ่ม Reverse เข้ามาใน Auto Detect
-        ("ROT13", lambda d: codecs.decode(text, "rot_13").encode()),
+
     ]
 
+    # ลองทุก shift แต่ไม่ใช้ความ printable เพียงอย่างเดียวตัดสินค่า ROT
+    rot_candidates = [
+        (f"ROT:{n}:{mode}", rot_n(text, n, mode))
+        for mode, limit in (("alpha", 25), ("ascii", 93))
+        for n in range(1, limit + 1)
+    ]
+    fallback = None
     for name, func in candidates:
         try:
             decoded = func(data)
@@ -43,10 +52,18 @@ def auto_detect_decode(data):
 
             if decoded_text and is_printable(decoded_text):
                 if decoded_text != text:   # สำคัญมาก: ผลลัพธ์ต้องเปลี่ยนไปจากเดิม
-                    return name, decoded_text
+                    if find_flags(decoded_text):
+                        return name, decoded_text
+                    if fallback is None:
+                        fallback = (name, decoded_text)
         except Exception:
             pass
 
+    for name, decoded_text in rot_candidates:
+        if decoded_text != text and find_flags(decoded_text):
+            return name, decoded_text
+    if fallback is not None:
+        return fallback
     return "Unknown", text # ถ้าหาไม่เจอจริงๆ ให้คืนค่าข้อความเดิมกลับไป
 
 def decode_data(text, algo="Base64"):
@@ -84,8 +101,8 @@ def decode_data(text, algo="Base64"):
         return decode_base_n(text, BASE62)
     elif algo == "Reverse":
         return text[::-1]
-    elif algo == "ROT13":
-        return codecs.decode(text, "rot_13")
+    elif algo.startswith("ROT"):
+        return rot_n(text, *parse_rot_algo(algo))
     
     return text
 
@@ -248,8 +265,8 @@ def decode_to_bytes(text, algo="Base64") -> bytes:
     elif algo == "Reverse":
         return raw[::-1]
 
-    elif algo == "ROT13":
-        result = codecs.decode(string_data, "rot_13")
+    elif algo.startswith("ROT"):
+        result = rot_n(string_data, *parse_rot_algo(algo))
         return result.encode("utf-8")
 
     elif algo == "URL Decode":

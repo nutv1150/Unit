@@ -23,6 +23,7 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.title("Unified Toolkit")
         self.geometry("1200x720")
+        self.configure(fg_color="#0D0D12")
 
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -30,7 +31,7 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.sidebar = Sidebar(self, self.switch_page)
         self.sidebar.grid(row=0, column=0, sticky="ns")
 
-        self.container = ctk.CTkFrame(self, fg_color="#f5f6f8")
+        self.container = ctk.CTkFrame(self, fg_color="#0D0D12")
         self.container.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
         self.container.grid_rowconfigure(0, weight=1)
         self.container.grid_columnconfigure(0, weight=1)

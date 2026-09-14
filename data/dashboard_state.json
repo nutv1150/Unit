@@ -63,6 +63,378 @@
       "file_path": null,
       "flags": [],
       "details": "Input length: 40 characters"
+    },
+    {
+      "id": "9a7d4417c74447e3a63df4aa360605ad",
+      "timestamp": "2026-09-14T08:56:12.988422+00:00",
+      "competition": "General",
+      "tool": "Decode: ROT:47:ascii",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{wtctt-dcode-master-2025}"
+      ],
+      "details": "Input length: 29 characters"
+    },
+    {
+      "id": "b514cb489fa74616af21e67ace589a5a",
+      "timestamp": "2026-09-14T08:56:13.040737+00:00",
+      "competition": "General",
+      "tool": "Decode: ROT:47:ascii",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{wtctt-dcode-master-2025}"
+      ],
+      "details": "Input length: 29 characters"
+    },
+    {
+      "id": "8ad6d5873e0b4a32a04a623e6e2275a1",
+      "timestamp": "2026-09-14T08:56:24.435798+00:00",
+      "competition": "General",
+      "tool": "Decode: ROT:47:ascii",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{wtctt-dcode-master-2025}"
+      ],
+      "details": "Input length: 29 characters"
+    },
+    {
+      "id": "37e315c41ac747c2acb49eb0daae5606",
+      "timestamp": "2026-09-14T08:56:24.442724+00:00",
+      "competition": "General",
+      "tool": "Decode: ROT:47:ascii",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{wtctt-dcode-master-2025}"
+      ],
+      "details": "Input length: 29 characters"
+    },
+    {
+      "id": "e28b3e49c1a74530af091067eae2765f",
+      "timestamp": "2026-09-14T08:57:09.598135+00:00",
+      "competition": "General",
+      "tool": "Decode: ROT:47:ascii",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{wtctt-dcode-master-2025}"
+      ],
+      "details": "Input length: 29 characters"
+    },
+    {
+      "id": "854c374a94414632a218bd204c23687c",
+      "timestamp": "2026-09-14T08:57:10.406253+00:00",
+      "competition": "General",
+      "tool": "Decode: ROT:47:alpha",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "failed",
+      "file_path": null,
+      "flags": [],
+      "details": "ROT n must be 1–25 for alpha"
+    },
+    {
+      "id": "303f5656ccd3480d86bf09f1b59369d2",
+      "timestamp": "2026-09-14T08:57:12.241315+00:00",
+      "competition": "General",
+      "tool": "Decode: ROT:47:ascii",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{wtctt-dcode-master-2025}"
+      ],
+      "details": "Input length: 29 characters"
+    },
+    {
+      "id": "aa100dd2a1f64a52ab0b5f5dad3bd78d",
+      "timestamp": "2026-09-14T08:59:31.478099+00:00",
+      "competition": "General",
+      "tool": "Decode: ROT:47:ascii",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{wtctt-dcode-master-2025}"
+      ],
+      "details": "Input length: 30 characters"
+    },
+    {
+      "id": "560a2503b7704625bfe3636a3e538788",
+      "timestamp": "2026-09-14T08:59:31.545097+00:00",
+      "competition": "General",
+      "tool": "Decode: ROT:47:ascii",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{wtctt-dcode-master-2025}"
+      ],
+      "details": "Input length: 30 characters"
+    },
+    {
+      "id": "09e46242c557420eaaea749c69b4866f",
+      "timestamp": "2026-09-14T08:59:31.585549+00:00",
+      "competition": "General",
+      "tool": "Decode: ROT:47:ascii",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{wtctt-dcode-master-2025}"
+      ],
+      "details": "Input length: 30 characters"
+    },
+    {
+      "id": "a7bc40360a2f4f45923f8edf1a58f49d",
+      "timestamp": "2026-09-14T09:04:15.911808+00:00",
+      "competition": "General",
+      "tool": "Decode: ROT:47:ascii",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 40 characters"
+    },
+    {
+      "id": "f48c0845801b42a0a1b02d869eff113f",
+      "timestamp": "2026-09-14T09:04:16.030809+00:00",
+      "competition": "General",
+      "tool": "Decode: ROT:47:ascii",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 40 characters"
+    },
+    {
+      "id": "21c8f2afd9fb4c61ab6f295a1f98d3f2",
+      "timestamp": "2026-09-14T09:04:17.094524+00:00",
+      "competition": "General",
+      "tool": "Decode: Base64",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 40 characters"
+    },
+    {
+      "id": "bf2ea06e5cee4d6f949ba1f89a5c3bce",
+      "timestamp": "2026-09-14T09:04:18.606143+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 40 characters"
+    },
+    {
+      "id": "fe73a6cc88bc469bb136ab46eb009873",
+      "timestamp": "2026-09-14T09:04:20.482122+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 79 characters"
+    },
+    {
+      "id": "f934612f17da460f8dc1556e01b695c2",
+      "timestamp": "2026-09-14T09:04:20.502488+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 79 characters"
+    },
+    {
+      "id": "eb10625558c442d2a5c30183f5208b3f",
+      "timestamp": "2026-09-14T09:04:21.552973+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 78 characters"
+    },
+    {
+      "id": "d35931fbe952489cbc5ce618a0a31bee",
+      "timestamp": "2026-09-14T09:04:22.001780+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 79 characters"
+    },
+    {
+      "id": "ddcbf8a374fe42969860088b72648746",
+      "timestamp": "2026-09-14T09:04:22.631028+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 78 characters"
+    },
+    {
+      "id": "00da6643cd924f9fa02cce014cad6aa0",
+      "timestamp": "2026-09-14T09:04:23.216469+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 78 characters"
+    },
+    {
+      "id": "de852945b26845c2b405538b80e72be7",
+      "timestamp": "2026-09-14T09:04:23.417709+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 78 characters"
+    },
+    {
+      "id": "294933e58ec84b04a87bb282d114793f",
+      "timestamp": "2026-09-14T09:04:27.715433+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 40 characters"
+    },
+    {
+      "id": "7ab068ce544e4df0a00aa755080bb54c",
+      "timestamp": "2026-09-14T09:04:27.878796+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 39 characters"
+    },
+    {
+      "id": "3e93a921e3ad419b97e96df0953e2dd4",
+      "timestamp": "2026-09-14T09:04:29.113100+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 40 characters"
+    },
+    {
+      "id": "7990b51ebeee4e3ba059278b9b7b86d6",
+      "timestamp": "2026-09-14T09:05:10.570365+00:00",
+      "competition": "General",
+      "tool": "Decode: Reverse",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 40 characters"
+    },
+    {
+      "id": "87fe9eb118214e7bae57b15df1e3b024",
+      "timestamp": "2026-09-14T09:05:12.194028+00:00",
+      "competition": "General",
+      "tool": "Decode: ROT:47:ascii",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 40 characters"
+    },
+    {
+      "id": "ad0741a4815047b8a0dcb1cde25c72f0",
+      "timestamp": "2026-09-14T09:05:15.416631+00:00",
+      "competition": "General",
+      "tool": "Decode: ROT:47:ascii",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{wtctt-dcode-master-2025}"
+      ],
+      "details": "Input length: 69 characters"
+    },
+    {
+      "id": "16f9aa28f8354efa95aaf968fc85a6b2",
+      "timestamp": "2026-09-14T09:05:15.755064+00:00",
+      "competition": "General",
+      "tool": "Decode: ROT:47:ascii",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{wtctt-dcode-master-2025}"
+      ],
+      "details": "Input length: 69 characters"
+    },
+    {
+      "id": "87b9b9b8f0e14660aa57eda09e9ba5d4",
+      "timestamp": "2026-09-14T09:05:16.715696+00:00",
+      "competition": "General",
+      "tool": "Decode: ROT:47:ascii",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{wtctt-dcode-master-2025}"
+      ],
+      "details": "Input length: 29 characters"
     }
   ]
 }

@@ -45,7 +45,7 @@ class DataHashPage(ctk.CTkFrame):
             "URL Encode",
             "URL-safe Base64",
             "HTML Entity",
-            "Unicode Escape", "Reverse", "ROT13"
+            "Unicode Escape", "Reverse", "ROT"
         ]
 
         self.decode_algos = [
@@ -56,7 +56,7 @@ class DataHashPage(ctk.CTkFrame):
             "URL Decode",
             "URL-safe Base64",
             "HTML Entity",
-            "Unicode Escape", "Reverse", "ROT13"
+            "Unicode Escape", "Reverse", "ROT"
         ]
 
         self.hash_algos = [
@@ -86,7 +86,7 @@ class DataHashPage(ctk.CTkFrame):
         # ปุ่มลัด (Quick Select) ต่อโหมด — เอาไว้กดรวดเร็วโดยไม่ต้องเปิด dropdown
         self._quick_selects = {
             "Decode": ["Auto Detect", "Base64", "Base32", "Hex", "URL Decode"],
-            "Encode": ["Base64", "Base32", "Hex", "URL Encode", "ROT13"],
+            "Encode": ["Base64", "Base32", "Hex", "URL Encode", "ROT"],
             "Hash": ["sha256", "md5", "sha1", "sha512"],
             "Bitwise": ["XOR Mask", "XOR Unmask", "OR Mask", "AND Mask"],
         }
@@ -165,6 +165,21 @@ class DataHashPage(ctk.CTkFrame):
         )
         self.key_entry.pack(side="left", padx=(10, 0))
         self.key_entry.pack_forget()  # ซ่อนไว้ก่อน จะโชว์ตอนโหมด Bitwise
+
+        # ROT ใช้ค่า shift และชุดอักขระที่ผู้ใช้เลือก
+        self.rot_entry = ctk.CTkEntry(
+            algo_row, placeholder_text="ROT n (alpha 1–25)",
+            font=("Consolas", 12), height=32, width=150,
+            fg_color=INPUT_BG, border_color=BORDER_DIM, text_color=ACCENT_CYAN,
+        )
+        self.rot_entry.insert(0, "13")
+        self.rot_entry.bind("<KeyRelease>", self.process_data)
+        self.rot_mode_var = ctk.StringVar(value="alpha (A-Z)")
+        self.rot_mode_menu = ctk.CTkOptionMenu(
+            algo_row, values=["alpha (A-Z)", "ascii (33-126)"],
+            width=150, height=32, font=("Consolas", 11),
+            variable=self.rot_mode_var, command=lambda _: self.process_data(),
+        )
 
         # แถวปุ่มลัด (Quick Select)
         self.quick_row = ctk.CTkFrame(algo_bar, fg_color="transparent")
@@ -248,6 +263,10 @@ class DataHashPage(ctk.CTkFrame):
             return
 
         try:
+            if algo == "ROT":
+                n = int(self.rot_entry.get().strip() or "13")
+                mode = "ascii" if self.rot_mode_var.get().startswith("ascii") else "alpha"
+                algo = f"ROT:{n}:{mode}"
             if self.mode == "Encode":
                 result = encode_data(data, algo)
 
@@ -418,7 +437,7 @@ class DataHashPage(ctk.CTkFrame):
 
         self.update_mode_button_styles()
         self.refresh_quick_chips()
-        self.process_data()
+        self.on_algo_selected()
 
     def update_mode_button_styles(self):
         """ไฮไลต์ปุ่มโหมดที่กำลังใช้งานอยู่ (สไตล์เดียวกับ segmented control หน้าอื่น)"""
@@ -463,6 +482,12 @@ class DataHashPage(ctk.CTkFrame):
         self.on_algo_selected()
 
     def on_algo_selected(self):
+        if self.algo_menu.get() == "ROT" and self.mode in ("Encode", "Decode"):
+            self.rot_entry.pack(side="left", padx=(10, 0))
+            self.rot_mode_menu.pack(side="left", padx=(4, 0))
+        else:
+            self.rot_entry.pack_forget()
+            self.rot_mode_menu.pack_forget()
         self.refresh_quick_chip_styles()
         self.process_data()
 
