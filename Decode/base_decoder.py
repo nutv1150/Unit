@@ -9,6 +9,29 @@ BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 BASE45 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:"
 
+STANDARD_HEX_ALPHABET = "0123456789ABCDEF"
+CUSTOM_HEX_ALPHABET = "AJIHGFEDCBjihgfe"
+
+
+def custom_hex_to_hex(text, alphabet=CUSTOM_HEX_ALPHABET):
+    """แทนสัญลักษณ์ตามลำดับ 0–F โดยรักษาตัวพิมพ์ใหญ่เล็ก"""
+    if len(alphabet) != 16 or len(set(alphabet)) != 16:
+        raise ValueError("Hex alphabet ต้องมี 16 ตัวที่ไม่ซ้ำกัน")
+    if any(c.isspace() for c in alphabet):
+        raise ValueError("Hex alphabet ต้องไม่มีช่องว่าง")
+    cleaned = "".join(text.split())
+    # Hex ปกติรับ a–f ได้ด้วย แต่ตารางกำหนดเองต้องรักษาตัวพิมพ์
+    if alphabet == STANDARD_HEX_ALPHABET:
+        cleaned = cleaned.upper()
+    mapping = dict(zip(alphabet, STANDARD_HEX_ALPHABET))
+    unknown = next((c for c in cleaned if c not in mapping), None)
+    if unknown is not None:
+        raise ValueError(f"พบสัญลักษณ์ที่ไม่มีใน Hex alphabet: {unknown!r}")
+    if len(cleaned) % 2:
+        raise ValueError("Hex ต้องมีจำนวนสัญลักษณ์เป็นเลขคู่ (2 ตัวต่อ 1 byte)")
+    return "".join(mapping[c] for c in cleaned)
+
+
 def is_printable(text):
     return all(32 <= ord(c) <= 126 or c in "\n\r\t" for c in text)
 
@@ -66,8 +89,12 @@ def auto_detect_decode(data):
         return fallback
     return "Unknown", text # ถ้าหาไม่เจอจริงๆ ให้คืนค่าข้อความเดิมกลับไป
 
-def decode_data(text, algo="Base64"):
+def decode_data(text, algo="Base64", alphabet=None):
     # (ฟังก์ชันนี้เหมือนเดิมของคุณเลยครับ)
+    if algo in ("Hex", "Custom Hex"):
+        if alphabet is None:
+            alphabet = CUSTOM_HEX_ALPHABET if algo == "Custom Hex" else STANDARD_HEX_ALPHABET
+        return bytes.fromhex(custom_hex_to_hex(text, alphabet)).decode("utf-8", errors="replace")
     if algo == "Auto Detect":
         name, result = auto_detect_decode(text.encode())
         return result
@@ -207,7 +234,7 @@ def is_probably_text(data: bytes) -> bool:
     return ratio >= 0.90
 
 
-def decode_to_bytes(text, algo="Base64") -> bytes:
+def decode_to_bytes(text, algo="Base64", alphabet=None) -> bytes:
     """
     Binary-safe decoder
 
@@ -223,6 +250,11 @@ def decode_to_bytes(text, algo="Base64") -> bytes:
     else:
         string_data = str(text)
         raw = string_data.encode("utf-8")
+
+    if algo == "Custom Hex" or (algo == "Hex" and alphabet is not None):
+        if alphabet is None:
+            alphabet = CUSTOM_HEX_ALPHABET
+        return bytes.fromhex(custom_hex_to_hex(string_data, alphabet))
 
     # ----------------------------------
     # Base encodings

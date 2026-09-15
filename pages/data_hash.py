@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from Encode.base_encoder import encode_data
-from Decode.base_decoder import decode_data
+from Decode.base_decoder import decode_data, custom_hex_to_hex, STANDARD_HEX_ALPHABET
 from Hashing.hash_utils import hash_data
 from Tools.extra_tools import (
     highlight_text,
@@ -9,7 +9,7 @@ from Tools.extra_tools import (
     detect_embedded_key,
 )
 from Tools.flag_detector import find_flags
-from tkinter import filedialog
+from tkinter import filedialog, Menu, TclError
 
 # ==========================================
 # ธีมสีหลัก (Cyberpunk / Terminal)
@@ -185,6 +185,24 @@ class DataHashPage(ctk.CTkFrame):
         self.quick_row = ctk.CTkFrame(algo_bar, fg_color="transparent")
         self.quick_row.pack(fill="x", padx=15, pady=(0, 15))
 
+        self.custom_hex_panel = ctk.CTkFrame(algo_bar, fg_color="transparent")
+        ctk.CTkLabel(
+            self.custom_hex_panel, text="ALPHABET → 0123456789ABCDEF | เปลี่ยนสัญลักษณ์ตามลำดับ 0–F",
+            font=("Consolas", 11), text_color=TEXT_DIM,
+        ).pack(anchor="w")
+        self.custom_hex_entry = ctk.CTkEntry(
+            self.custom_hex_panel, width=300, height=32, font=("Consolas", 12),
+            fg_color=INPUT_BG, border_color=BORDER_DIM, text_color=ACCENT_CYAN,
+        )
+        self.custom_hex_entry.insert(0, STANDARD_HEX_ALPHABET)
+        self.custom_hex_entry.pack(anchor="w", pady=(4, 4))
+        self.custom_hex_entry.bind("<KeyRelease>", self.process_data)
+        self.custom_hex_preview = ctk.CTkLabel(
+            self.custom_hex_panel, text="HEX PREVIEW: —", anchor="w",
+            font=("Consolas", 11), text_color=TEXT_DIM,
+        )
+        self.custom_hex_preview.pack(anchor="w")
+
         # =========================
         # 4. INPUT SECTION
         # =========================
@@ -243,11 +261,45 @@ class DataHashPage(ctk.CTkFrame):
         self.output_box.grid(row=6, column=0, sticky="nsew", padx=30, pady=(5, 20))
         self.output_box.tag_config("found", background=ACCENT_CYAN, foreground="black")
 
+        self.gemini_selection = ""
+        self.context_menu = Menu(
+            self, tearoff=0, bg=PANEL_COLOR, fg="white",
+            activebackground=ACCENT_CYAN, activeforeground="black",
+            font=("Consolas", 11),
+        )
+        self.context_menu.add_command(
+            label="Send selection to Gemini", command=self.send_selection_to_gemini,
+        )
+        for textbox in (self.input_box, self.output_box):
+            textbox.bind(
+                "<Button-3>",
+                lambda event, box=textbox: self.show_context_menu(event, box),
+            )
+
         self.input_box.bind("<KeyRelease>", self.process_data)
 
         # ตั้งค่าเริ่มต้น: โหมด Decode + สร้างปุ่มลัดชุดแรก + ไฮไลต์ปุ่มโหมด
         self.refresh_quick_chips()
         self.update_mode_button_styles()
+
+    def show_context_menu(self, event, textbox):
+        # เก็บเฉพาะข้อความที่เลือกในช่องที่คลิก ก่อน popup เปลี่ยน focus
+        try:
+            self.gemini_selection = textbox.get("sel.first", "sel.last")
+        except TclError:
+            self.gemini_selection = ""
+        self.context_menu.entryconfigure(
+            0, state="normal" if self.gemini_selection.strip() else "disabled",
+        )
+        try:
+            self.context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.context_menu.grab_release()
+        return "break"
+
+    def send_selection_to_gemini(self):
+        if self.gemini_selection.strip():
+            self.app_root.send_to_gemini(self.gemini_selection)
 
     # =========================
     # Process Main Logic
@@ -255,6 +307,8 @@ class DataHashPage(ctk.CTkFrame):
     def process_data(self, event=None):
         data = self.input_box.get("1.0", "end").strip()
         algo = self.algo_menu.get()
+
+        self.custom_hex_preview.configure(text="HEX PREVIEW: —")
 
         if not data:
             self.output_box.delete("1.0", "end")
@@ -272,7 +326,14 @@ class DataHashPage(ctk.CTkFrame):
 
             elif self.mode == "Decode":
                 # ⭐ แก้ไข: ถ้าเป็น Auto Detect ให้ไปเรียกฟังก์ชันหลักมาตรงๆ เพื่อเอาชื่อด้วย
-                if algo == "Auto Detect":
+                if algo == "Hex":
+                    alphabet = self.custom_hex_entry.get()
+                    hex_text = custom_hex_to_hex(data, alphabet)
+                    preview = hex_text[:80] + ("…" if len(hex_text) > 80 else "")
+                    self.custom_hex_preview.configure(text=f"HEX PREVIEW: {preview}")
+                    result = decode_data(data, algo, alphabet=alphabet)
+                    self.current_detected_algo = algo
+                elif algo == "Auto Detect":
                     from Decode.base_decoder import auto_detect_decode
                     detected_name, result = auto_detect_decode(data.encode())
                     self.current_detected_algo = detected_name # บันทึกชื่อที่หาเจอไว้
@@ -482,6 +543,10 @@ class DataHashPage(ctk.CTkFrame):
         self.on_algo_selected()
 
     def on_algo_selected(self):
+        if self.mode == "Decode" and self.algo_menu.get() == "Hex":
+            self.custom_hex_panel.pack(fill="x", padx=15, pady=(0, 12))
+        else:
+            self.custom_hex_panel.pack_forget()
         if self.algo_menu.get() == "ROT" and self.mode in ("Encode", "Decode"):
             self.rot_entry.pack(side="left", padx=(10, 0))
             self.rot_mode_menu.pack(side="left", padx=(4, 0))
