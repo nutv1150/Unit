@@ -19,8 +19,8 @@ python app.py
 
 ## โครงสร้างและจุดแก้ไข
 
-- `app.py` ลงทะเบียน 6 หน้า: Dashboard, Data Hashing, File Inspection, Pipeline, Gemini CLI, App Portal และมี `record_activity()` สำหรับบันทึกกิจกรรมผ่าน store กลาง
-- `sidebar.py` มี My Tools และ Challenge เพิ่มในเมนู แต่ยังไม่มีหน้าที่ลงทะเบียนใน `app.py` อย่าอธิบายว่าใช้งานได้แล้ว
+- `app.py` ลงทะเบียน 8 หน้า: Dashboard, Data Hashing, File Inspection, Pipeline, Gemini CLI, App Portal และมี `record_activity()` สำหรับบันทึกกิจกรรมผ่าน store กลาง
+- `pages/my_tools.py` และ `pages/challenge.py` ลงทะเบียนใน `app.py` แล้ว ใช้ `navigate_to(page, sub)` เปิดโหมดย่อย และ `on_close()` บันทึก/พัก timer ก่อน destroy ข้อมูลอยู่ใน `config/` ผ่าน `Tools/workspace_store.py`; สีโทนเข้มและ dialog ใช้ `pages/workspace_ui.py`
 - `pages/dashboard.py` แสดงสถิติ รายการโปรด คีย์ลัด หมวดหมู่ การแข่งขัน และไฟล์ล่าสุด
 - `Tools/dashboard_store.py` เก็บข้อมูลที่ `data/dashboard_state.json` ในโปรเจกต์ ไม่ใช่ `~/.unit/` จำกัดประวัติไว้ 2,000 เหตุการณ์
 - `pages/data_hash.py` มี Decode, Encode, Hash, Bitwise โดยใช้ `Encode/`, `Decode/`, `Hashing/`, `Tools/extra_tools.py` รายการอัลกอริทึมใน UI อาจไม่เท่ากับที่ backend รองรับ เช่น SHAKE มีใน backend แต่ไม่มีในรายการ Hash ของหน้า

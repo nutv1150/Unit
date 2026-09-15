@@ -205,3 +205,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Personal workspace state
+/config/my_tools_groups.json
+/config/challenges.json
+/config/*.tmp
