@@ -5,6 +5,7 @@ from tkinter import filedialog
 from Pipeline.pipeline_engine import PipelineEngine
 import tempfile
 import os
+from pathlib import Path
 
 from Tools.artifact_bridge import (
     resolve_file_input,
@@ -405,6 +406,10 @@ class PipelinePage(ctk.CTkFrame):
     def open_step_window(self, node, previous_output, original_data, logs, is_last, step_index=1, total_steps=1):
 
         tool_name = node["name"]
+        # A selected output file is distinct from stdout containing a path.
+        forwarded_file = previous_output if isinstance(previous_output, Path) else None
+        if forwarded_file is not None:
+            previous_output = str(forwarded_file).encode("utf-8")
 
         win = ctk.CTkToplevel(self)
         win.title(f"Step {step_index}/{total_steps} — {tool_name}")
@@ -502,11 +507,13 @@ class PipelinePage(ctk.CTkFrame):
 
         output_box.bind("<Button-3>", show_context_menu)
 
-        result = {"output": None}
+        result = {"output": None, "run": None, "selected_file": None}
 
         output_box.insert("end", ">>> original input\n")
 
-        if original_data:
+        if isinstance(original_data, Path):
+            preview = f"[Selected file] {original_data}"
+        elif original_data:
             preview = original_data[:2000].decode(errors="ignore")
         else:
             preview = "[No file input]"
@@ -521,7 +528,62 @@ class PipelinePage(ctk.CTkFrame):
                 out = out.decode(errors="ignore")
 
             output_box.insert("end", f"\n>>> {tool}\n")
-            output_box.insert("end", out + "\n")
+            output_box.insert("end", str(out) + "\n")
+
+        file_selection = tk.StringVar(value="")
+        file_panel = ctk.CTkFrame(left, fg_color=CARD_COLOR)
+        file_status = ctk.CTkLabel(
+            file_panel, text="", text_color=ACCENT_GREEN, wraplength=430, justify="left",
+        )
+        file_status.pack(anchor="w", padx=10, pady=(5, 0))
+        file_list = ctk.CTkScrollableFrame(file_panel, height=90, fg_color=INPUT_BG)
+        file_list.pack(fill="x", padx=10, pady=5)
+        file_choices = {}
+
+        def show_selected_file():
+            selected = file_choices.get(file_selection.get())
+            result["selected_file"] = selected
+            file_status.configure(text=(
+                f"ส่งต่อไฟล์: {selected}" if selected else "ส่งต่อข้อมูล stdout"
+            ))
+
+        def add_result_file(path):
+            path = Path(path).absolute()
+            try:
+                size = path.stat().st_size
+                if not path.is_file():
+                    raise ValueError("กรุณาเลือกไฟล์")
+            except (OSError, ValueError) as error:
+                file_status.configure(text=f"อ่านไฟล์ไม่ได้: {error}")
+                return None
+            key = str(path)
+            if key not in file_choices:
+                file_choices[key] = path
+                ctk.CTkRadioButton(
+                    file_list, text=f"{path.name} ({size:,} bytes)",
+                    variable=file_selection, value=key, command=show_selected_file,
+                    text_color="white", fg_color=ACCENT_CYAN,
+                ).pack(anchor="w", padx=5, pady=3)
+            return key
+
+        def browse_result_file():
+            if result["run"] is None or not result["run"].succeeded:
+                return
+            win.attributes("-topmost", False)
+            try:
+                path = filedialog.askopenfilename(parent=win, title="เลือกไฟล์ผลลัพธ์เพื่อส่งต่อ")
+            finally:
+                win.attributes("-topmost", True)
+            if path:
+                key = add_result_file(path)
+                if key:
+                    file_selection.set(key)
+                    show_selected_file()
+
+        ctk.CTkButton(
+            file_panel, text="Browse result file", command=browse_result_file,
+            fg_color=BORDER_COLOR, text_color=ACCENT_CYAN,
+        ).pack(pady=(0, 5))
 
         def save_output():
             if result["output"] is None:
@@ -1194,7 +1256,7 @@ class PipelinePage(ctk.CTkFrame):
             ctk.CTkLabel(right, text=desc, text_color=TEXT_DIM, wraplength=300).pack(anchor="w", padx=20)
 
         # -------- Run Tool --------
-        def run_tool():
+        def execute_tool():
             # รวม options → params
             # ตรวจว่าเป็น file tool หรือ text tool
             # เรียก PipelineEngine
@@ -1260,7 +1322,8 @@ class PipelinePage(ctk.CTkFrame):
                 res = self.engine.run_file_tool(
                     tool_name,
                     path,
-                    params
+                    params,
+                    detailed=True,
                 )
 
             else:
@@ -1271,7 +1334,9 @@ class PipelinePage(ctk.CTkFrame):
 
                 inp_data = input_entry.get().strip()
 
-                if not inp_data and previous_output:
+                if not inp_data and forwarded_file is not None:
+                    input_bytes = forwarded_file.read_bytes()
+                elif not inp_data and previous_output:
                     input_bytes = previous_output
                 else:
                     input_bytes = inp_data.encode("utf-8")
@@ -1279,12 +1344,54 @@ class PipelinePage(ctk.CTkFrame):
                 res = self.engine.run_text_tool(
                     tool_name,
                     input_bytes,
-                    params
+                    params,
+                    detailed=True,
                 )
-            result["output"] = res
+            result["run"] = res
+            result["output"] = res.stdout if res.succeeded else None
             output_box.insert("end", f"\n>>> output ({tool_name})\n")
-            output_box.insert("end", res.decode(errors="ignore") + "\n")
+            if res.stdout:
+                output_box.insert("end", res.stdout.decode(errors="replace") + "\n")
+            if res.stderr:
+                output_box.insert("end", "[stderr]\n" + res.stderr.decode(errors="replace") + "\n")
+            if res.succeeded:
+                output_box.insert("end", "[สำเร็จ] Exit code: 0\n")
+                if not res.stdout:
+                    output_box.insert("end", "ไม่มีข้อความใน stdout\n")
+                file_panel.pack(fill="x", padx=10, pady=5)
+                file_status.configure(text="ไฟล์ใหม่/แก้ไขในรอบนี้ — เลือกไฟล์ก่อนกด Next")
+                for path in res.files:
+                    add_result_file(path)
+                    output_box.insert("end", f"[ไฟล์ผลลัพธ์] {path}\n")
+                if res.stdout:
+                    ctk.CTkRadioButton(
+                        file_list, text="ส่งต่อ stdout", variable=file_selection,
+                        value="stdout", command=show_selected_file,
+                        text_color="white", fg_color=ACCENT_CYAN,
+                    ).pack(anchor="w", padx=5, pady=3)
+                    if not file_choices:
+                        file_selection.set("stdout")
+                if not res.files:
+                    file_status.configure(text="ไม่พบไฟล์ผลลัพธ์อัตโนมัติ สามารถเลือกไฟล์ด้วย Browse result file")
+                if res.discovery_note:
+                    output_box.insert("end", f"[i] {res.discovery_note}\n")
+            else:
+                output_box.insert("end", f"[ไม่สำเร็จ] Exit code: {res.returncode}\n")
             output_box.see("end")
+
+        def run_tool():
+            # A retry must never forward a file or stdout from the previous run.
+            result.update(output=None, run=None, selected_file=None)
+            file_selection.set("")
+            file_choices.clear()
+            for widget in file_list.winfo_children():
+                widget.destroy()
+            file_panel.pack_forget()
+            try:
+                execute_tool()
+            except (OSError, ValueError) as error:
+                output_box.insert("end", f"\n[ไม่สำเร็จ] {error}\n")
+                output_box.see("end")
 
         # buttons
         ctk.CTkButton(
@@ -1293,6 +1400,18 @@ class PipelinePage(ctk.CTkFrame):
         ).pack(pady=(15, 5))
 
         def next_step(): # ปิด window แล้วส่ง output กลับ pipeline
+            selected = result["selected_file"]
+            if selected is not None:
+                if not selected.is_file():
+                    file_status.configure(text="ไม่พบไฟล์ที่เลือก กรุณาเลือกไฟล์ใหม่")
+                    return
+                result["output"] = selected
+            elif not is_last and file_choices and not file_selection.get():
+                file_status.configure(text="กรุณาเลือกไฟล์ผลลัพธ์ก่อนกด Next")
+                return
+            if is_last:
+                win.destroy()
+                return
             if result["output"] is None:
                 return
             win.destroy()
