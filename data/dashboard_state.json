@@ -4365,6 +4365,32 @@
       "file_path": null,
       "flags": [],
       "details": "Input length: 33 characters"
+    },
+    {
+      "id": "29d337dc98c04b96bf5dc0a03160edb5",
+      "timestamp": "2026-10-06T13:41:07.911003+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "44764d72707a4822b357bc1fd744bab7",
+      "timestamp": "2026-10-06T13:41:13.518077+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
     }
   ]
 }

@@ -36,7 +36,9 @@ def is_printable(text):
     return all(32 <= ord(c) <= 126 or c in "\n\r\t" for c in text)
 
 def auto_detect_decode(data):
-    text = data.decode(errors="ignore")
+    # This heuristic works on text; never discard invalid source bytes to
+    # manufacture a plausible match. Binary callers must choose a codec.
+    text = data.decode("utf-8")
 
     candidates = [
         # Base encodings
@@ -46,9 +48,9 @@ def auto_detect_decode(data):
         ("Ascii85", lambda d: base64.a85decode(d)),
         ("Base16", lambda d: base64.b16decode(d)),
         ("Hex", lambda d: bytes.fromhex(text)),
-        ("Base45", lambda d: decode_base45(text).encode()),
-        ("Base58", lambda d: decode_base_n(text, BASE58).encode()),
-        ("Base62", lambda d: decode_base_n(text, BASE62).encode()),
+        ("Base45", lambda d: decode_base45(text)),
+        ("Base58", lambda d: decode_base_n(text, BASE58)),
+        ("Base62", lambda d: decode_base_n(text, BASE62)),
         ("Binary", lambda d: bytes(int(x, 2) for x in text.split())),
         ("Octal", lambda d: bytes(int(x, 8) for x in text.split())),
         ("Decimal", lambda d: bytes(int(x) for x in text.split())),
@@ -71,7 +73,7 @@ def auto_detect_decode(data):
     for name, func in candidates:
         try:
             decoded = func(data)
-            decoded_text = decoded.decode(errors="ignore")
+            decoded_text = decoded.decode("utf-8")
 
             if decoded_text and is_printable(decoded_text):
                 if decoded_text != text:   # สำคัญมาก: ผลลัพธ์ต้องเปลี่ยนไปจากเดิม
@@ -90,57 +92,37 @@ def auto_detect_decode(data):
     return "Unknown", text # ถ้าหาไม่เจอจริงๆ ให้คืนค่าข้อความเดิมกลับไป
 
 def decode_data(text, algo="Base64", alphabet=None):
-    # (ฟังก์ชันนี้เหมือนเดิมของคุณเลยครับ)
-    if algo in ("Hex", "Custom Hex"):
-        if alphabet is None:
-            alphabet = CUSTOM_HEX_ALPHABET if algo == "Custom Hex" else STANDARD_HEX_ALPHABET
-        return bytes.fromhex(custom_hex_to_hex(text, alphabet)).decode("utf-8", errors="replace")
     if algo == "Auto Detect":
-        name, result = auto_detect_decode(text.encode())
-        return result
-    elif algo == "URL Decode":                     
-        return urllib.parse.unquote(text)
-    elif algo == "HTML Entity":                    
-        return html.unescape(text)
-    elif algo == "Unicode Escape":                 
-        return codecs.decode(text, "unicode_escape")
-    elif algo == "Base64":
-        return base64.b64decode(text).decode(errors="ignore")
-    elif algo == "Base32":
-        return base64.b32decode(text).decode(errors="ignore")
-    elif algo == "Base85":
-        return base64.b85decode(text).decode(errors="ignore")
-    elif algo == "Ascii85":
-        return base64.a85decode(text).decode(errors="ignore")
-    elif algo in ("Hex", "Base16"):
-        return base64.b16decode(text).decode(errors="ignore")
-    elif algo == "Base45":
-        return decode_base45(text)
-    elif algo == "Binary":
-        return bytes(int(b, 2) for b in text.split()).decode(errors="ignore")
-    elif algo == "Octal":
-        return bytes(int(b, 8) for b in text.split()).decode(errors="ignore")
-    elif algo == "Decimal":
-        return bytes(int(b) for b in text.split()).decode(errors="ignore")
-    elif algo == "Base58":
-        return decode_base_n(text, BASE58)
-    elif algo == "Base62":
-        return decode_base_n(text, BASE62)
-    elif algo == "Reverse":
-        return text[::-1]
-    elif algo.startswith("ROT"):
-        return rot_n(text, *parse_rot_algo(algo))
-    
-    return text
+        return auto_detect_decode(text if isinstance(text, bytes) else str(text).encode())[1]
+    decoded = decode_to_bytes(text, algo, alphabet)
+    try:
+        return decoded.decode("utf-8")
+    except UnicodeDecodeError:
+        # Never silently discard/replace bytes in the legacy text API.  Hex is
+        # an explicit, reversible display suitable for the GUI and callers
+        # needing the original bytes should use decode_to_bytes().
+        return decoded.hex()
+
 
 def decode_base_n(text, alphabet):
+    text = "".join(str(text).split())
+    if not alphabet:
+        raise ValueError("alphabet must not be empty")
     base = len(alphabet)
     num = 0
     for char in text:
+        if char not in alphabet:
+            raise ValueError(f"invalid character for base alphabet: {char!r}")
         num = num * base + alphabet.index(char)
-    return num.to_bytes((num.bit_length() + 7) // 8, "big").decode(errors="ignore")
+    zero_count = len(text) - len(text.lstrip(alphabet[0]))
+    size = (num.bit_length() + 7) // 8
+    return (b"\0" * zero_count) + (num.to_bytes(size, "big") if size else b"")
 
 def decode_base45(text):
+    # Space is a valid Base45 digit, not ignorable formatting.
+    text = str(text)
+    if len(text) % 3 == 1:
+        raise ValueError("Base45 length must not leave a single trailing symbol")
     buf = []
     i = 0
     while i < len(text):
@@ -155,9 +137,11 @@ def decode_base45(text):
             c = BASE45.index(text[i])
             d = BASE45.index(text[i + 1])
             x = c + d * 45
+            if x > 255:
+                raise ValueError("invalid Base45 final byte")
             buf.append(x)
             i += 2
-    return bytes(buf).decode(errors="ignore")
+    return bytes(buf)
 
 # ============================================================
 # P0.2 - BINARY SAFE DECODER
@@ -246,7 +230,7 @@ def decode_to_bytes(text, algo="Base64", alphabet=None) -> bytes:
 
     if isinstance(text, bytes):
         raw = text
-        string_data = text.decode("utf-8", errors="ignore")
+        string_data = text.decode("utf-8") if algo != "Reverse" else ""
     else:
         string_data = str(text)
         raw = string_data.encode("utf-8")
@@ -260,13 +244,14 @@ def decode_to_bytes(text, algo="Base64", alphabet=None) -> bytes:
     # Base encodings
     # ----------------------------------
 
-    if algo == "Base64":
+    if algo in ("Base64", "URL-safe Base64"):
         cleaned = "".join(string_data.split())
-
-        return base64.b64decode(
-            cleaned,
-            validate=False
-        )
+        try:
+            if algo == "URL-safe Base64":
+                return base64.b64decode(cleaned, altchars=b"-_", validate=True)
+            return base64.b64decode(cleaned, validate=True)
+        except (ValueError, binascii.Error) as exc:
+            raise ValueError(f"invalid {algo} (including padding)") from exc
 
     elif algo == "Base32":
         cleaned = "".join(string_data.split())
@@ -274,15 +259,10 @@ def decode_to_bytes(text, algo="Base64", alphabet=None) -> bytes:
         return base64.b32decode(cleaned)
 
     elif algo in ("Hex", "Base16"):
-        cleaned = (
-            string_data
-            .replace(" ", "")
-            .replace("\n", "")
-            .replace("\r", "")
-            .replace(":", "")
-        )
-
-        return bytes.fromhex(cleaned)
+        # Colon-separated hex is a common hexdump spelling; it is only
+        # accepted for the standard alphabet, never for a custom alphabet.
+        cleaned = string_data.replace(":", " ")
+        return bytes.fromhex(custom_hex_to_hex(cleaned, STANDARD_HEX_ALPHABET))
 
     elif algo == "Base85":
         return base64.b85decode(string_data)
@@ -290,12 +270,33 @@ def decode_to_bytes(text, algo="Base64", alphabet=None) -> bytes:
     elif algo == "Ascii85":
         return base64.a85decode(string_data)
 
+    elif algo == "Base45":
+        return decode_base45(string_data)
+
+    elif algo in ("Base58", "Base62"):
+        return decode_base_n(string_data, BASE58 if algo == "Base58" else BASE62)
+
+    elif algo == "Binary":
+        tokens = string_data.split()
+        if any(len(token) != 8 for token in tokens):
+            raise ValueError("Binary values must be 8-bit groups")
+        return bytes(int(token, 2) for token in tokens)
+
+    elif algo == "Octal":
+        return bytes(int(token, 8) for token in string_data.split())
+
+    elif algo == "Decimal":
+        values = [int(token, 10) for token in string_data.split()]
+        if any(value < 0 or value > 255 for value in values):
+            raise ValueError("Decimal byte values must be 0..255")
+        return bytes(values)
+
     # ----------------------------------
     # Text transforms
     # ----------------------------------
 
     elif algo == "Reverse":
-        return raw[::-1]
+        return raw[::-1] if isinstance(text, bytes) else string_data[::-1].encode("utf-8")
 
     elif algo.startswith("ROT"):
         result = rot_n(string_data, *parse_rot_algo(algo))

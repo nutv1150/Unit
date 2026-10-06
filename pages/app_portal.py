@@ -4,6 +4,8 @@ import os
 import shutil
 import json
 import glob
+import tempfile
+from pathlib import Path
 
 # ==========================================
 # ธีมสีหลัก (Cyberpunk / Terminal)
@@ -34,7 +36,10 @@ class AppPortalPage(ctk.CTkFrame):
             {"name": "Terminal", "check": "x-terminal-emulator", "cmd": "x-terminal-emulator", "desc": "Open a new root shell", "icon": "💻"}
         ]
 
-        self.custom_tools_file = "custom_tools.json"
+        # Persistence is anchored to the repository, not the process cwd.
+        self.custom_tools_file = str(Path(__file__).resolve().parent.parent / "custom_tools.json")
+        self.custom_tools_read_only = False
+        self.custom_tools_error = None
         self.custom_tools = self.load_custom_tools()
         self.tools = self.default_tools + self.custom_tools
 
@@ -53,6 +58,8 @@ class AppPortalPage(ctk.CTkFrame):
             hover_color="#003311", height=35, width=90, command=self.open_add_tool_popup
         )
         self.btn_add_tool.pack(side="right", padx=(10, 0))
+        if self.custom_tools_read_only:
+            self.btn_add_tool.configure(state="disabled")
 
         self.search_var = ctk.StringVar()
         self.search_var.trace_add("write", lambda *args: self.refresh_grid())
@@ -69,7 +76,9 @@ class AppPortalPage(ctk.CTkFrame):
         status_frame.grid(row=1, column=0, sticky="ew", padx=30, pady=5)
         status_frame.pack_propagate(False)
         
-        self.status_label = ctk.CTkLabel(status_frame, text="[SYSTEM]: AWAITING COMMAND...", font=("Consolas", 12, "bold"), text_color=TEXT_DIM)
+        initial_status = (f"[READ-ONLY] CUSTOM TOOLS INVALID: {self.custom_tools_error}"
+                          if self.custom_tools_read_only else "[SYSTEM]: AWAITING COMMAND...")
+        self.status_label = ctk.CTkLabel(status_frame, text=initial_status, font=("Consolas", 12, "bold"), text_color=ALERT_RED if self.custom_tools_read_only else TEXT_DIM)
         self.status_label.pack(side="left", padx=15, pady=10)
 
         # --- Grid Container ---
@@ -84,17 +93,49 @@ class AppPortalPage(ctk.CTkFrame):
         if os.path.exists(self.custom_tools_file):
             try:
                 with open(self.custom_tools_file, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except:
+                    loaded = json.load(f)
+                if not isinstance(loaded, list) or any(not self._valid_tool(item) for item in loaded):
+                    raise ValueError("custom_tools.json has an invalid schema")
+                return loaded
+            except Exception as exc:
+                self.custom_tools_read_only = True
+                self.custom_tools_error = str(exc)
                 return []
         return []
 
-    def save_custom_tools(self):
+    @staticmethod
+    def _valid_tool(tool):
+        return isinstance(tool, dict) and all(
+            isinstance(tool.get(key), str) and tool[key].strip()
+            for key in ("name", "check", "cmd")
+        ) and all(isinstance(tool.get(key, ""), str) for key in ("desc", "icon"))
+
+    def _persist_tools(self, tools):
+        if self.custom_tools_read_only:
+            raise OSError(self.custom_tools_error or "Custom tools are read-only")
+        parent = Path(self.custom_tools_file).parent
+        parent.mkdir(parents=True, exist_ok=True)
+        fd, temp_name = tempfile.mkstemp(prefix=".custom_tools.", dir=parent)
         try:
-            with open(self.custom_tools_file, "w", encoding="utf-8") as f:
-                json.dump(self.custom_tools, f, indent=4, ensure_ascii=False)
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(tools, f, indent=4, ensure_ascii=False)
+                f.flush(); os.fsync(f.fileno())
+            os.replace(temp_name, self.custom_tools_file)
+        except Exception:
+            try: os.unlink(temp_name)
+            except OSError: pass
+            raise
+
+    def save_custom_tools(self):
+        previous = list(self.custom_tools)
+        try:
+            self._persist_tools(self.custom_tools)
         except Exception as e:
-            self.status_label.configure(text=f"[!] ERROR SAVING TOOL: {e}", text_color=ALERT_RED)
+            self.custom_tools = previous
+            if hasattr(self, "status_label"):
+                self.status_label.configure(text=f"[!] ERROR SAVING TOOL: {e}", text_color=ALERT_RED)
+            return False
+        return True
 
     def refresh_grid(self):
         for widget in self.scroll_frame.winfo_children():
@@ -165,9 +206,13 @@ class AppPortalPage(ctk.CTkFrame):
 
     def delete_tool(self, tool):
         if tool in self.custom_tools:
-            self.custom_tools.remove(tool)
+            candidate = [item for item in self.custom_tools if item != tool]
+            old = self.custom_tools
+            self.custom_tools = candidate
+            if not self.save_custom_tools():
+                self.custom_tools = old
+                return
             self.tools = self.default_tools + self.custom_tools
-            self.save_custom_tools()
             self.refresh_grid()
             self.status_label.configure(text=f"[-] TOOL '{tool['name']}' REMOVED.", text_color=ALERT_RED)
 
@@ -185,12 +230,25 @@ class AppPortalPage(ctk.CTkFrame):
         self.update_idletasks()
         
         try:
-            subprocess.Popen(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            self.status_label.configure(text=f"[+] SUCCESS: {name.upper()} MODULE IS ACTIVE.", text_color=ACCENT_GREEN)
-            self._record_activity(name, "success")
+            process = subprocess.Popen(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self.status_label.configure(text=f"[SYSTEM]: {name.upper()} STARTED; VERIFYING...", text_color="#FFB800")
+            self._record_activity(name, "started", "Process spawned; awaiting health check")
+            if hasattr(self, "after"):
+                self.after(50, lambda: self._finish_launch_check(process, name))
         except Exception as e:
             self.status_label.configure(text=f"[!] ERROR LAUNCHING {name.upper()}: {e}", text_color=ALERT_RED)
             self._record_activity(name, "failed", str(e))
+
+    def _finish_launch_check(self, process, name):
+        return_code = process.poll()
+        if return_code is None:
+            self.status_label.configure(text=f"[SYSTEM]: {name.upper()} PROCESS RUNNING (NOT VERIFIED).", text_color="#FFB800")
+        else:
+            if return_code == 0:
+                self.status_label.configure(text=f"[SYSTEM]: {name.upper()} LAUNCHER EXITED 0 (APPLICATION NOT VERIFIED).", text_color="#FFB800")
+            else:
+                self.status_label.configure(text=f"[!] ERROR: {name.upper()} EXITED ({return_code}).", text_color=ALERT_RED)
+                self._record_activity(name, "failed", f"Process exited with code {return_code}")
 
     def _record_activity(self, tool, status, details=""):
         if not hasattr(self.app_root, "record_activity"):
@@ -261,9 +319,12 @@ class AppPortalPage(ctk.CTkFrame):
                 "cmd": cmd
             }
             
-            self.custom_tools.append(new_tool)
+            old_tools = self.custom_tools
+            self.custom_tools = old_tools + [new_tool]
+            if not self.save_custom_tools():
+                self.custom_tools = old_tools
+                return
             self.tools = self.default_tools + self.custom_tools
-            self.save_custom_tools()
             self.refresh_grid()
             self.status_label.configure(text=f"[+] ADDED NEW TOOL: {name.upper()}", text_color=ACCENT_GREEN)
             popup.destroy()
@@ -330,16 +391,14 @@ class AppPortalPage(ctk.CTkFrame):
             if not name or not check or not cmd:
                 return 
                 
-            # 🌟 อัปเดตข้อมูลทับตัวเดิม
-            tool["name"] = name
-            tool["desc"] = ent_desc.get().strip() or "Custom Module"
-            tool["icon"] = ent_icon.get().strip() or "🛠️"
-            tool["check"] = check
-            tool["cmd"] = cmd
-            
-            # อัปเดตลิสต์และเซฟ
+            old_tools = self.custom_tools
+            replacement = {"name": name, "desc": ent_desc.get().strip() or "Custom Module",
+                           "icon": ent_icon.get().strip() or "🛠️", "check": check, "cmd": cmd}
+            self.custom_tools = [replacement if item is tool else dict(item) for item in old_tools]
+            if not self.save_custom_tools():
+                self.custom_tools = old_tools
+                return
             self.tools = self.default_tools + self.custom_tools
-            self.save_custom_tools()
             self.refresh_grid()
             self.status_label.configure(text=f"[+] UPDATED TOOL: {name.upper()}", text_color=ACCENT_GREEN)
             popup.destroy()

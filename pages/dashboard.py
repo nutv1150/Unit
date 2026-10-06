@@ -59,6 +59,10 @@ class DashboardPage(ctk.CTkFrame):
             font=("Consolas", 12),
             text_color=TEXT_DIM,
         ).pack(anchor="w", pady=(3, 0))
+        self.persistence_notice = ctk.CTkLabel(
+            title_box, text="", font=("Consolas", 11), text_color=ALERT_AMBER
+        )
+        self.persistence_notice.pack(anchor="w", pady=(4, 0))
 
         competition_box = ctk.CTkFrame(
             header,
@@ -266,6 +270,10 @@ class DashboardPage(ctk.CTkFrame):
         self.refresh_dashboard()
 
     def refresh_dashboard(self):
+        error = getattr(self.store, "persistence_error", None)
+        self.persistence_notice.configure(
+            text=(f"[READ-ONLY] {error} — repair the file to enable saving" if error else "")
+        )
         snapshot = self.store.get_snapshot()
         totals = snapshot["totals"]
         self.stat_value_labels["operations"].configure(text=str(totals["operations"]))
@@ -621,12 +629,11 @@ class DashboardPage(ctk.CTkFrame):
         def save_pin():
             selected = tool_map[selected_tool.get()]
             shortcut = selected_shortcut.get()
-            self.store.save_favorite(
-                selected["name"],
-                selected["target"],
-                selected_category.get(),
-                "" if shortcut == "None" else shortcut,
-            )
+            try:
+                self.store.save_favorite(selected["name"], selected["target"], selected_category.get(), "" if shortcut == "None" else shortcut)
+            except (OSError, ValueError) as exc:
+                self.persistence_notice.configure(text=f"[READ-ONLY] {exc}")
+                return
             popup.destroy()
             self.refresh_dashboard()
 
@@ -693,13 +700,21 @@ class DashboardPage(ctk.CTkFrame):
             name = category_entry.get().strip()
             if not name:
                 return
-            self.store.add_category(name)
+            try:
+                self.store.add_category(name)
+            except (OSError, ValueError) as exc:
+                self.persistence_notice.configure(text=f"[READ-ONLY] {exc}")
+                return
             category_entry.delete(0, "end")
             render_categories()
             self.refresh_dashboard()
 
         def delete_category(name):
-            self.store.remove_category(name)
+            try:
+                self.store.remove_category(name)
+            except OSError as exc:
+                self.persistence_notice.configure(text=f"[READ-ONLY] {exc}")
+                return
             render_categories()
             self.refresh_dashboard()
 
@@ -736,7 +751,11 @@ class DashboardPage(ctk.CTkFrame):
             name = entry.get().strip()
             if not name:
                 return
-            self.store.add_competition(name)
+            try:
+                self.store.add_competition(name)
+            except (OSError, ValueError) as exc:
+                self.persistence_notice.configure(text=f"[READ-ONLY] {exc}")
+                return
             popup.destroy()
             self.refresh_dashboard()
 
@@ -769,27 +788,41 @@ class DashboardPage(ctk.CTkFrame):
         ).pack(anchor="w", pady=(0, 4))
 
     def change_competition(self, name):
-        self.store.set_active_competition(name)
+        try:
+            self.store.set_active_competition(name)
+        except OSError as exc:
+            self.persistence_notice.configure(text=f"[READ-ONLY] {exc}")
+            return
         self.refresh_dashboard()
 
     def remove_favorite(self, target):
-        self.store.remove_favorite(target)
+        try:
+            self.store.remove_favorite(target)
+        except OSError as exc:
+            self.persistence_notice.configure(text=f"[READ-ONLY] {exc}")
+            return
         self.refresh_dashboard()
 
     def launch_favorite(self, favorite):
         target = favorite.get("target", "")
         name = favorite.get("name", "Tool")
+        launched = False
 
         if target.startswith("page:"):
-            self.app_root.switch_page(target.split(":", 1)[1])
+            page_name = target.split(":", 1)[1]
+            if page_name in self.app_root.pages:
+                self.app_root.switch_page(page_name)
+                launched = True
         elif target.startswith("pipeline_tool:"):
             tool_name = target.split(":", 1)[1]
-            self.app_root.switch_page("Pipeline")
-            self.app_root.pages["Pipeline"].add_tool_node(tool_name)
+            pipeline = self.app_root.pages["Pipeline"]
+            if tool_name in pipeline.engine.file_tools or tool_name in pipeline.engine.text_tools:
+                self.app_root.switch_page("Pipeline")
+                launched = bool(pipeline.add_tool_node(tool_name))
         elif target.startswith("pipeline_saved:"):
             pipeline_name = target.split(":", 1)[1]
             self.app_root.switch_page("Pipeline")
-            self.app_root.pages["Pipeline"].load_saved_pipeline_to_canvas(pipeline_name)
+            launched = bool(self.app_root.pages["Pipeline"].load_saved_pipeline_to_canvas(pipeline_name))
         elif target.startswith("portal:"):
             portal_name = target.split(":", 1)[1]
             portal_page = self.app_root.pages.get("App Portal")
@@ -800,14 +833,16 @@ class DashboardPage(ctk.CTkFrame):
                 )
                 if matched:
                     portal_page.launch_app(matched)
-            # App Portal บันทึกผล success/failed จากการเปิดโปรแกรมจริงอยู่แล้ว
-            return "break"
+                    # Portal records started/failed; spawning is not verified success.
+                    return "break"
 
+        if not launched:
+            self.persistence_notice.configure(text="เปิดทางลัดไม่สำเร็จ: เป้าหมายถูกลบ หรือ Pipeline ยังทำงานอยู่", text_color=ALERT_RED)
         self.app_root.record_activity(
             tool=name,
             category="Dashboard",
             action="Quick Launch",
-            status="success",
+            status="success" if launched else "failed",
         )
         return "break"
 

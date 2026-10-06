@@ -67,15 +67,25 @@ def encode_data(text, algo="Base64"):
 
 
 def encode_base_n(data, alphabet):
+    if not isinstance(data, (bytes, bytearray)):
+        raise TypeError("data must be bytes")
+    if not alphabet:
+        raise ValueError("alphabet must not be empty")
+    if not data:
+        return ""
     num = int.from_bytes(data, "big")
     base = len(alphabet)
+
+    # Integer conversion alone loses zero bytes at the front.  Preserve them
+    # explicitly; this is important for hashes, serialized structures, etc.
+    zero_count = len(data) - len(data.lstrip(b"\0"))
 
     encoded = ""
     while num:
         num, rem = divmod(num, base)
         encoded = alphabet[rem] + encoded
 
-    return encoded or alphabet[0]
+    return alphabet[0] * zero_count + (encoded or ("" if zero_count else alphabet[0]))
 
 
 # =========================

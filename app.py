@@ -115,6 +115,12 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
             self.switch_page("Challenge")
             self.pages["Challenge"].status.configure(text=f"บันทึกเวลาก่อนปิดไม่สำเร็จ: {error}")
             return
+        pipeline = self.pages.get("Pipeline")
+        if pipeline is not None:
+            pipeline.cancel_active_runs()
+        gemini = self.pages.get("Gemini CLI")
+        if gemini is not None:
+            gemini.request_stop()
         self.destroy()
 
     def send_to_hashing(self, text):

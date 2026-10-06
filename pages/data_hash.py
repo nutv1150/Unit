@@ -1,6 +1,9 @@
 import customtkinter as ctk
 from Encode.base_encoder import encode_data
-from Decode.base_decoder import decode_data, custom_hex_to_hex, STANDARD_HEX_ALPHABET
+from Decode.base_decoder import (
+    decode_data, decode_to_bytes, custom_hex_to_hex, STANDARD_HEX_ALPHABET,
+    is_probably_text,
+)
 from Hashing.hash_utils import hash_data
 from Tools.extra_tools import (
     highlight_text,
@@ -33,6 +36,7 @@ class DataHashPage(ctk.CTkFrame):
         super().__init__(master)
         self.app_root = master.master
         self.current_file_path = None
+        self.output_bytes = b""
         self.configure(fg_color=BG_COLOR)
 
         # =========================
@@ -247,6 +251,15 @@ class DataHashPage(ctk.CTkFrame):
             hover_color="#003311", command=self.search_output
         ).pack(side="right")
 
+        self.save_raw_button = ctk.CTkButton(
+            output_header, text="[ SAVE RAW ]", width=100, height=28,
+            font=("Consolas", 11, "bold"), fg_color="transparent",
+            border_width=1, border_color=ALERT_AMBER, text_color=ALERT_AMBER,
+            hover_color="#332600", command=self.save_raw_output,
+            state="disabled",
+        )
+        self.save_raw_button.pack(side="right", padx=(0, 8))
+
         self.search_entry = ctk.CTkEntry(
             output_header, placeholder_text="Search in output...",
             font=("Consolas", 12), height=28, width=200,
@@ -305,12 +318,16 @@ class DataHashPage(ctk.CTkFrame):
     # Process Main Logic
     # =========================
     def process_data(self, event=None):
-        data = self.input_box.get("1.0", "end").strip()
+        # Tk's `end` includes the implicit trailing newline.  Remove only
+        # that sentinel; user whitespace is meaningful for hashes/encodings.
+        data = self.input_box.get("1.0", "end-1c")
         algo = self.algo_menu.get()
 
         self.custom_hex_preview.configure(text="HEX PREVIEW: —")
 
         if not data:
+            self.output_bytes = b""
+            self.save_raw_button.configure(state="disabled")
             self.output_box.delete("1.0", "end")
             self.current_detected_algo = None # เคลียร์ค่าที่เจอ
             self.update_output_label()
@@ -323,6 +340,7 @@ class DataHashPage(ctk.CTkFrame):
                 algo = f"ROT:{n}:{mode}"
             if self.mode == "Encode":
                 result = encode_data(data, algo)
+                self.output_bytes = result.encode("utf-8")
 
             elif self.mode == "Decode":
                 # ⭐ แก้ไข: ถ้าเป็น Auto Detect ให้ไปเรียกฟังก์ชันหลักมาตรงๆ เพื่อเอาชื่อด้วย
@@ -331,18 +349,29 @@ class DataHashPage(ctk.CTkFrame):
                     hex_text = custom_hex_to_hex(data, alphabet)
                     preview = hex_text[:80] + ("…" if len(hex_text) > 80 else "")
                     self.custom_hex_preview.configure(text=f"HEX PREVIEW: {preview}")
-                    result = decode_data(data, algo, alphabet=alphabet)
+                    self.output_bytes = decode_to_bytes(data, algo, alphabet=alphabet)
+                    if is_probably_text(self.output_bytes):
+                        result = self.output_bytes.decode("utf-8")
+                    else:
+                        result = f"[BINARY HEX | {len(self.output_bytes)} bytes]\n{self.output_bytes.hex()}"
                     self.current_detected_algo = algo
                 elif algo == "Auto Detect":
                     from Decode.base_decoder import auto_detect_decode
                     detected_name, result = auto_detect_decode(data.encode())
+                    self.output_bytes = result.encode("utf-8")
                     self.current_detected_algo = detected_name # บันทึกชื่อที่หาเจอไว้
                 else:
-                    result = decode_data(data, algo)
+                    decoded = decode_to_bytes(data, algo)
+                    self.output_bytes = decoded
+                    if is_probably_text(decoded):
+                        result = decoded.decode("utf-8")
+                    else:
+                        result = f"[BINARY HEX | {len(decoded)} bytes]\n{decoded.hex()}"
                     self.current_detected_algo = algo # ถ้าไม่ได้ Auto ก็ใช้ชื่อจากเมนู
 
             elif self.mode == "Hash":
                 result = hash_data(data, algo)
+                self.output_bytes = result.encode("utf-8")
 
             elif self.mode == "Bitwise":
 
@@ -406,9 +435,11 @@ class DataHashPage(ctk.CTkFrame):
                         key,
                         "and"
                     )
+                self.output_bytes = result.encode("utf-8") if isinstance(result, str) else bytes(result)
 
             self.output_box.delete("1.0", "end")
             self.output_box.insert("1.0", result)
+            self.save_raw_button.configure(state="normal" if self.output_bytes else "disabled")
 
             self._record_activity(
                 tool=f"{self.mode}: {algo}",
@@ -419,6 +450,8 @@ class DataHashPage(ctk.CTkFrame):
             )
 
         except Exception as e:
+            self.output_bytes = b""
+            self.save_raw_button.configure(state="disabled")
             self.output_box.delete("1.0", "end")
             self.output_box.insert("1.0", f"Error: {e}")
             self._record_activity(
@@ -428,8 +461,23 @@ class DataHashPage(ctk.CTkFrame):
                 details=str(e),
             )
 
-        # อัปเดต Label หลังจากประมวลผลเสร็จ
         self.update_output_label()
+
+    def save_raw_output(self):
+        """Save the exact decoded/output bytes, without text re-encoding."""
+        if not self.output_bytes:
+            return
+        path = filedialog.asksaveasfilename(
+            title="Save raw output", defaultextension=".bin",
+            filetypes=[("Binary files", "*.bin"), ("All files", "*.*")],
+        )
+        if not path:
+            return
+        try:
+            with open(path, "wb") as handle:
+                handle.write(self.output_bytes)
+        except OSError as exc:
+            self.output_box.insert("end", f"\nError saving raw output: {exc}")
 
     # =========================
     # Highlight Output
