@@ -36,13 +36,14 @@
     {
       "name": "7zip_extract",
       "command": "7z",
+      "params": ["x"],
       "mode": "file",
       "description": "Extract archive files",
       "options": [
         {
-          "flag": "x",
+          "flag": "-y",
           "type": "checkbox",
-          "description": "Extract archive"
+          "description": "Assume yes (may overwrite files)"
         }
       ]
     },
@@ -56,18 +57,21 @@
     {
       "name": "tar_extract",
       "command": "tar",
+      "params": ["-x"],
+      "input_mode": "flag",
+      "input_flag": "-f",
       "mode": "file",
       "description": "Extract tar archives",
       "options": [
         {
-          "flag": "-x",
+          "flag": "-v",
           "type": "checkbox",
-          "description": "Extract archive"
+          "description": "Verbose output"
         },
         {
-          "flag": "-f",
+          "flag": "-C",
           "type": "file",
-          "description": "Archive file"
+          "description": "Destination directory"
         }
       ]
     }
@@ -139,6 +143,8 @@
     {
       "name": "tshark",
       "command": "tshark",
+      "input_mode": "flag",
+      "input_flag": "-r",
       "mode": "file",
       "description": "Analyze packet capture files",
       "options": [
@@ -150,7 +156,7 @@
   "mode": "file",
   "description": "Extract byte range from a file",
   "params": [],
-  "input_mode": "flag",
+  "input_mode": "keyvalue",
   "input_flag": "if",
   "options": [
     
@@ -161,14 +167,10 @@
     {
       "name": "base64_decode",
       "command": "base64",
+      "params": ["-d"],
       "mode": "text",
       "description": "Decode Base64 data",
       "options": [
-        {
-          "flag": "-d",
-          "type": "checkbox",
-          "description": "Decode mode"
-        },
         {
           "flag": "-i",
           "type": "checkbox",
@@ -179,13 +181,14 @@
     {
       "name": "base32_decode",
       "command": "base32",
+      "params": ["-d"],
       "mode": "text",
       "description": "Decode Base32 data",
       "options": [
         {
-          "flag": "-d",
+          "flag": "-i",
           "type": "checkbox",
-          "description": "Decode mode"
+          "description": "Ignore invalid characters"
         }
       ]
     },
@@ -203,20 +206,10 @@
     {
       "name": "hex_decode",
       "command": "xxd",
+      "params": ["-r", "-p"],
       "mode": "text",
       "description": "Decode hex to binary",
-      "options": [
-        {
-          "flag": "-r",
-          "type": "checkbox",
-          "description": "Reverse hex dump"
-        },
-        {
-          "flag": "-p",
-          "type": "checkbox",
-          "description": "Plain hex format"
-        }
-      ]
+      "options": []
     },
     {
       "name": "gzip_decompress",
@@ -234,6 +227,7 @@
     {
       "name": "url_decode",
       "command": "python3",
+      "params": ["-I", "-c", "import sys, urllib.parse; sys.stdout.buffer.write(urllib.parse.unquote_to_bytes(sys.stdin.buffer.read()))"],
       "mode": "text",
       "description": "Decode URL encoded text",
       "options": []
@@ -248,6 +242,8 @@
     {
       "name": "openssl enc",
       "command": "openssl",
+      "input_mode": "flag",
+      "input_flag": "-in",
       "mode": "file",
       "description": "Encrypt or decrypt file using OpenSSL (AES, DES, etc.)",
       "params": ["enc"],
@@ -408,15 +404,11 @@
     {
       "name": "tcpdump",
       "command": "tcpdump",
+      "input_mode": "flag",
+      "input_flag": "-r",
       "mode": "file",
       "description": "Analyze packet capture files",
-      "options": [
-        {
-          "flag": "-r",
-          "type": "file",
-          "description": "Read pcap file"
-        }
-      ]
+      "options": []
     }
   ]
 }

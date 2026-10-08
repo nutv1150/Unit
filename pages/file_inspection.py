@@ -8,6 +8,7 @@ import subprocess
 import threading
 import hashlib
 import mmap  
+import queue
 
 from Tools.flag_detector import UNIVERSAL_FLAG_REGEX, find_flags
 
@@ -196,6 +197,11 @@ class RegexSelectionPopup(ctk.CTkToplevel):
 class FileInspectionPage(ctk.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
+        self._ui_queue = queue.Queue()
+        self._worker_context = threading.local()
+        self._analysis_generation = 0
+        self._metadata_generation = 0
+        self.after(40, self._drain_ui)
         self.app_root = master.master 
         self.configure(fg_color=BG_COLOR)
         
@@ -424,7 +430,24 @@ class FileInspectionPage(ctk.CTkFrame):
             tb.see("end")
 
     def safe_log(self, msg, tag=None, newline=True, target_file=None):
-        self.after(0, lambda: self.log(msg, tag, newline, target_file))
+        if tag == "error":
+            self._worker_context.failed = True
+        self._post_ui(lambda: self.log(msg, tag, newline, target_file))
+
+    def _post_ui(self, callback):
+        generation = getattr(self._worker_context, "generation", self._analysis_generation)
+        self._ui_queue.put(("analysis", generation, callback))
+
+    def _drain_ui(self):
+        for _ in range(100):
+            try:
+                kind, generation, callback = self._ui_queue.get_nowait()
+            except queue.Empty:
+                break
+            current = self._metadata_generation if kind == "metadata" else self._analysis_generation
+            if generation == current:
+                callback()
+        self.after(40, self._drain_ui)
 
     def clear_terminal(self):
         for box in self.result_boxes.values():
@@ -439,7 +462,7 @@ class FileInspectionPage(ctk.CTkFrame):
         if paths: self.load_files(paths)
 
     def load_files(self, paths):
-        valid_paths = [p for p in paths if os.path.exists(p)]
+        valid_paths = [p for p in paths if os.path.isfile(p)]
         if not valid_paths: return
         
         self.selected_files = valid_paths
@@ -465,13 +488,14 @@ class FileInspectionPage(ctk.CTkFrame):
         else: return f"{size_bytes/(1024**2):.2f} MB"
 
     def update_metadata_card(self):
+        self._metadata_generation += 1
         self.meta_frame.grid() 
         if len(self.selected_files) == 1:
             path = self.selected_files[0]
             size_bytes = os.path.getsize(path)
             size_str = self.format_size(size_bytes)
             ext = os.path.splitext(path)[1].lower() or "Unknown"
-            threading.Thread(target=self._calc_md5, args=(path, size_str, ext), daemon=True).start()
+            threading.Thread(target=self._calc_md5, args=(path, size_str, ext, self._metadata_generation), daemon=True).start()
         else:
             total_bytes = sum(os.path.getsize(p) for p in self.selected_files)
             size_str = self.format_size(total_bytes)
@@ -479,14 +503,14 @@ class FileInspectionPage(ctk.CTkFrame):
             self.meta_ext.configure(text=f"[MODE]: BATCH_PROCESSING")
             self.meta_md5.configure(text=f"[MD5]: N/A (MULTIPLE FILES)")
 
-    def _calc_md5(self, path, size_str, ext):
+    def _calc_md5(self, path, size_str, ext, generation):
         md5 = hashlib.md5()
         try:
             with open(path, "rb") as f:
                 for chunk in iter(lambda: f.read(4096), b""): md5.update(chunk)
             result = md5.hexdigest()
         except: result = "Error"
-        self.after(0, lambda: self._update_meta_ui(size_str, ext, result))
+        self._ui_queue.put(("metadata", generation, lambda: self._update_meta_ui(size_str, ext, result)))
         
     def _update_meta_ui(self, size_str, ext, md5_str):
         self.meta_size.configure(text=f"[SIZE]: {size_str}")
@@ -527,6 +551,17 @@ class FileInspectionPage(ctk.CTkFrame):
 
     def start_analysis_thread(self):
         if not self.selected_files: return
+        try:
+            limit = int(self.max_display_entry.get())
+            if not 1 <= limit <= 100000:
+                raise ValueError("Display limit must be 1..100000")
+            pattern = self.regex_var.get()
+            re.compile(pattern)
+        except (ValueError, re.error) as error:
+            self.warning_label.configure(text=f"ERROR: {error}", text_color=ALERT_RED)
+            return
+
+        self._analysis_generation += 1
         
         self.populate_file_nav()
         
@@ -537,39 +572,40 @@ class FileInspectionPage(ctk.CTkFrame):
         self.progress_bar.pack(side="left", padx=5)
         self.progress_bar.start()
 
-        threading.Thread(target=self._run_analysis_logic, args=(choice,), daemon=True).start()
+        job = dict(generation=self._analysis_generation, limit=limit, pattern=pattern,
+                   paths=tuple(self.selected_files), boxes=dict(self.result_boxes), flags={})
+        threading.Thread(target=self._run_analysis_logic, args=(choice, job), daemon=True).start()
 
-    def _run_analysis_logic(self, choice):
-        try:
-            max_limit = int(self.max_display_entry.get().strip())
-        except ValueError:
-            max_limit = 3000
+    def _run_analysis_logic(self, choice, job):
+        self._worker_context.generation = job["generation"]
+        self._worker_context.job = job
+        max_limit = job["limit"]
 
         state = {'match_count': 0, 'display_count': 0, 'max_display': max_limit, 'warned': False}
 
-        for path in self.selected_files:
-            if choice == "Strings" and not self.regex_var.get() and state['warned']:
+        for path in job["paths"]:
+            if job["generation"] != self._analysis_generation:
                 break
+            self._worker_context.failed = False
             
-            if choice == "'file' Command": self.run_file_command(path)
-            elif choice == "Header Check": self.inspect_file_header(path)
-            elif choice == "Executable Check": self.check_if_executable(path)
-            elif choice == "Strings": self.extract_all_strings(path, state)
-            elif choice == "zsteg Analysis": self.run_zsteg_analysis(path)
-            elif choice == "steghide Analysis": self.run_steghide_analysis(path)
-            elif choice == "Exiftool": self.run_exiftool_analysis(path)
 
-            self._record_activity(
-                tool=choice,
-                path=path,
-                flags=(
-                    self.analysis_flags.get(path, [])
-                    if choice == "Strings"
-                    else []
-                ),
-            )
+            try:
+                if choice == "'file' Command": self.run_file_command(path)
+                elif choice == "Header Check": self.inspect_file_header(path)
+                elif choice == "Executable Check": self.check_if_executable(path)
+                elif choice == "Strings": self.extract_all_strings(path, state)
+                elif choice == "zsteg Analysis": self.run_zsteg_analysis(path)
+                elif choice == "Exiftool": self.run_exiftool_analysis(path)
+            except Exception as error:
+                self.safe_log(f"[!] ANALYSIS ERROR: {error}", "error", target_file=path)
 
-        self.after(0, lambda: self.finish_analysis(choice, state['match_count']))
+            status = "failed" if self._worker_context.failed else "success"
+            flags = job["flags"].get(path, []) if choice == "Strings" else []
+            self._post_ui(lambda p=path, s=status, f=flags: self._record_activity(choice, p, flags=f, status=s))
+            if status == "failed":
+                state["failed"] = True
+
+        self._post_ui(lambda: self.finish_analysis(choice, state['match_count'], state.get('failed', False)))
 
     def check_if_executable(self, path):
         try:
@@ -591,7 +627,7 @@ class FileInspectionPage(ctk.CTkFrame):
             res = next((v for k, v in signatures.items() if h_hex.startswith(k)), None)
             
             if not res:
-                try: ex = puremagic.from_file(path); res = ex[0].name if ex else None
+                try: res = puremagic.from_file(path) or None
                 except: res = None
             if not res:
                 try: header_data.decode('utf-8'); res = "Plain Text (.txt / Code)"
@@ -607,9 +643,13 @@ class FileInspectionPage(ctk.CTkFrame):
             self.safe_log("[!] ZSTEG ERROR: TARGET MUST BE PNG OR BMP", "error", target_file=path)
             return
         try:
-            res = subprocess.run(["zsteg", path], capture_output=True, text=True)
-            self.safe_log(res.stdout if res.stdout else "[?] NO HIDDEN DATA DETECTED.", target_file=path)
-        except: self.safe_log("[!] ZSTEG COMMAND NOT FOUND IN SYSTEM PATH.", "error", target_file=path)
+            res = subprocess.run(["zsteg", path], capture_output=True, text=True, timeout=30)
+            if res.returncode != 0:
+                self.safe_log(f"[!] ZSTEG EXIT {res.returncode}: {res.stderr or res.stdout}", "error", target_file=path)
+            else:
+                self.safe_log(res.stdout or "[?] NO HIDDEN DATA DETECTED.", target_file=path)
+        except (OSError, subprocess.TimeoutExpired) as error:
+            self.safe_log(f"[!] ZSTEG ERROR: {error}", "error", target_file=path)
 
     # 🌟 ฟังก์ชัน Steghide Analysis พร้อม UI Popup 🌟
     def run_steghide_analysis(self, path):
@@ -711,46 +751,45 @@ class FileInspectionPage(ctk.CTkFrame):
             if res.returncode == 0 and res.stdout.strip():
                 self.safe_log(res.stdout, target_file=path)
                 return
-        except:
-            pass
-
-        try:
-            file_size = os.path.getsize(path)
-            ext = os.path.splitext(path)[1]
-            self.safe_log(f"[+] FILE PATH: {path}", target_file=path)
-            self.safe_log(f"[+] FILE SIZE: {file_size} bytes", target_file=path)
-            self.safe_log(f"[+] EXTENSION: {ext}", target_file=path)
-            self.safe_log("[!] 'exiftool' not found in system. Install via `sudo apt install libimage-exiftool-perl` for deep metadata.", "error", target_file=path)
-        except Exception as e:
-            self.safe_log(f"[!] ERROR READING FILE: {str(e)}", "error", target_file=path)
+            self.safe_log(f"[!] EXIFTOOL EXIT {res.returncode}: {res.stderr or '(empty output)'}", "error", target_file=path)
+            return
+        except (OSError, subprocess.TimeoutExpired) as error:
+            self.safe_log(f"[!] EXIFTOOL ERROR: {error}", "error", target_file=path)
+            return
 
     def extract_all_strings(self, path, state):
-        p = self.regex_var.get()
+        job = self._worker_context.job
+        p = job["pattern"]
         try:
             file_size = os.path.getsize(path)
             if file_size == 0:
                 self.safe_log("[!] TARGET FILE IS EMPTY.", target_file=path)
                 return
+            if file_size > 64 * 1024 * 1024:
+                self.safe_log("[!] File exceeds 64 MiB inspection limit; use Pipeline strings with filters.", "error", target_file=path)
+                return
 
-            if path not in self.result_boxes:
+            if path not in job["boxes"]:
                 return
             
-            textbox = self.result_boxes[path].textbox
-            self.after(0, lambda: textbox.delete("1.0", "end"))
+            textbox = job["boxes"][path].textbox
+            self._post_ui(lambda: textbox.delete("1.0", "end"))
 
+            with open(path, "rb") as f:
+                data = f.read(64 * 1024 * 1024 + 1)
+            if len(data) > 64 * 1024 * 1024:
+                self.safe_log("[!] File exceeds 64 MiB inspection limit; use Pipeline strings with filters.", "error", target_file=path)
+                return
             try:
-                with open(path, "r", encoding="utf-8") as f:
-                    file_content = f.read()
+                file_content = data.decode("utf-8")
                 is_text_file = True
             except UnicodeDecodeError:
                 is_text_file = False
-                with open(path, "rb") as f:
-                    data = f.read()
                 
                 ascii_strings = re.findall(b"[\x20-\x7E]{4,}", data)
                 file_content = "\n".join([b.decode('ascii', errors='ignore') for b in ascii_strings])
 
-            self.analysis_flags[path] = find_flags(file_content)
+            job["flags"][path] = find_flags(file_content)
 
             lines = file_content.splitlines()
             if len(lines) > state['max_display']:
@@ -767,14 +806,15 @@ class FileInspectionPage(ctk.CTkFrame):
                 display_content = prefix + display_content.replace("\n", "\n" + prefix)
 
             if not p:
-                self.after(0, lambda: textbox.insert("end", display_content + warning_msg))
+                self._post_ui(lambda: textbox.insert("end", display_content + warning_msg))
                 state['display_count'] += len(lines)
                 return
 
-            matches = list(re.finditer(p, display_content, re.IGNORECASE))
+            from Tools.regex_runner import find_match_spans
+            matches = find_match_spans(p, display_content)
             
             if not matches:
-                self.after(0, lambda: textbox.insert("end", display_content + warning_msg))
+                self._post_ui(lambda: textbox.insert("end", display_content + warning_msg))
                 state['display_count'] += len(lines)
                 return
 
@@ -783,8 +823,7 @@ class FileInspectionPage(ctk.CTkFrame):
             insert_data = []
             last_pos = 0
             
-            for m in matches:
-                st, en = m.span()
+            for st, en in matches:
                 if st > last_pos:
                     insert_data.append((display_content[last_pos:st], None))
                 insert_data.append((display_content[st:en], "found"))
@@ -804,7 +843,7 @@ class FileInspectionPage(ctk.CTkFrame):
                         textbox.insert("end", text)
                 textbox.see("end")
 
-            self.after(0, lambda: update_ui(insert_data))
+            self._post_ui(lambda: update_ui(insert_data))
             state['display_count'] += len(lines)
 
         except MemoryError:
@@ -848,13 +887,15 @@ class FileInspectionPage(ctk.CTkFrame):
             details=details,
         )
 
-    def finish_analysis(self, choice, total_matches):
+    def finish_analysis(self, choice, total_matches, failed=False):
         self.progress_bar.stop()
         self.progress_bar.pack_forget()
         self.btn_analyze.configure(state="normal")
         self.tool_menu.configure(state="normal")
         
-        if choice == "Strings" and self.regex_var.get():
+        if failed:
+            self.warning_label.configure(text="STATUS: COMPLETED WITH ERRORS", text_color=ALERT_RED)
+        elif choice == "Strings" and self.regex_var.get():
             self.warning_label.configure(text=f"STATUS: FOUND {total_matches} MATCHES", text_color=ACCENT_GREEN)
         else:
             self.warning_label.configure(text="STATUS: COMPLETE", text_color=ACCENT_GREEN)

@@ -6,6 +6,7 @@ import re
 import subprocess
 import shutil
 import time
+import signal
 from Tools.flag_detector import find_flags
 
 class GeminiPage(ctk.CTkFrame):
@@ -35,13 +36,6 @@ class GeminiPage(ctk.CTkFrame):
             text_color=ACCENT_CYAN
         ).pack()
         
-        ctk.CTkLabel(
-            header_frame, 
-            text="SYSTEM_STATUS: WRAPPER ACTIVE | AUTO_EXEC: ENABLED", 
-            font=("Consolas", 12), 
-            text_color=ACCENT_GREEN
-        ).pack()
-
         # ==========================================
         # 2. แผงควบคุม API & Model (CONTROL PANEL)
         # ==========================================
@@ -202,6 +196,9 @@ class GeminiPage(ctk.CTkFrame):
         
         self.current_process = None  # เก็บ Process ของ Subprocess ที่กำลังทำงาน
         self._stop_requested = False # Flag เช็คว่าผู้ใช้กดหยุดหรือไม่
+        self._busy = False
+        self._connecting = False
+        self._confirm_dialog = None
 
         self.system_prompt = (
             "คุณคือ Cybersecurity Expert และ AI Assistant สำหรับแข่ง CTF "
@@ -243,11 +240,17 @@ class GeminiPage(ctk.CTkFrame):
         self._confirm_event = threading.Event()
         
         self.after(0, self._show_confirm_dialog, action_type, detail)
-        self._confirm_event.wait()
+        while not self._confirm_event.wait(0.1):
+            if self._stop_requested:
+                return False
         return self._confirm_result
 
     def _show_confirm_dialog(self, action_type, detail):
+        if self._stop_requested:
+            self._confirm_event.set()
+            return
         dialog = ctk.CTkToplevel(self)
+        self._confirm_dialog = dialog
         dialog.title("⚠️ SECURITY WARNING")
         dialog.geometry("550x380")
         dialog.attributes("-topmost", True)
@@ -293,6 +296,8 @@ class GeminiPage(ctk.CTkFrame):
         self.update_chat_ui("System", f"🔄 เปลี่ยนไปใช้โมเดล: {selected_model}")
 
     def init_api(self):
+        if self._busy or self._connecting:
+            return
         resolved_path = shutil.which(self.gemini_cmd)
         if resolved_path is None:
             self.update_chat_ui(
@@ -310,6 +315,8 @@ class GeminiPage(ctk.CTkFrame):
         self.status_label.configure(text="⏳ กำลังเชื่อมต่อ...")
         self.update_chat_ui("System", "กำลังเชื่อมต่อกับ Gemini CLI...")
 
+        self.cli_ready = False
+        self._connecting = True
         threading.Thread(target=self._init_api_worker, daemon=True).start()
 
     def _init_api_worker(self):
@@ -324,6 +331,8 @@ class GeminiPage(ctk.CTkFrame):
                 cwd=self.cli_workdir,
             )
             version_info = (res.stdout or res.stderr).strip()
+            if res.returncode != 0:
+                raise RuntimeError(version_info or "Gemini version check failed")
 
             test_res = subprocess.run(
                 [self.gemini_cmd, "-m", self.model_name, "-p", "hi"],
@@ -347,6 +356,8 @@ class GeminiPage(ctk.CTkFrame):
                     "`cd` ไปที่โฟลเดอร์นั้นก่อน แล้วรัน `gemini` ครั้งนึงเพื่อ trust ผ่าน interactive mode ก่อนครับ")
                 return
 
+            if test_res.returncode != 0:
+                raise RuntimeError(combined.strip() or f"Gemini CLI exit code {test_res.returncode}")
             self.after(0, self._init_api_success, version_info)
         except subprocess.TimeoutExpired:
             self.after(0, self._init_api_fail, "❌ หมดเวลา",
@@ -356,12 +367,15 @@ class GeminiPage(ctk.CTkFrame):
             self.after(0, self._init_api_fail, "❌ เชื่อมต่อล้มเหลว", f"❌ การเชื่อมต่อ CLI ล้มเหลว: {e}")
 
     def _init_api_success(self, version_info):
+        self._connecting = False
         self.cli_ready = True
         self.api_entry.configure(state="disabled")
         self.status_label.configure(text=f"✅ CONNECTED: {version_info or self.gemini_cmd}", text_color="#00FF41")
         self.update_chat_ui("System", "✅ CTF Mode พร้อมลุย! (เชื่อมต่อผ่าน Gemini CLI)")
 
     def _init_api_fail(self, status_text, message):
+        self._connecting = False
+        self.cli_ready = False
         self.status_label.configure(text=status_text, text_color="#FF3366")
         self.update_chat_ui("System", message)
 
@@ -376,15 +390,26 @@ class GeminiPage(ctk.CTkFrame):
     # ⭐ ฟังก์ชันสำหรับกดยกเลิกกลางคัน
     def request_stop(self):
         self._stop_requested = True
+        dialog = self._confirm_dialog
+        if dialog is not None and dialog.winfo_exists():
+            self._confirm_result = False
+            self._confirm_event.set()
+            dialog.destroy()
+        self._confirm_dialog = None
         if self.current_process:
             try:
-                self.current_process.kill()
+                if os.name == "posix":
+                    os.killpg(self.current_process.pid, signal.SIGKILL)
+                else:
+                    self.current_process.kill()
             except Exception:
                 pass
             self.update_chat_ui("System", "🛑 ผู้ใช้กดยกเลิกการทำงาน...")
             self.stop_btn.configure(state="disabled")
 
     def send_message(self):
+        if self._busy or self._connecting:
+            return
         user_text = self.input_field.get().strip()
         if not user_text:
             return
@@ -393,6 +418,7 @@ class GeminiPage(ctk.CTkFrame):
             return
 
         self._stop_requested = False
+        self._busy = True
         self.update_chat_ui("You", user_text)
         self.input_field.delete(0, "end")
         
@@ -420,6 +446,7 @@ class GeminiPage(ctk.CTkFrame):
                     env=self._build_env(),
                     stdin=subprocess.DEVNULL,
                     cwd=self.cli_workdir,
+                    start_new_session=(os.name == "posix"),
                 )
                 
                 # รันไปเรื่อยๆ จนกว่าจะเสร็จ หรือถูก Kill จากปุ่ม STOP
@@ -466,7 +493,7 @@ class GeminiPage(ctk.CTkFrame):
                     time.sleep(3 * attempt)
                     continue
 
-                if self.current_process.returncode != 0 and not combined_out:
+                if self.current_process.returncode != 0:
                     raise RuntimeError(combined_err or "Gemini CLI คืนค่า error โดยไม่มีรายละเอียด")
                 
                 return (combined_out or combined_err).strip()
@@ -525,20 +552,37 @@ class GeminiPage(ctk.CTkFrame):
                 cmd = match.group(1).strip()
                 full_exec_tag = match.group(0)
 
-                if self.ask_action_confirm("SHELL COMMAND", f"Command to execute:\n{cmd}"):
+                if self.ask_action_confirm("SHELL COMMAND", f"Command to execute:\n{cmd}") and not self._stop_requested:
                     self.after(0, self.update_chat_ui, "System", f"⚙️ AI ได้รับอนุญาตให้รันคำสั่ง: {cmd}")
 
                     try:
-                        res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
-                        cmd_out = (res.stdout + res.stderr).strip()
-                        if not cmd_out:
-                            cmd_out = "(คำสั่งทำงานสำเร็จ แต่ไม่มีข้อความตอบกลับ)"
+                        self.current_process = subprocess.Popen(
+                            cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                            stdin=subprocess.DEVNULL, text=True, start_new_session=(os.name == "posix"),
+                        )
+                        try:
+                            stdout, stderr = self.current_process.communicate(timeout=30)
+                        except subprocess.TimeoutExpired:
+                            if os.name == "posix":
+                                os.killpg(self.current_process.pid, signal.SIGKILL)
+                            else:
+                                self.current_process.kill()
+                            self.current_process.communicate()
+                            raise RuntimeError("Command timeout")
+                        code = self.current_process.returncode
+                        cmd_out = f"Exit code: {code}\nstdout:\n{stdout or '(empty)'}\nstderr:\n{stderr or '(empty)'}"
 
                         if len(cmd_out) > 4000:
                             cmd_out = cmd_out[:4000] + "\n...[ข้อความถูกตัดทิ้งเนื่องจากยาวเกินไป]..."
 
                     except Exception as e:
                         cmd_out = f"Error: {e}"
+                    finally:
+                        self.current_process = None
+
+                    if self._stop_requested:
+                        output = "❌ [ระบบ]: ถูกยกเลิกโดยผู้ใช้"
+                        break
 
                     feedback_prompt = f"ผลลัพธ์จากการรัน `{cmd}`:\n```\n{cmd_out}\n```\nโปรดวิเคราะห์ผลลัพธ์นี้ต่อ"
                     full_prompt = self.build_prompt_with_history(feedback_prompt)
@@ -564,7 +608,7 @@ class GeminiPage(ctk.CTkFrame):
                         clean_content = match.group(2).strip()
                         full_save_tag = match.group(0)
                         
-                        if self.ask_action_confirm("SAVE FILE", f"Target Path: {file_path}\nFile Size: {len(clean_content)} bytes\n\nPreview Content:\n{clean_content[:200]}..."):
+                        if self.ask_action_confirm("SAVE FILE", f"Target Path: {file_path}\nFile Size: {len(clean_content.encode('utf-8'))} bytes\n\nPreview Content:\n{clean_content[:200]}...") and not self._stop_requested:
                             try:
                                 with open(file_path, "w", encoding="utf-8") as f:
                                     f.write(clean_content)
@@ -582,6 +626,7 @@ class GeminiPage(ctk.CTkFrame):
         self.after(0, self.finish_response, output)
 
     def finish_response(self, output):
+        self._busy = False
         self.chat_display.configure(state="normal")
 
         lines = self.chat_display.get("1.0", "end").split("\n")
@@ -610,7 +655,7 @@ class GeminiPage(ctk.CTkFrame):
                 tool=f"Gemini CLI: {self.model_name}",
                 category="Gemini CLI",
                 action="AI Request",
-                status="failed" if output.startswith("❌ Error") else "success",
+                status="failed" if output.startswith("❌") else "success",
                 flags=find_flags(output),
                 details=f"Response length: {len(output)} characters",
             )

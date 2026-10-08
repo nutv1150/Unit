@@ -2,9 +2,15 @@ import json
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import filedialog
+from tkinter import messagebox
 from Pipeline.pipeline_engine import PipelineEngine
+from Pipeline.config_store import read_json, write_json, saved_pipelines, validate_saved_pipelines
 import tempfile
 import os
+import shlex
+import threading
+import queue
+from pathlib import Path
 
 from Tools.artifact_bridge import (
     resolve_file_input,
@@ -34,6 +40,10 @@ class PipelinePage(ctk.CTkFrame):
         self.run_logs = []
         self.engine = PipelineEngine() #เชื่อมกับ backend
         self.temp_artifacts = []
+        self.active_runs = set()
+        self._pipeline_running = False
+        self.pipeline_mode = "Auto"
+        self._mode_workspaces = {}
         # P0.4B - Original File Routing
         self.original_file_path = None
 
@@ -71,6 +81,9 @@ class PipelinePage(ctk.CTkFrame):
         ).pack(pady=(15, 10), padx=15, anchor="w")
 
         tool_categories = self.load_tools_from_json()
+        if getattr(self, "config_error", ""):
+            ctk.CTkLabel(self.tools_panel, text=self.config_error, text_color=ALERT_RED,
+                         wraplength=210).pack(padx=10, pady=10)
 
         for cat, tools in tool_categories.items():
 
@@ -133,6 +146,14 @@ class PipelinePage(ctk.CTkFrame):
         self.controls = ctk.CTkFrame(self.work_area, fg_color="transparent")
         self.controls.pack(fill="x", padx=15, pady=15)
 
+        # Auto retains the existing prepared-pipeline workflow.
+        self.mode_btn = ctk.CTkButton(
+            self.controls, text="Mode: Auto", width=115,
+            fg_color=CARD_COLOR, border_width=1, border_color=ACCENT_PURPLE,
+            text_color=ACCENT_CYAN, command=self.toggle_pipeline_mode,
+        )
+        self.mode_btn.pack(side="left", padx=2)
+
         # Run
         self.run_btn = ctk.CTkButton(
             self.controls,
@@ -188,7 +209,7 @@ class PipelinePage(ctk.CTkFrame):
         self.line_canvas.pack(fill="both", expand=True)
 
         self.placeholder = ctk.CTkLabel(
-            self.line_canvas, text="[ PIPELINE FLOW CANVAS — คลิก tool ด้านซ้ายเพื่อเริ่ม ]",
+            self.line_canvas, text="[ PIPELINE FLOW CANVAS ]",
             font=("Consolas", 12), text_color=TEXT_DIM
         )
         self.placeholder.place(relx=0.5, rely=0.5, anchor="center")
@@ -259,11 +280,66 @@ class PipelinePage(ctk.CTkFrame):
             remove_temp_artifact(path)
 
         self.temp_artifacts.clear()
+
+    def cancel_active_runs(self):
+        for event in tuple(self.active_runs):
+            event.set()
+
+    def canvas_busy(self):
+        if self._pipeline_running or self.active_runs:
+            messagebox.showwarning("Pipeline running", "Close the active step before editing or running another pipeline.", parent=self)
+            return True
+        return False
+
+    def toggle_pipeline_mode(self):
+        return self.set_pipeline_mode("Step" if self.pipeline_mode == "Auto" else "Auto")
+
+    def set_pipeline_mode(self, mode):
+        if mode not in ("Auto", "Step"):
+            raise ValueError("Unknown pipeline mode")
+        if mode == self.pipeline_mode:
+            return True
+        if self.canvas_busy():
+            return False
+        # Keep each mode's nodes, original input and temporary artifacts separate.
+        positions = [
+            {axis: node['frame']._reverse_widget_scaling(float(node['frame'].place_info()[axis]))
+             for axis in ('x', 'y')}
+            for node in self.nodes
+        ]
+        self._mode_workspaces[self.pipeline_mode] = dict(
+            nodes=self.nodes, positions=positions, node_count=self.node_count,
+            run_logs=self.run_logs, original_file_path=self.original_file_path,
+            temp_artifacts=self.temp_artifacts,
+        )
+        for node in self.nodes:
+            node['frame'].place_forget()
+        workspace = self._mode_workspaces.pop(mode, {})
+        self.nodes = workspace.get('nodes', [])
+        self.node_count = workspace.get('node_count', 0)
+        self.run_logs = workspace.get('run_logs', [])
+        self.original_file_path = workspace.get('original_file_path')
+        self.temp_artifacts = workspace.get('temp_artifacts', [])
+        for node, position in zip(self.nodes, workspace.get('positions', [])):
+            node['frame'].place(**position)
+        self.pipeline_mode = mode
+        self.mode_btn.configure(text=f"Mode: {mode}")
+        self.run_btn.configure(text="Run All" if mode == "Auto" else "Run Step")
+        self.draw_connections()
+        self.after_idle(self.draw_connections)
+        return True
+
     # เพิ่ม node (tool) ลง canvas
     def add_tool_node(self, tool_name, user_desc=""):
-        if self.node_count == 0:
-            self.placeholder.place_forget()
+        if self.canvas_busy():
+            return
+        if self.pipeline_mode == "Step":
+            # A sidebar choice starts a new exploration, never a prebuilt chain.
+            self.clear_pipeline()
+        return self._append_tool_node(tool_name, user_desc)
 
+    def _append_tool_node(self, tool_name, user_desc=""):
+        """Internal append; the Step runner may append while canvas edits are locked."""
         self.node_count += 1
 
         node = ctk.CTkFrame(self.line_canvas, fg_color=CARD_COLOR, corner_radius=4,
@@ -293,6 +369,8 @@ class PipelinePage(ctk.CTkFrame):
             item.bind("<B1-Motion>", lambda e, n=node_data: self.on_node_drag(e, n))
 
         self.draw_connections()
+        self.after_idle(self.draw_connections)
+        return True
 
     # เริ่มลาก node
     def on_node_press(self, event, node_data):
@@ -305,6 +383,8 @@ class PipelinePage(ctk.CTkFrame):
 
     # ลาก node
     def on_node_drag(self, event, node_data):
+        if self.pipeline_mode == "Step" or self._pipeline_running or self.active_runs:
+            return
         if 'drag_data' not in node_data:
             return
 
@@ -327,6 +407,10 @@ class PipelinePage(ctk.CTkFrame):
 
     # วาดเส้นเชื่อมระหว่าง node
     def draw_connections(self):
+        if self.nodes:
+            self.placeholder.place_forget()
+        else:
+            self.placeholder.place(relx=0.5, rely=0.5, anchor="center")
         self.line_canvas.delete("line")
         if len(self.nodes) < 2: return
 
@@ -348,7 +432,61 @@ class PipelinePage(ctk.CTkFrame):
             )
     
     # รัน pipeline ทั้งหมด
+    def _page_exists(self):
+        try:
+            return bool(self.winfo_exists())
+        except tk.TclError:
+            # Closing the application also destroys the Tcl widget hierarchy.
+            return False
+
     def run_pipeline(self):
+        if self.canvas_busy():
+            return
+        self._pipeline_running = True
+        self.mode_btn.configure(state="disabled")
+        self.run_btn.configure(state="disabled")
+        try:
+            if self.pipeline_mode == "Step":
+                self._run_step_analysis()
+            else:
+                self._run_pipeline_steps()
+        finally:
+            self._pipeline_running = False
+            if self._page_exists():
+                self.mode_btn.configure(state="normal")
+                self.run_btn.configure(state="normal")
+
+    def _run_step_analysis(self):
+        if not self.nodes:
+            messagebox.showwarning("No tool selected", "Select a tool before clicking Run Step.", parent=self)
+            return
+        # Running again starts at the first tool, not at stale downstream results.
+        for node in self.nodes[1:]:
+            node['frame'].destroy()
+        self.nodes[:] = self.nodes[:1]
+        self.node_count = 1
+        self.draw_connections()
+        self.cleanup_pipeline_artifacts()
+        self.run_logs = []
+        current_data = b""
+        while True:
+            node = self.nodes[-1]
+            decision = self.open_step_window(
+                node, current_data, current_data, self.run_logs, False,
+                step_index=len(self.nodes), step_mode=True,
+            )
+            if not self._page_exists():
+                return
+            if decision is None:
+                return
+            self.run_logs.append(dict(tool=node['name'], output=decision['output'], files=decision['files']))
+            next_tool = decision['next_tool']
+            if next_tool is None:
+                return
+            current_data = decision['output']
+            self._append_tool_node(next_tool)
+
+    def _run_pipeline_steps(self):
         if not self.nodes:
             return
 
@@ -384,12 +522,15 @@ class PipelinePage(ctk.CTkFrame):
 
     # ล้าง pipeline
     def clear_pipeline(self):
+        if self.canvas_busy():
+            return
         print("Clearing pipeline...")
         for node in self.nodes:
             node['frame'].destroy()
         self.nodes.clear()
         self.node_count = 0
-        self.line_canvas.delete("line")
+        self.run_logs = []
+        self.draw_connections()
         self.cleanup_pipeline_artifacts()
         # P0.4B
         self.original_file_path = None
@@ -402,12 +543,17 @@ class PipelinePage(ctk.CTkFrame):
         return tmp.name
 
     # เปิด popup ของแต่ละ step
-    def open_step_window(self, node, previous_output, original_data, logs, is_last, step_index=1, total_steps=1):
+    def open_step_window(self, node, previous_output, original_data, logs, is_last, step_index=1, total_steps=1, step_mode=False):
 
         tool_name = node["name"]
+        # A selected output file is distinct from stdout containing a path.
+        forwarded_file = previous_output if isinstance(previous_output, Path) else None
+        if forwarded_file is not None:
+            previous_output = str(forwarded_file).encode("utf-8")
 
         win = ctk.CTkToplevel(self)
-        win.title(f"Step {step_index}/{total_steps} — {tool_name}")
+        step_label = f"Step {step_index}" if step_mode else f"Step {step_index}/{total_steps}"
+        win.title(f"{step_label} — {tool_name}")
         win.geometry("1000x660")
         win.attributes("-topmost", True)
         win.configure(fg_color=BG_COLOR)
@@ -418,7 +564,7 @@ class PipelinePage(ctk.CTkFrame):
 
         ctk.CTkLabel(
             progress_header,
-            text=f"STEP {step_index} / {total_steps}  ·  {tool_name}",
+            text=f"{step_label.upper()}  ·  {tool_name}",
             font=ctk.CTkFont(family="Consolas", size=14, weight="bold"),
             text_color=ACCENT_CYAN
         ).pack(side="left", padx=15, pady=10)
@@ -427,7 +573,9 @@ class PipelinePage(ctk.CTkFrame):
             progress_header, width=220, progress_color=ACCENT_GREEN, fg_color=INPUT_BG
         )
         progress_bar.pack(side="right", padx=15, pady=10)
-        progress_bar.set(step_index / total_steps if total_steps else 1)
+        progress_bar.set(0 if step_mode else (step_index / total_steps if total_steps else 1))
+        if step_mode:
+            progress_bar.pack_forget()  # The number of exploration steps is not known yet.
 
         container = ctk.CTkFrame(win, fg_color="transparent")
         container.pack(fill="both", expand=True, padx=10, pady=10)
@@ -441,6 +589,10 @@ class PipelinePage(ctk.CTkFrame):
             font=ctk.CTkFont(family="Consolas", size=13, weight="bold"), text_color=ACCENT_CYAN
         ).pack(anchor="w", padx=10, pady=(10, 0))
 
+        # Allocate controls first, then let history use the remaining height.
+        output_footer = ctk.CTkFrame(left, fg_color="transparent")
+        output_footer.pack(side="bottom", fill="x")
+
         output_box = ctk.CTkTextbox(
             left, fg_color=INPUT_BG, border_width=1, border_color=BORDER_COLOR,
             text_color=ACCENT_GREEN, font=("Consolas", 12)
@@ -452,7 +604,7 @@ class PipelinePage(ctk.CTkFrame):
                 selected = output_box.get("sel.first", "sel.last")
                 input_entry.delete(0, "end")
                 input_entry.insert(0, selected.strip())
-            except:
+            except tk.TclError:
                 pass
 
         def get_selected_or_output_text():
@@ -502,11 +654,15 @@ class PipelinePage(ctk.CTkFrame):
 
         output_box.bind("<Button-3>", show_context_menu)
 
-        result = {"output": None}
+        result = {"output": None, "run": None, "selected_file": None, "decision": None}
+
+        continuation_panel = ctk.CTkFrame(output_footer, fg_color=CARD_COLOR)
 
         output_box.insert("end", ">>> original input\n")
 
-        if original_data:
+        if isinstance(original_data, Path):
+            preview = f"[Selected file] {original_data}"
+        elif original_data:
             preview = original_data[:2000].decode(errors="ignore")
         else:
             preview = "[No file input]"
@@ -521,7 +677,83 @@ class PipelinePage(ctk.CTkFrame):
                 out = out.decode(errors="ignore")
 
             output_box.insert("end", f"\n>>> {tool}\n")
-            output_box.insert("end", out + "\n")
+            output_box.insert("end", str(out) + "\n")
+
+        file_selection = tk.StringVar(value="")
+        file_panel = ctk.CTkFrame(output_footer, fg_color=CARD_COLOR)
+        file_status = ctk.CTkLabel(
+            file_panel, text="", text_color=ACCENT_GREEN, wraplength=430, justify="left",
+        )
+        file_status.pack(anchor="w", padx=10, pady=(5, 0))
+        # Bound the picker so its scrollbar's requested height cannot squeeze
+        # history down to a single line when Step continuation controls appear.
+        file_list_area = ctk.CTkFrame(file_panel, height=110, fg_color="transparent")
+        file_list_area.pack(fill="x", padx=10, pady=5)
+        file_list_area.pack_propagate(False)
+        file_list = ctk.CTkScrollableFrame(file_list_area, height=90, fg_color=INPUT_BG)
+        file_list.pack(fill="both", expand=True)
+        file_choices = {}
+
+        def show_selected_file():
+            selected = file_choices.get(file_selection.get())
+            result["selected_file"] = selected
+            file_status.configure(text=(
+                f"Forward file: {selected}" if selected else "Forward stdout"
+            ))
+
+        def add_result_file(path):
+            path = Path(path).absolute()
+            try:
+                size = path.stat().st_size
+                if not path.is_file():
+                    raise ValueError("Please select a file.")
+            except (OSError, ValueError) as error:
+                file_status.configure(text=f"Cannot read file: {error}")
+                return None
+            key = str(path)
+            if key not in file_choices:
+                file_choices[key] = path
+                ctk.CTkRadioButton(
+                    file_list, text=f"{path.name} ({size:,} bytes)",
+                    variable=file_selection, value=key, command=show_selected_file,
+                    text_color="white", fg_color=ACCENT_CYAN,
+                ).pack(anchor="w", padx=5, pady=3)
+            return key
+
+        def browse_result_file():
+            if result["run"] is None or not result["run"].succeeded:
+                return
+            win.attributes("-topmost", False)
+            try:
+                path = filedialog.askopenfilename(parent=win, title="Select an output file to forward")
+            finally:
+                win.attributes("-topmost", True)
+            if path:
+                key = add_result_file(path)
+                if key:
+                    show_result_panel()
+                    file_selection.set(key)
+                    show_selected_file()
+
+        browse_result_button = ctk.CTkButton(
+            output_footer, text="Browse result file", command=browse_result_file,
+            fg_color=BORDER_COLOR, text_color=ACCENT_CYAN,
+        )
+
+        def show_result_panel():
+            # The list is useful only when there is an actual file to select.
+            browse_result_button.pack_forget()
+            file_panel.pack(fill="x", padx=10, pady=5)
+            browse_result_button.pack(pady=(0, 5))
+            if result["output"] and not any(
+                isinstance(widget, ctk.CTkRadioButton) and widget.cget("value") == "stdout"
+                for widget in file_list.winfo_children()
+            ):
+                ctk.CTkRadioButton(
+                    file_list, text="Forward stdout", variable=file_selection,
+                    value="stdout", command=show_selected_file,
+                    text_color="white", fg_color=ACCENT_CYAN,
+                ).pack(anchor="w", padx=5, pady=3)
 
         def save_output():
             if result["output"] is None:
@@ -535,14 +767,18 @@ class PipelinePage(ctk.CTkFrame):
                     f.write(result["output"])
 
         ctk.CTkButton(
-            left, text="Save Output as File", command=save_output,
+            output_footer, text="Save Output as File", command=save_output,
             fg_color="transparent", border_width=1, border_color=ACCENT_CYAN,
             text_color=ACCENT_CYAN, hover_color=CARD_COLOR
         ).pack(pady=5)
 
         # ---------------- RIGHT PANEL ----------------
-        right = ctk.CTkFrame(container, width=380, fg_color=PANEL_COLOR, border_width=1, border_color=BORDER_COLOR)
-        right.pack(side="left", fill="y", padx=(5, 0))
+        right_shell = ctk.CTkFrame(container, width=380, fg_color=PANEL_COLOR, border_width=1, border_color=BORDER_COLOR)
+        right_shell.pack(side="left", fill="y", padx=(5, 0))
+        run_controls = ctk.CTkFrame(right_shell, fg_color="transparent")
+        run_controls.pack(side="bottom", fill="x", pady=10)
+        right = ctk.CTkScrollableFrame(right_shell, width=340, fg_color="transparent")
+        right.pack(fill="both", expand=True, padx=5, pady=5)
 
         ctk.CTkLabel(
             right, text=tool_name, font=ctk.CTkFont(family="Consolas", size=16, weight="bold"),
@@ -555,7 +791,8 @@ class PipelinePage(ctk.CTkFrame):
         input_frame = ctk.CTkFrame(right, fg_color="transparent")
         input_frame.pack(fill="x", padx=20, pady=5)
 
-        input_entry = ctk.CTkEntry(input_frame, fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
+        input_var = tk.StringVar(master=win)
+        input_entry = ctk.CTkEntry(input_frame, textvariable=input_var, fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
         input_entry.pack(side="left", fill="x", expand=True)
 
         def browse_file():
@@ -712,7 +949,7 @@ class PipelinePage(ctk.CTkFrame):
         # -------- Options --------
         ctk.CTkLabel(right, text="Options", text_color=TEXT_DIM).pack(anchor="w", padx=20)
 
-        options_frame = ctk.CTkFrame(right, fg_color="transparent")
+        options_frame = ctk.CTkFrame(right, height=1, fg_color="transparent")
         options_frame.pack(fill="x", padx=20, pady=5)
 
         option_vars = []
@@ -953,35 +1190,42 @@ class PipelinePage(ctk.CTkFrame):
                 seen_flags.add(opt["flag"])
         # ----------------------------------------------------
 
-        def update_preview(*args):
-            params_list = []
+        preview_ready = False
+
+        def option_arguments():
+            params_list = self.engine.arguments(node.get("params", ""))
+            if switch_before_var.get():
+                params_list += self.engine.arguments(preview_before_args())
             for flag, var, opt_type in option_vars:
                 if opt_type == "checkbox":
                     if var.get():
-                        params_list.append(flag)
+                        params_list += self.engine.arguments(flag)
                 elif opt_type in ["text", "file"]:
-                    val = var.get().strip()
+                    val = var.get()
                     if val:
-                        params_list.append(f"{flag} {val}")
+                        params_list += self.engine.arguments(flag) + [val]
+            after = self.engine.arguments(preview_after_args()) if switch_after_var.get() else []
+            return params_list, after
 
-            params_before_fixed = " ".join(params_list)
+        def command_for(path=None):
+            before, after = option_arguments()
+            return self.engine.build_command(tool_name, before, path, after)
 
-            after_tool = preview_before_args() if switch_before_var.get() else ""
-            after_input = preview_after_args() if switch_after_var.get() else ""
-
-            inp = input_entry.get().strip()
-
-            cmd = tool_name
-            if after_tool:
-                cmd += f" {after_tool}"
-            if params_before_fixed:
-                cmd += f" {params_before_fixed}"
-            if inp:
-                cmd += f" {inp}"
-            if after_input:
-                cmd += f" {after_input}"
-
-            preview_label.configure(text=cmd)
+        def update_preview(*args):
+            if not preview_ready:
+                return
+            try:
+                path = input_entry.get().strip() if tool_name in self.engine.file_tools else None
+                preview = shlex.join(command_for(path))
+                if tool_name in self.engine.text_tools:
+                    # Compact display only: execution still sends text via stdin,
+                    # never as shell code or an extra command-line argument.
+                    text_input = input_entry.get()
+                    if text_input:
+                        preview += " " + text_input
+                preview_label.configure(text=preview)
+            except ValueError as error:
+                preview_label.configure(text=f"Invalid arguments: {error}")
 
         for opt in tool_options:
             flag = opt["flag"]
@@ -1051,7 +1295,7 @@ class PipelinePage(ctk.CTkFrame):
                     else:
                         v = row["val"].get().strip()
                         if v:
-                            args.append(f"{f} {v}")
+                            args.append(f"{f} {shlex.quote(v)}")
                         else:
                             args.append(f)
             return " ".join(args)
@@ -1119,7 +1363,7 @@ class PipelinePage(ctk.CTkFrame):
                     else:
                         v = row["val"].get().strip()
                         if v:
-                            args.append(f"{f} {v}")
+                            args.append(f"{f} {shlex.quote(v)}")
                         else:
                             args.append(f)
             return " ".join(args)
@@ -1184,7 +1428,8 @@ class PipelinePage(ctk.CTkFrame):
         preview_label = ctk.CTkLabel(right, text=tool_name, text_color=ACCENT_GREEN, font=ctk.CTkFont(family="Consolas", size=13), wraplength=320)
         preview_label.pack(anchor="w", padx=20, pady=5)
 
-        input_entry.bind("<KeyRelease>", update_preview)
+        # Observe all edits, including Send to Input, paste and file selection.
+        input_var.trace_add("write", update_preview)
         update_preview()
 
         # -------- Description --------
@@ -1194,26 +1439,11 @@ class PipelinePage(ctk.CTkFrame):
             ctk.CTkLabel(right, text=desc, text_color=TEXT_DIM, wraplength=300).pack(anchor="w", padx=20)
 
         # -------- Run Tool --------
-        def run_tool():
+        def execute_tool():
             # รวม options → params
             # ตรวจว่าเป็น file tool หรือ text tool
             # เรียก PipelineEngine
             # แสดง output
-            params_list = []
-            for flag, var, opt_type in option_vars:
-                if opt_type == "checkbox":
-                    if var.get():
-                        params_list.append(flag)
-                elif opt_type in ["text", "file"]:
-                    val = var.get().strip()
-                    if val:
-                        params_list.append(f"{flag} {val}")
-
-            params_before_fixed = " ".join(params_list)
-            after_tool = preview_before_args() if switch_before_var.get() else ""
-            after_input = preview_after_args() if switch_after_var.get() else ""
-
-            params = " ".join(filter(None, [after_tool, params_before_fixed, after_input]))
             update_preview()
 
             if tool_name in self.engine.file_tools:
@@ -1257,11 +1487,9 @@ class PipelinePage(ctk.CTkFrame):
                         "Select PREVIOUS, ORIGINAL, or BROWSE."
                     )
 
-                res = self.engine.run_file_tool(
-                    tool_name,
-                    path,
-                    params
-                )
+                if not os.path.isfile(path):
+                    raise ValueError("Input must be an existing file")
+                return command_for(path), None, path
 
             else:
                 # =====================================================
@@ -1269,53 +1497,208 @@ class PipelinePage(ctk.CTkFrame):
                 # behavior เดิม
                 # =====================================================
 
-                inp_data = input_entry.get().strip()
+                inp_data = input_entry.get()
 
-                if not inp_data and previous_output:
+                if not inp_data and forwarded_file is not None:
+                    input_bytes = forwarded_file.read_bytes()
+                elif not inp_data and previous_output:
                     input_bytes = previous_output
                 else:
                     input_bytes = inp_data.encode("utf-8")
 
-                res = self.engine.run_text_tool(
-                    tool_name,
-                    input_bytes,
-                    params
-                )
-            result["output"] = res
+                return command_for(), input_bytes, None
+
+        def show_result(res):
+            result["run"] = res
+            result["output"] = res.stdout if res.succeeded else None
             output_box.insert("end", f"\n>>> output ({tool_name})\n")
-            output_box.insert("end", res.decode(errors="ignore") + "\n")
+            if res.stdout:
+                output_box.insert("end", res.stdout.decode(errors="replace") + "\n")
+            if res.stderr:
+                output_box.insert("end", "[stderr]\n" + res.stderr.decode(errors="replace") + "\n")
+            if res.succeeded:
+                output_box.insert("end", "[Success]\n")
+                if not res.stdout:
+                    output_box.insert("end", "No stdout output\n")
+                file_status.configure(text="New or modified files from this run — select a file to forward")
+                for path in res.files:
+                    add_result_file(path)
+                    output_box.insert("end", f"[Output file] {path}\n")
+                if file_choices:
+                    show_result_panel()
+                elif not res.stdout or res.discovery_note:
+                    # Quiet commands or incomplete discovery retain a compact
+                    # manual fallback without reserving an empty file list.
+                    browse_result_button.pack(pady=(0, 5))
+                if res.discovery_note:
+                    output_box.insert("end", f"[i] {res.discovery_note}\n")
+                if step_mode:
+                    continuation_panel.pack(side="bottom", fill="x", padx=10, pady=10)
+            else:
+                output_box.insert("end", "[Failed]\n")
             output_box.see("end")
+            # File/continuation controls resize history after this callback.
+            output_box.after_idle(output_box.see, "end")
+
+        def run_tool():
+            if running[0]:
+                return
+            # A retry must never forward a file or stdout from the previous run.
+            result.update(output=None, run=None, selected_file=None, decision=None)
+            continuation_panel.pack_forget()
+            file_selection.set("")
+            file_choices.clear()
+            for widget in file_list.winfo_children():
+                widget.destroy()
+            file_panel.pack_forget()
+            browse_result_button.pack_forget()
+            try:
+                command, input_data, input_path = execute_tool()
+            except (OSError, ValueError) as error:
+                output_box.insert("end", f"\n[Failed] {error}\n")
+                output_box.see("end")
+                return
+            running[0] = True
+            cancel_event.clear()
+            self.active_runs.add(cancel_event)
+            run_button.configure(state="disabled")
+            next_button.configure(state="disabled")
+            cancel_button.configure(state="normal")
+            output_box.insert("end", "\n[Running]\n")
+
+            def worker():
+                try:
+                    outcome = self.engine._run_command(command, input_data, input_path,
+                                                       detailed=True, cancel_event=cancel_event)
+                except Exception as error:
+                    outcome = error
+                results.put(outcome)
+
+            def poll():
+                try:
+                    outcome = results.get_nowait()
+                except queue.Empty:
+                    win.after(40, poll)
+                    return
+                self.active_runs.discard(cancel_event)
+                running[0] = False
+                run_button.configure(state="normal")
+                next_button.configure(state="normal")
+                cancel_button.configure(state="disabled")
+                if isinstance(outcome, Exception):
+                    output_box.insert("end", f"\n[Failed] {outcome}\n")
+                else:
+                    show_result(outcome)
+                if closing[0]:
+                    result["output"] = None
+                    win.destroy()
+
+            threading.Thread(target=worker, daemon=True).start()
+            win.after(40, poll)
+
+        running, closing = [False], [False]
+        cancel_event = threading.Event()
+        results = queue.Queue()
+
+        def close_window():
+            if running[0]:
+                closing[0] = True
+                cancel_event.set()
+            else:
+                result["output"] = None
+                win.destroy()
+
+        win.protocol("WM_DELETE_WINDOW", close_window)
 
         # buttons
-        ctk.CTkButton(
-            right, text="Run", fg_color=ACCENT_GREEN, text_color="black",
+        run_button = ctk.CTkButton(
+            run_controls, text="Run", fg_color=ACCENT_GREEN, text_color="black",
             hover_color="#00CC33", command=run_tool
-        ).pack(pady=(15, 5))
+        )
+        run_button.pack(pady=(15, 5))
+        cancel_button = ctk.CTkButton(run_controls, text="Cancel", state="disabled",
+                                      command=cancel_event.set, fg_color=BORDER_COLOR)
+        cancel_button.pack(pady=(0, 5))
 
         def next_step(): # ปิด window แล้วส่ง output กลับ pipeline
+            if running[0]:
+                return
+            selected = result["selected_file"]
+            if selected is not None:
+                if not selected.is_file():
+                    file_status.configure(text="Selected file not found. Please select another file.")
+                    return
+                result["output"] = selected
+            elif not is_last and file_choices and not file_selection.get():
+                file_status.configure(text="Select an output file before clicking Next.")
+                return
+            if is_last:
+                win.destroy()
+                return
             if result["output"] is None:
                 return
             win.destroy()
 
-        ctk.CTkButton(
-            right,
-            text="Close" if is_last else "Next",
+        if step_mode:
+            next_tools = sorted(set(self.engine.file_tools) | set(self.engine.text_tools))
+            next_tool_menu = ctk.CTkComboBox(continuation_panel, values=next_tools, width=300)
+            next_tool_menu.set("Select the next tool")
+            next_tool_menu.pack(fill="x", padx=10, pady=5)
+            decision_status = ctk.CTkLabel(continuation_panel, text="", text_color=ALERT_RED, wraplength=430)
+            decision_status.pack(fill="x", padx=10)
+
+            def complete_step(finish=False):
+                if running[0] or result['run'] is None or not result['run'].succeeded:
+                    return
+                next_tool = None if finish else next_tool_menu.get().strip()
+                if not finish and next_tool not in self.engine.file_tools and next_tool not in self.engine.text_tools:
+                    decision_status.configure(text="Please select a tool from the list.")
+                    return
+                selected = result['selected_file']
+                if selected is not None and not selected.is_file():
+                    decision_status.configure(text="Selected file not found. Please select another file.")
+                    return
+                if not finish and file_choices and not file_selection.get():
+                    decision_status.configure(text="Select an output file or stdout to forward before continuing.")
+                    return
+                result['decision'] = dict(
+                    output=selected if selected is not None else result['output'],
+                    files=list(file_choices.values()), next_tool=next_tool,
+                )
+                win.destroy()
+
+            decision_buttons = ctk.CTkFrame(continuation_panel, fg_color="transparent")
+            decision_buttons.pack(fill="x", padx=10, pady=(0, 10))
+            ctk.CTkButton(decision_buttons, text="Continue", width=120,
+                          command=complete_step, fg_color=ACCENT_CYAN, text_color="black").pack(side="left", padx=(0, 5))
+            ctk.CTkButton(decision_buttons, text="Finish", width=120,
+                          command=lambda: complete_step(True), fg_color=ACCENT_GREEN, text_color="black").pack(side="left")
+
+        next_button = ctk.CTkButton(
+            run_controls,
+            text="Close Analysis" if step_mode else ("Close" if is_last else "Next"),
             fg_color=BORDER_COLOR if is_last else ACCENT_CYAN,
             text_color="white" if is_last else "black",
             hover_color=CARD_COLOR if is_last else "#00CCCC",
-            command=next_step
-        ).pack()
+            command=close_window if step_mode else next_step
+        )
+        next_button.pack()
+        preview_ready = True
+        update_preview()
 
         self.wait_window(win)
 
-        return result["output"]
+        return result["decision"] if step_mode else result["output"]
 
     #โหลด template pipeline สำเร็จรูป
     def load_template(self, template):
+        if self.canvas_busy():
+            return
+        self.set_pipeline_mode("Auto")
         self.clear_pipeline()
 
         if template == "Basic Recon":
-            tools = ["file", "strings", "unique"]
+            tools = ["file", "strings", "uniq"]
         elif template == "Find Flag":
             tools = ["strings", "grep"]
         elif template == "Decode Base64":
@@ -1332,23 +1715,25 @@ class PipelinePage(ctk.CTkFrame):
 
     #โหลด tool จาก JSON
     def load_tools_from_json(self):
+        self.config_error = self.engine.load_error
         tools_path = os.path.join(os.path.dirname(__file__), "..", "Pipeline", "custom_tools.json")
         tools_path = os.path.abspath(tools_path)
         main_data = {}
-        if os.path.exists(tools_path):
-            with open(tools_path, "r", encoding="utf-8") as f:
-                main_data = json.load(f)
+        try:
+            main_data = read_json(tools_path, {})
+            self.engine.validate_tools(main_data)
+        except (OSError, ValueError, TypeError) as error:
+            main_data = {}
+            self.config_error = str(error)
 
         saved_path = os.path.join(os.path.dirname(__file__), "..", "Pipeline", "saved_pipelines.json")
         saved_path = os.path.abspath(saved_path)
         saved_list = []
         if os.path.exists(saved_path):
             try:
-                with open(saved_path, "r", encoding="utf-8") as f:
-                    content = json.load(f)
-                    saved_list = content.get("saved_pipelines", [])
+                saved_list = saved_pipelines(saved_path)["saved_pipelines"]
             except Exception as e:
-                print(f"Error loading saved pipelines: {e}")
+                self.config_error = f"Saved Pipelines: {e} (original file unchanged)"
 
         categories = {"Saved Pipelines": []}
 
@@ -1369,6 +1754,9 @@ class PipelinePage(ctk.CTkFrame):
             widget.destroy()
 
         tool_categories = self.load_tools_from_json()
+        if self.config_error:
+            ctk.CTkLabel(self.tools_panel, text=self.config_error, text_color=ALERT_RED,
+                         wraplength=210).pack(padx=10, pady=10)
 
         for cat, tools in tool_categories.items():
             header_frame = ctk.CTkFrame(self.tools_panel, fg_color="transparent")
@@ -1476,10 +1864,9 @@ class PipelinePage(ctk.CTkFrame):
 
         if os.path.exists(save_path):
             try:
-                with open(save_path, "r", encoding="utf-8") as f:
-                    return json.load(f).get("saved_pipelines", [])
-            except Exception:
-                pass
+                return saved_pipelines(save_path)["saved_pipelines"]
+            except (OSError, ValueError) as error:
+                messagebox.showerror("Saved Pipelines", str(error), parent=self)
         return []
 
     # แสดงจำนวน pipeline (debug)
@@ -1718,44 +2105,43 @@ class PipelinePage(ctk.CTkFrame):
 
     # สร้าง pipeline ลง canvas + save
     def finalize_wizard_pipeline(self, pipeline_data, pipeline_name):
-        self.clear_pipeline()
-        for tool_info in pipeline_data:
-            self.add_tool_node(tool_info["name"], user_desc=tool_info.get("user_description", ""))
-            if self.nodes:
-                self.nodes[-1]["params"] = tool_info.get("params", "")
-                self.nodes[-1]["options"] = tool_info.get("options", [])
-
+        if self.canvas_busy():
+            return
         save_path = os.path.join(os.path.dirname(__file__), "..", "Pipeline", "saved_pipelines.json")
         save_path = os.path.abspath(save_path)
 
         try:
-            data = {"saved_pipelines": []}
-            if os.path.exists(save_path):
-                with open(save_path, "r", encoding="utf-8") as f:
-                    try:
-                        data = json.load(f)
-                        if "saved_pipelines" not in data:
-                            data["saved_pipelines"] = []
-                    except json.JSONDecodeError:
-                        data = {"saved_pipelines": []}
+            data = saved_pipelines(save_path)
+            if not pipeline_name.strip():
+                raise ValueError("Pipeline name is required")
+            if any(p["pipeline_name"] == pipeline_name for p in data["saved_pipelines"]):
+                raise ValueError("Pipeline name already exists; choose a different name")
+            if any(step["name"] not in self.engine.file_tools and step["name"] not in self.engine.text_tools for step in pipeline_data):
+                raise ValueError("Add/register custom tools before saving a pipeline")
 
             new_entry = {
                 "pipeline_name": pipeline_name,
                 "steps": pipeline_data
             }
             data["saved_pipelines"].append(new_entry)
-
-            with open(save_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=4, ensure_ascii=False)
-
+            validate_saved_pipelines(data)
+            write_json(save_path, data)
+            self.set_pipeline_mode("Auto")
+            self.clear_pipeline()
+            for tool_info in pipeline_data:
+                self.add_tool_node(tool_info["name"], user_desc=tool_info.get("user_description", ""))
+                self.nodes[-1]["params"] = tool_info.get("params", "")
+                self.nodes[-1]["options"] = tool_info.get("options", [])
             self.refresh_tools_panel()
             print(f"Saved pipeline '{pipeline_name}' successfully!")
 
         except Exception as e:
-            print(f"Error saving pipeline: {e}")
+            messagebox.showerror("Save Pipeline", f"Save failed. The original file was not overwritten:\n{e}", parent=self)
 
     # โหลด pipeline มาแสดงบน canvas
     def load_saved_pipeline_to_canvas(self, pipeline_name):
+        if self.canvas_busy():
+            return
         save_path = os.path.join(
             os.path.dirname(__file__),
             "..",
@@ -1767,11 +2153,15 @@ class PipelinePage(ctk.CTkFrame):
         if not os.path.exists(save_path):
             return
 
-        with open(save_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        try:
+            data = saved_pipelines(save_path)
+        except (OSError, ValueError, TypeError) as error:
+            messagebox.showerror("Saved Pipeline", str(error), parent=self)
+            return
 
         for p in data.get("saved_pipelines", []):
             if p["pipeline_name"] == pipeline_name:
+                self.set_pipeline_mode("Auto")
                 self.clear_pipeline()
                 x = 80
                 y = 120
@@ -1818,7 +2208,8 @@ class PipelinePage(ctk.CTkFrame):
                     x += 160
 
                 self.draw_connections()
-                break
+                return True
+        return False
 
     # popup เพิ่ม tool ใหม่
     def open_add_tool_window(self):
@@ -1853,7 +2244,12 @@ class PipelinePage(ctk.CTkFrame):
             if not name or not cmd:
                 return
 
-            self.engine.add_tool(name, cmd, mode)
+            try:
+                self.engine.save_custom_tool(name, cmd, mode, "Custom")
+                self.refresh_tools_panel()
+            except (OSError, ValueError) as error:
+                messagebox.showerror("Add Tool", str(error), parent=win)
+                return
             win.destroy()
 
         ctk.CTkButton(

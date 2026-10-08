@@ -107,7 +107,7 @@ def main():
     # ---------------------------------------------------------
 
     decoded = decode_to_bytes(
-        reversed_bytes,
+        raw_text[::-1].encode("utf-8"),
         "Base64"
     )
 
@@ -179,7 +179,7 @@ def main():
     # Save layer 1
     # ---------------------------------------------------------
 
-    artifact_dir = ROOT / "tests" / "artifacts"
+    artifact_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "tests" / "artifacts"
     artifact_dir.mkdir(
         parents=True,
         exist_ok=True

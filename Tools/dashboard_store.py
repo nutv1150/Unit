@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 import threading
 import uuid
 from collections import Counter
@@ -24,6 +25,8 @@ class DashboardStore:
         )
         self.state_path = Path(state_path or default_path)
         self._lock = threading.RLock()
+        self.persistence_error = None
+        self.read_only = False
         self._state = self._load_state()
 
     @classmethod
@@ -65,10 +68,19 @@ class DashboardStore:
         try:
             with self.state_path.open("r", encoding="utf-8") as file_obj:
                 loaded = json.load(file_obj)
-        except (OSError, ValueError, TypeError):
+        except (OSError, ValueError, TypeError) as exc:
+            self.persistence_error = f"Dashboard state could not be read: {exc}"
+            self.read_only = True
             return default
 
         if not isinstance(loaded, dict):
+            self.persistence_error = "Dashboard state has an invalid schema"
+            self.read_only = True
+            return default
+
+        if not self._valid_loaded_state(loaded):
+            self.persistence_error = "Dashboard state has an invalid schema"
+            self.read_only = True
             return default
 
         for key, value in default.items():
@@ -90,23 +102,81 @@ class DashboardStore:
         if not isinstance(loaded.get("favorites"), list):
             loaded["favorites"] = deepcopy(default["favorites"])
         else:
-            loaded["favorites"] = [
-                favorite
-                for favorite in loaded["favorites"]
-                if isinstance(favorite, dict)
-                and favorite.get("name")
-                and favorite.get("target")
-            ]
+            loaded["favorites"] = [self._clean_favorite(favorite) for favorite in loaded["favorites"]]
         if not isinstance(loaded.get("events"), list):
             loaded["events"] = []
         else:
-            loaded["events"] = [
-                event for event in loaded["events"] if isinstance(event, dict)
-            ]
+            loaded["events"] = [self._clean_event(event) for event in loaded["events"]]
 
         loaded["events"] = loaded["events"][-self.MAX_EVENTS :]
         loaded["schema_version"] = self.SCHEMA_VERSION
         return loaded
+
+    @classmethod
+    def _valid_loaded_state(cls, state):
+        if state.get("schema_version", cls.SCHEMA_VERSION) != cls.SCHEMA_VERSION:
+            return False
+        checks = (("competitions", list), ("categories", list), ("favorites", list), ("events", list))
+        for key, kind in checks:
+            if key in state and not isinstance(state[key], kind):
+                return False
+        if "active_competition" in state and not isinstance(state["active_competition"], str):
+            return False
+        for key in ("competitions", "categories"):
+            if any(not isinstance(value, str) or not value.strip() for value in state.get(key, [])):
+                return False
+        for favorite in state.get("favorites", []):
+            if (not isinstance(favorite, dict) or not isinstance(favorite.get("name"), str)
+                    or not isinstance(favorite.get("target"), str)
+                    or ("category" in favorite and not isinstance(favorite["category"], str))
+                    or ("shortcut" in favorite and not isinstance(favorite["shortcut"], str))):
+                return False
+            if not favorite["name"].strip() or not favorite["target"].strip():
+                return False
+        for event in state.get("events", []):
+            if not isinstance(event, dict):
+                return False
+            for key in ("id", "timestamp", "competition", "tool", "category", "action", "status", "details"):
+                if key in event and not isinstance(event[key], str):
+                    return False
+            if "flags" in event and not isinstance(event["flags"], list):
+                return False
+            if any(not isinstance(flag, str) for flag in event.get("flags", [])):
+                return False
+            if "file_path" in event and event["file_path"] is not None and not isinstance(event["file_path"], str):
+                return False
+        return True
+
+    @staticmethod
+    def _clean_favorite(favorite):
+        if not isinstance(favorite, dict):
+            return None
+        name, target = favorite.get("name"), favorite.get("target")
+        if not isinstance(name, str) or not isinstance(target, str) or not name.strip() or not target.strip():
+            return None
+        return {
+            "name": name.strip(), "target": target.strip(),
+            "category": str(favorite.get("category") or "Core").strip() or "Core",
+            "shortcut": str(favorite.get("shortcut") or "").strip(),
+        }
+
+    @staticmethod
+    def _clean_event(event):
+        if not isinstance(event, dict):
+            return None
+        flags = event.get("flags") if isinstance(event.get("flags"), list) else []
+        return {
+            "id": str(event.get("id") or uuid.uuid4().hex),
+            "timestamp": str(event.get("timestamp") or ""),
+            "competition": str(event.get("competition") or "General"),
+            "tool": str(event.get("tool") or "Unknown"),
+            "category": str(event.get("category") or "Other"),
+            "action": str(event.get("action") or "Run"),
+            "status": str(event.get("status") or "failed"),
+            "file_path": str(event["file_path"]) if isinstance(event.get("file_path"), (str, os.PathLike)) else None,
+            "flags": [str(flag) for flag in flags if isinstance(flag, (str, int, float))],
+            "details": str(event.get("details") or "")[:500],
+        }
 
     @staticmethod
     def _clean_names(values, fallback):
@@ -124,13 +194,32 @@ class DashboardStore:
         return cleaned
 
     def _save(self):
+        if self.read_only:
+            raise OSError(self.persistence_error or "Dashboard state is read-only")
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
-        temp_path = self.state_path.with_suffix(".tmp")
+        fd, temp_name = tempfile.mkstemp(prefix=f".{self.state_path.name}.", dir=self.state_path.parent)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as file_obj:
+                json.dump(self._state, file_obj, indent=2, ensure_ascii=False)
+                file_obj.flush()
+                os.fsync(file_obj.fileno())
+            os.replace(temp_name, self.state_path)
+        except Exception:
+            try:
+                os.unlink(temp_name)
+            except OSError:
+                pass
+            raise
 
-        with temp_path.open("w", encoding="utf-8") as file_obj:
-            json.dump(self._state, file_obj, indent=2, ensure_ascii=False)
-
-        os.replace(temp_path, self.state_path)
+    def _mutate(self, operation):
+        with self._lock:
+            previous = deepcopy(self._state)
+            try:
+                operation()
+                self._save()
+            except Exception:
+                self._state = previous
+                raise
 
     def get_active_competition(self):
         with self._lock:
@@ -145,11 +234,11 @@ class DashboardStore:
         if not clean_name:
             raise ValueError("Competition name is required")
 
-        with self._lock:
+        def operation():
             if clean_name not in self._state["competitions"]:
                 self._state["competitions"].append(clean_name)
             self._state["active_competition"] = clean_name
-            self._save()
+        self._mutate(operation)
         return clean_name
 
     def set_active_competition(self, name):
@@ -157,11 +246,11 @@ class DashboardStore:
         if not clean_name:
             return
 
-        with self._lock:
+        def operation():
             if clean_name not in self._state["competitions"]:
                 self._state["competitions"].append(clean_name)
             self._state["active_competition"] = clean_name
-            self._save()
+        self._mutate(operation)
 
     def list_categories(self):
         with self._lock:
@@ -172,10 +261,8 @@ class DashboardStore:
         if not clean_name:
             raise ValueError("Category name is required")
 
-        with self._lock:
-            if clean_name not in self._state["categories"]:
-                self._state["categories"].append(clean_name)
-                self._save()
+        if clean_name not in self._state["categories"]:
+            self._mutate(lambda: self._state["categories"].append(clean_name))
         return clean_name
 
     def remove_category(self, name):
@@ -187,11 +274,18 @@ class DashboardStore:
             if clean_name not in self._state["categories"]:
                 return False
 
-            self._state["categories"].remove(clean_name)
-            for favorite in self._state["favorites"]:
-                if favorite.get("category") == clean_name:
-                    favorite["category"] = self.DEFAULT_CATEGORY
-            self._save()
+            def operation():
+                self._state["categories"].remove(clean_name)
+                for favorite in self._state["favorites"]:
+                    if favorite.get("category") == clean_name:
+                        favorite["category"] = self.DEFAULT_CATEGORY
+            previous = deepcopy(self._state)
+            operation()
+            try:
+                self._save()
+            except Exception:
+                self._state = previous
+                raise
         return True
 
     def list_favorites(self):
@@ -208,6 +302,7 @@ class DashboardStore:
             raise ValueError("Favorite name and target are required")
 
         with self._lock:
+            previous = deepcopy(self._state)
             if clean_category not in self._state["categories"]:
                 self._state["categories"].append(clean_category)
 
@@ -231,12 +326,17 @@ class DashboardStore:
             else:
                 self._state["favorites"].append(new_favorite)
 
-            self._save()
+            try:
+                self._save()
+            except Exception:
+                self._state = previous
+                raise
         return deepcopy(new_favorite)
 
     def remove_favorite(self, target):
         clean_target = str(target or "").strip()
         with self._lock:
+            previous = deepcopy(self._state)
             before = len(self._state["favorites"])
             self._state["favorites"] = [
                 item
@@ -245,7 +345,11 @@ class DashboardStore:
             ]
             changed = len(self._state["favorites"]) != before
             if changed:
-                self._save()
+                try:
+                    self._save()
+                except Exception:
+                    self._state = previous
+                    raise
         return changed
 
     def record_event(
@@ -275,6 +379,7 @@ class DashboardStore:
             clean_file_path = os.path.abspath(os.path.expanduser(str(file_path)))
 
         with self._lock:
+            previous = deepcopy(self._state)
             active_competition = str(
                 competition or self._state["active_competition"]
             ).strip()
@@ -295,7 +400,11 @@ class DashboardStore:
             }
             self._state["events"].append(event)
             self._state["events"] = self._state["events"][-self.MAX_EVENTS :]
-            self._save()
+            try:
+                self._save()
+            except Exception:
+                self._state = previous
+                raise
         return deepcopy(event)
 
     def get_snapshot(self, recent_limit=6):
