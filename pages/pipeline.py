@@ -604,7 +604,7 @@ class PipelinePage(ctk.CTkFrame):
                 selected = output_box.get("sel.first", "sel.last")
                 input_entry.delete(0, "end")
                 input_entry.insert(0, selected.strip())
-            except:
+            except tk.TclError:
                 pass
 
         def get_selected_or_output_text():
@@ -791,7 +791,8 @@ class PipelinePage(ctk.CTkFrame):
         input_frame = ctk.CTkFrame(right, fg_color="transparent")
         input_frame.pack(fill="x", padx=20, pady=5)
 
-        input_entry = ctk.CTkEntry(input_frame, fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
+        input_var = tk.StringVar(master=win)
+        input_entry = ctk.CTkEntry(input_frame, textvariable=input_var, fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
         input_entry.pack(side="left", fill="x", expand=True)
 
         def browse_file():
@@ -1215,7 +1216,14 @@ class PipelinePage(ctk.CTkFrame):
                 return
             try:
                 path = input_entry.get().strip() if tool_name in self.engine.file_tools else None
-                preview_label.configure(text=shlex.join(command_for(path)))
+                preview = shlex.join(command_for(path))
+                if tool_name in self.engine.text_tools:
+                    # Compact display only: execution still sends text via stdin,
+                    # never as shell code or an extra command-line argument.
+                    text_input = input_entry.get()
+                    if text_input:
+                        preview += " " + text_input
+                preview_label.configure(text=preview)
             except ValueError as error:
                 preview_label.configure(text=f"Invalid arguments: {error}")
 
@@ -1420,7 +1428,8 @@ class PipelinePage(ctk.CTkFrame):
         preview_label = ctk.CTkLabel(right, text=tool_name, text_color=ACCENT_GREEN, font=ctk.CTkFont(family="Consolas", size=13), wraplength=320)
         preview_label.pack(anchor="w", padx=20, pady=5)
 
-        input_entry.bind("<KeyRelease>", update_preview)
+        # Observe all edits, including Send to Input, paste and file selection.
+        input_var.trace_add("write", update_preview)
         update_preview()
 
         # -------- Description --------
@@ -1508,7 +1517,7 @@ class PipelinePage(ctk.CTkFrame):
             if res.stderr:
                 output_box.insert("end", "[stderr]\n" + res.stderr.decode(errors="replace") + "\n")
             if res.succeeded:
-                output_box.insert("end", "[Success] Exit code: 0\n")
+                output_box.insert("end", "[Success]\n")
                 if not res.stdout:
                     output_box.insert("end", "No stdout output\n")
                 file_status.configure(text="New or modified files from this run — select a file to forward")
@@ -1526,7 +1535,7 @@ class PipelinePage(ctk.CTkFrame):
                 if step_mode:
                     continuation_panel.pack(side="bottom", fill="x", padx=10, pady=10)
             else:
-                output_box.insert("end", f"[Failed] Exit code: {res.returncode}\n")
+                output_box.insert("end", "[Failed]\n")
             output_box.see("end")
             # File/continuation controls resize history after this callback.
             output_box.after_idle(output_box.see, "end")
@@ -1555,7 +1564,7 @@ class PipelinePage(ctk.CTkFrame):
             run_button.configure(state="disabled")
             next_button.configure(state="disabled")
             cancel_button.configure(state="normal")
-            output_box.insert("end", "\n[Running] Click Cancel to stop\n")
+            output_box.insert("end", "\n[Running]\n")
 
             def worker():
                 try:

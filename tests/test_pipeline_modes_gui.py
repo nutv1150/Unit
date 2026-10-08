@@ -1,6 +1,8 @@
 """Mode switch and exploratory Step flow, using real Tk and temporary files."""
 import os
 import sys
+import shlex
+import tkinter as tk
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -35,6 +37,60 @@ class PipelineModesGuiTests(unittest.TestCase):
         menu = next(w for w in gui.descendants(win) if isinstance(w, ctk.CTkComboBox))
         menu.set(name)
 
+    def send_to_input(self, win, text):
+        history = next(w for w in gui.descendants(win) if isinstance(w, ctk.CTkTextbox))
+        history.delete('1.0', 'end')
+        history.insert('1.0', text)
+        history.tag_add('sel', '1.0', 'end-1c')
+        for menu in gui.descendants(win):
+            if not isinstance(menu, tk.Menu) or menu.index('end') is None:
+                continue
+            for index in range(menu.index('end') + 1):
+                if menu.type(index) == 'command' and menu.entrycget(index, 'label') == 'Send to Input':
+                    menu.invoke(index)
+                    return
+        self.fail('Send to Input menu not found')
+
+    def test_send_to_input_refreshes_stdin_preview_and_preserves_data(self):
+        source = self.work / 'previous.bin'
+        source.write_bytes(b'previous bytes')
+        self.page.engine.text_tools['echo_input'] = lambda p: [
+            sys.executable, '-c', 'import sys; sys.stdout.buffer.write(sys.stdin.buffer.read())',
+        ]
+        selected = 'SGVsbG8=; $(echo unsafe) "quoted" ข้อมูล'
+        def interact(win):
+            command = shlex.join(self.page.engine.build_command('echo_input', [], None, []))
+            preview = next(w for w in gui.descendants(win)
+                           if isinstance(w, ctk.CTkLabel) and w.cget('text') == command)
+            entry = next(w for w in gui.descendants(win) if isinstance(w, ctk.CTkEntry))
+            self.send_to_input(win, selected)
+            self.assertEqual(entry.get(), selected)
+            self.assertEqual(preview.cget('text'), command + ' ' + selected)
+            entry.delete(0, 'end')
+            self.assertEqual(preview.cget('text'), command)
+            entry.insert(0, 'x' * 1000)
+            self.assertEqual(preview.cget('text'), command + ' ' + 'x' * 1000)
+            self.send_to_input(win, selected)
+            gui.run_and_wait(win)
+            gui.button(win, 'Finish').invoke()
+        result = self.step('echo_input', interact, source)
+        self.assertEqual(result['output'], selected.encode())
+
+    def test_send_to_input_refreshes_file_command_without_keypress(self):
+        source = self.work / 'selected file "quoted".bin'
+        source.write_bytes(b'file contents')
+        self.page.engine.file_tools['file_input'] = lambda f, p: [
+            sys.executable, '-c', 'import pathlib, sys; sys.stdout.buffer.write(pathlib.Path(sys.argv[1]).read_bytes())', f,
+        ]
+        def interact(win):
+            self.send_to_input(win, str(source))
+            expected = shlex.join(self.page.engine.build_command('file_input', [], str(source), []))
+            self.assertTrue(any(isinstance(w, ctk.CTkLabel) and w.cget('text') == expected
+                                for w in gui.descendants(win)))
+            gui.run_and_wait(win)
+            gui.button(win, 'Finish').invoke()
+        self.assertEqual(self.step('file_input', interact)['output'], b'file contents')
+
     def test_english_ui_preserves_tool_output(self):
         original = 'ผลลัพธ์จากเครื่องมือ'
         self.page.engine.text_tools['language_test'] = lambda p: [
@@ -45,8 +101,9 @@ class PipelineModesGuiTests(unittest.TestCase):
             history = next(w for w in gui.descendants(win) if isinstance(w, ctk.CTkTextbox))
             text = history.get('1.0', 'end')
             self.assertIn(original, text)
-            self.assertIn('[Running] Click Cancel to stop', text)
-            self.assertIn('[Success] Exit code: 0', text)
+            self.assertIn('[Running]', text)
+            self.assertIn('[Success]', text)
+            self.assertNotIn('Exit code', text)
             menu = next(w for w in gui.descendants(win) if isinstance(w, ctk.CTkComboBox))
             self.assertEqual(menu.get(), 'Select the next tool')
             for widget in gui.descendants(win):
@@ -57,7 +114,8 @@ class PipelineModesGuiTests(unittest.TestCase):
                 sys.executable, '-c', 'raise SystemExit(2)',
             ]
             gui.run_and_wait(win)
-            self.assertIn('[Failed] Exit code: 2', history.get('1.0', 'end'))
+            self.assertIn('[Failed]', history.get('1.0', 'end'))
+            self.assertNotIn('Exit code', history.get('1.0', 'end'))
             gui.button(win, 'Close Analysis').invoke()
         self.assertIsNone(self.step('language_test', interact))
 
