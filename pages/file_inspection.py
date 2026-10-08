@@ -204,24 +204,22 @@ class FileInspectionPage(ctk.CTkFrame):
         self.regex_var = ctk.StringVar(value="") 
 
         self.smart_db = {
-            r"(?:0|\+66)[689]\d[- \.]?\d{3}[- \.]?\d{4}": "📱 THAI_MOBILE_NUM",
+            r"(?:0|\+66)[689]\d[\-\.]?\d{3}[\-\.]?\d{4}": "📱 THAI_MOBILE_NUM",
             r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b": "📧 EMAIL_ADDR",
             r"(?<![A-Za-z0-9+/=])(?:[A-Za-z0-9+/]{4}){5,}(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?(?![A-Za-z0-9+/=])": "🔐 BASE64_STRING",
             r"(?:\d{1,3}\.){3}\d{1,3}": "🌐 IPv4_ADDR",
             r"https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}": "🔗 URL_LINK",
             r"[a-fA-F0-9]{32}": "🔑 MD5_HASH",
-
             UNIVERSAL_FLAG_REGEX: "🚩 UNIVERSAL_CTF_FLAG"
         }
 
         self.regex_previews = {
-            r"(?:0|\+66)[689]\d[- \.]?\d{3}[- \.]?\d{4}": "📱 THAI_MOBILE_NUM\nFind Thai mobile numbers (08x, 09x, 06x)",
+            r"(?:0|\+66)[689]\d[\-\.]?\d{3}[\-\.]?\d{4}": "📱 THAI_MOBILE_NUM\nFind Thai mobile numbers (08x, 09x, 06x)",
             r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b": "📧 EMAIL_ADDR\nStrict standard email pattern",
             r"(?:[A-Za-z0-9+/]{4}){5,}|(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)": "🔐 BASE64_STRING\nFlexible Base64 (Catches padded strings or long blocks)",
             r"FLAG\{.*?\}": "🎯 STD_FLAG\nStandard CTF flag format",
             r"(flag|ctf|picoCTF)\{[^}]+\}": "🌐 MULTI_CTF_FLAG\nCommon CTF platform formats (pico, HTB, etc.)",
             "": "💡 HOVER FOR DETAILS",
-
             UNIVERSAL_FLAG_REGEX:
                 "🚩 UNIVERSAL_CTF_FLAG\n"
                 "Detect common CTF wrappers: flag, CTF, TCTT2026, "
@@ -266,8 +264,9 @@ class FileInspectionPage(ctk.CTkFrame):
         action_frame = ctk.CTkFrame(self, fg_color=PANEL_COLOR, corner_radius=4, border_width=1, border_color="#333344")
         action_frame.grid(row=3, column=0, sticky="ew", padx=30, pady=10)
 
+        # เพิ่ม steghide Analysis เข้าไปใน options 
         self.tool_menu = ctk.CTkOptionMenu(
-            action_frame, values=["'file' Command", "Header Check", "Executable Check", "Strings", "zsteg Analysis", "Exiftool"], 
+            action_frame, values=["'file' Command", "Header Check", "Executable Check", "Strings", "zsteg Analysis", "steghide Analysis", "Exiftool"], 
             width=180, height=35, font=("Consolas", 12),
             fg_color="#1E1E2E", button_color="#2B2B36", button_hover_color="#3A3A4A",
             state="disabled", command=self.on_tool_change
@@ -557,6 +556,7 @@ class FileInspectionPage(ctk.CTkFrame):
             elif choice == "Executable Check": self.check_if_executable(path)
             elif choice == "Strings": self.extract_all_strings(path, state)
             elif choice == "zsteg Analysis": self.run_zsteg_analysis(path)
+            elif choice == "steghide Analysis": self.run_steghide_analysis(path)
             elif choice == "Exiftool": self.run_exiftool_analysis(path)
 
             self._record_activity(
@@ -610,6 +610,100 @@ class FileInspectionPage(ctk.CTkFrame):
             res = subprocess.run(["zsteg", path], capture_output=True, text=True)
             self.safe_log(res.stdout if res.stdout else "[?] NO HIDDEN DATA DETECTED.", target_file=path)
         except: self.safe_log("[!] ZSTEG COMMAND NOT FOUND IN SYSTEM PATH.", "error", target_file=path)
+
+    # 🌟 ฟังก์ชัน Steghide Analysis พร้อม UI Popup 🌟
+    def run_steghide_analysis(self, path):
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in [".jpg", ".jpeg", ".bmp", ".wav", ".au"]:
+            self.safe_log(f"[!] STEGHIDE ERROR: '{ext}' MAY NOT BE SUPPORTED. (SUPPORTED: JPG, BMP, WAV, AU)", "error", target_file=path)
+
+        def process_steghide(mode, secret_val):
+            if mode == "passphrase":
+                self.safe_log(f"[*] RUNNING STEGHIDE EXTRACT WITH PASSPHRASE: '{secret_val}'...", "highlight", target_file=path)
+                try:
+                    res = subprocess.run(
+                        ["steghide", "extract", "-sf", path, "-p", secret_val, "-f"], 
+                        capture_output=True, text=True
+                    )
+                    if res.returncode == 0:
+                        self.safe_log(f"[+] SUCCESS! DATA EXTRACTED.", "found", target_file=path)
+                        self.safe_log(res.stdout.strip() + "\n" + res.stderr.strip(), target_file=path)
+                    else:
+                        self.safe_log(f"[!] FAILED: {res.stderr.strip()}", "error", target_file=path)
+                except Exception as e:
+                    self.safe_log(f"[!] ERROR: {str(e)}", "error", target_file=path)
+
+            elif mode == "wordlist":
+                self.safe_log(f"[*] STARTING BRUTEFORCE WITH WORDLIST: {secret_val}...", "highlight", target_file=path)
+                self.safe_log(f"[!] WARNING: STEGHIDE MAY PRODUCE FALSE POSITIVES.", "error", target_file=path)
+                try:
+                    with open(secret_val, 'r', encoding='utf-8', errors='ignore') as wl:
+                        words = [line.strip() for line in wl.readlines()]
+                    
+                    found_count = 0
+                    for w in words:
+                        if not w: continue
+                        res = subprocess.run(
+                            ["steghide", "extract", "-sf", path, "-p", w, "-f"], 
+                            capture_output=True, text=True
+                        )
+                        if res.returncode == 0:
+                            self.safe_log(f"[+] POTENTIAL PASSPHRASE FOUND: '{w}'", "found", target_file=path)
+                            self.safe_log(res.stdout.strip() + "\n" + res.stderr.strip(), target_file=path)
+                            found_count += 1
+                            
+                            # เราเอาคำสั่ง break ออก เพื่อให้มันหาต่อ!
+                            # แต่ตั้งเงื่อนไขว่าถ้าเจอ "ผลลวง" เกิน 5 อัน ให้หยุด ป้องกันแอปค้างนานเกินไป
+                            if found_count >= 5:
+                                self.safe_log(f"[!] REACHED LIMIT OF 5 POTENTIAL PASSPHRASES. STOPPING.", "error", target_file=path)
+                                break
+                    
+                    if found_count == 0:
+                        self.safe_log("[!] BRUTEFORCE COMPLETE: NO VALID PASSPHRASE FOUND.", "error", target_file=path)
+                    else:
+                        self.safe_log(f"[*] DONE. FOUND {found_count} POTENTIAL PASSPHRASES. PLEASE CHECK THE EXTRACTED FILES.", "highlight", target_file=path)
+                except Exception as e:
+                    self.safe_log(f"[!] WORDLIST ERROR: {str(e)}", "error", target_file=path)
+
+        def show_steghide_prompt():
+            popup = ctk.CTkToplevel(self)
+            popup.title("STEGHIDE :: EXTRACTION CONFIG")
+            popup.geometry("500x260")
+            popup.configure(fg_color="#0D0D12")
+            popup.attributes("-topmost", True)
+
+            ctk.CTkLabel(popup, text="[ STEGHIDE EXTRACTION ]", font=("Consolas", 16, "bold"), text_color="#00FFFF").pack(pady=10)
+            
+            radio_var = ctk.StringVar(value="passphrase")
+            
+            ctk.CTkRadioButton(popup, text="Use Passphrase (ปล่อยว่างได้ถ้าไม่มีรหัส)", variable=radio_var, value="passphrase", font=("Consolas", 12), text_color="white").pack(anchor="w", padx=30, pady=5)
+            pass_entry = ctk.CTkEntry(popup, placeholder_text="Enter passphrase here...", width=400, fg_color="#0A0A0F", border_color="#333344", text_color="#00FFFF")
+            pass_entry.pack(padx=30, pady=5)
+
+            ctk.CTkRadioButton(popup, text="Use Wordlist (Bruteforce Attack)", variable=radio_var, value="wordlist", font=("Consolas", 12), text_color="white").pack(anchor="w", padx=30, pady=5)
+            wl_frame = ctk.CTkFrame(popup, fg_color="transparent")
+            wl_frame.pack(fill="x", padx=30, pady=5)
+            wl_entry = ctk.CTkEntry(wl_frame, placeholder_text="Path to wordlist.txt...", width=300, fg_color="#0A0A0F", border_color="#333344", text_color="#00FFFF")
+            wl_entry.pack(side="left", padx=(0, 10))
+            
+            def browse_wordlist():
+                p = filedialog.askopenfilename(filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
+                if p:
+                    wl_entry.delete(0, "end")
+                    wl_entry.insert(0, p)
+                    radio_var.set("wordlist")
+                    
+            ctk.CTkButton(wl_frame, text="BROWSE", width=90, font=("Consolas", 10, "bold"), fg_color="#1E1E2E", command=browse_wordlist).pack(side="left")
+
+            def execute():
+                mode = radio_var.get()
+                secret = pass_entry.get() if mode == "passphrase" else wl_entry.get()
+                popup.destroy()
+                threading.Thread(target=process_steghide, args=(mode, secret), daemon=True).start()
+
+            ctk.CTkButton(popup, text="[ START EXTRACTION ]", font=("Consolas", 12, "bold"), fg_color="#00FFFF", text_color="black", hover_color="#00CCCC", command=execute).pack(pady=15)
+
+        self.after(0, show_steghide_prompt)
 
     def run_exiftool_analysis(self, path):
         try:
@@ -718,7 +812,6 @@ class FileInspectionPage(ctk.CTkFrame):
         except Exception as e: 
             self.safe_log(f"[!] STRINGS EXTRACTION ERROR: {str(e)}", "error", target_file=path)
 
-    # 🌟 ฟังก์ชันรันคำสั่ง file ดิบๆ (แก้ไข Error text_color แล้ว)
     def run_file_command(self, path):
         if path not in self.result_boxes:
             return
@@ -773,9 +866,11 @@ class FileInspectionPage(ctk.CTkFrame):
         info_window.geometry("520x500")
         info_window.configure(fg_color=BG_COLOR)
 
-        container = ctk.CTkFrame(info_window, fg_color=PANEL_COLOR, corner_radius=4, border_width=1, border_color=ACCENT_CYAN)
+        container = ctk.CTkFrame(info_window, fg_color=PANEL_COLOR, corner_radius=4, border_width=1, border_color=ACCENT_CYAN) 
         container.pack(fill="both", expand=True, padx=20, pady=20)
+        
         ctk.CTkLabel(container, text="[ REGULAR_EXPRESSION_GUIDE ]", font=("Consolas", 16, "bold"), text_color=ACCENT_CYAN).pack(pady=15)
+        
         guide_text = (
             "Syntax references for pattern matching:\n\n"
             "• [a-z] : Match lowercase a to z\n"
