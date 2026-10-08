@@ -53,12 +53,6 @@ class DashboardPage(ctk.CTkFrame):
             font=("Consolas", 28, "bold"),
             text_color=ACCENT_CYAN,
         ).pack(anchor="w")
-        ctk.CTkLabel(
-            title_box,
-            text="ศูนย์ควบคุมเครื่องมือ สถิติ และงานแข่งขัน CTF",
-            font=("Consolas", 12),
-            text_color=TEXT_DIM,
-        ).pack(anchor="w", pady=(3, 0))
         self.persistence_notice = ctk.CTkLabel(
             title_box, text="", font=("Consolas", 11), text_color=ALERT_AMBER
         )

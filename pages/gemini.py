@@ -36,13 +36,6 @@ class GeminiPage(ctk.CTkFrame):
             text_color=ACCENT_CYAN
         ).pack()
         
-        ctk.CTkLabel(
-            header_frame, 
-            text="SYSTEM_STATUS: WRAPPER ACTIVE | AUTO_EXEC: ENABLED", 
-            font=("Consolas", 12), 
-            text_color=ACCENT_GREEN
-        ).pack()
-
         # ==========================================
         # 2. แผงควบคุม API & Model (CONTROL PANEL)
         # ==========================================

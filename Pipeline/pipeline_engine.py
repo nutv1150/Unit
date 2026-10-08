@@ -32,7 +32,7 @@ class PipelineEngine:
         except (OSError, ValueError, KeyError, TypeError) as error:
             self.file_tools.clear()
             self.text_tools.clear()
-            self.load_error = f"อ่านรายการเครื่องมือไม่ได้: {error} (ไฟล์เดิมไม่ถูกแก้ไข)"
+            self.load_error = f"Cannot load tools: {error} (original file unchanged)"
         
 
     def load_custom_tools(self):
@@ -236,7 +236,7 @@ class PipelineEngine:
             if complete_before and complete_after:
                 result.files = changed_files(before, after, input_path)
             else:
-                result.discovery_note = "ตรวจหาไฟล์ได้ไม่ครบ กรุณาเลือกไฟล์ผลลัพธ์ด้วย Browse result file"
+                result.discovery_note = "File discovery was incomplete. Use Browse result file to select the output file."
         return result if detailed else result.stdout + result.stderr
 
     def run_text_tool(self, tool, input_data, params=None, detailed=False):

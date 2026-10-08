@@ -35,6 +35,32 @@ class PipelineModesGuiTests(unittest.TestCase):
         menu = next(w for w in gui.descendants(win) if isinstance(w, ctk.CTkComboBox))
         menu.set(name)
 
+    def test_english_ui_preserves_tool_output(self):
+        original = 'ผลลัพธ์จากเครื่องมือ'
+        self.page.engine.text_tools['language_test'] = lambda p: [
+            sys.executable, '-c', f'print({original!r})',
+        ]
+        def interact(win):
+            gui.run_and_wait(win)
+            history = next(w for w in gui.descendants(win) if isinstance(w, ctk.CTkTextbox))
+            text = history.get('1.0', 'end')
+            self.assertIn(original, text)
+            self.assertIn('[Running] Click Cancel to stop', text)
+            self.assertIn('[Success] Exit code: 0', text)
+            menu = next(w for w in gui.descendants(win) if isinstance(w, ctk.CTkComboBox))
+            self.assertEqual(menu.get(), 'Select the next tool')
+            for widget in gui.descendants(win):
+                if isinstance(widget, (ctk.CTkButton, ctk.CTkLabel, ctk.CTkRadioButton)):
+                    # Command previews are user/tool data, not translated UI.
+                    self.assertNotRegex(str(widget.cget('text')).replace(original, ''), r'[\u0e00-\u0e7f]')
+            self.page.engine.text_tools['language_test'] = lambda p: [
+                sys.executable, '-c', 'raise SystemExit(2)',
+            ]
+            gui.run_and_wait(win)
+            self.assertIn('[Failed] Exit code: 2', history.get('1.0', 'end'))
+            gui.button(win, 'Close Analysis').invoke()
+        self.assertIsNone(self.step('language_test', interact))
+
     def test_toggle_is_before_run_and_preserves_both_workspaces(self):
         self.assertEqual(self.page.pipeline_mode, 'Auto')
         self.assertLess(self.page.mode_btn.winfo_x(), self.page.run_btn.winfo_x())
@@ -99,8 +125,8 @@ class PipelineModesGuiTests(unittest.TestCase):
                 self.assertEqual(self.page.mode_btn.cget('state'), 'disabled')
                 gui.run_and_wait(win)
                 self.root.update_idletasks()
-                self.assertTrue(gui.button(win, 'ทำต่อ').winfo_ismapped())
-                for label in ('Run', 'Cancel', 'ปิดการวิเคราะห์', 'เสร็จงาน'):
+                self.assertTrue(gui.button(win, 'Continue').winfo_ismapped())
+                for label in ('Run', 'Cancel', 'Close Analysis', 'Finish'):
                     control = gui.button(win, label)
                     self.assertTrue(control.winfo_ismapped(), label)
                     self.assertLessEqual(control.winfo_rooty() + control.winfo_height(),
@@ -110,14 +136,14 @@ class PipelineModesGuiTests(unittest.TestCase):
                     history = next(w for w in gui.descendants(win) if isinstance(w, ctk.CTkTextbox))
                     self.assertGreaterEqual(history.winfo_height(), 120, 'Keep history readable beside file/continuation controls')
                     self.choose_next(win, 'reader')
-                    gui.button(win, 'ทำต่อ').invoke()
+                    gui.button(win, 'Continue').invoke()
                     self.assertTrue(win.winfo_exists(), 'Must explicitly choose result file')
                     choice = next(w for w in gui.descendants(win) if isinstance(w, ctk.CTkRadioButton))
                     choice.invoke()
                     self.root.after(80, interact)
-                    gui.button(win, 'ทำต่อ').invoke()
+                    gui.button(win, 'Continue').invoke()
                 else:
-                    gui.button(win, 'เสร็จงาน').invoke()
+                    gui.button(win, 'Finish').invoke()
             except BaseException as error:
                 failures.append(error)
                 win.destroy()
@@ -130,7 +156,7 @@ class PipelineModesGuiTests(unittest.TestCase):
         self.assertEqual([n['name'] for n in self.page.nodes], ['writer', 'reader'])
         self.assertEqual(self.page.run_logs[0]['output'], self.work / 'result.bin')
         self.assertEqual(self.page.run_logs[1]['output'], raw)
-        self.assertIn('เสร็จงาน 2 ขั้น', self.page.mode_hint.cget('text'))
+        self.assertFalse(hasattr(self.page, 'mode_hint'))
         self.assertEqual(self.page.mode_btn.cget('state'), 'normal')
         self.assertTrue((self.work / 'result.bin').exists())
 
@@ -139,16 +165,16 @@ class PipelineModesGuiTests(unittest.TestCase):
             sys.executable, '-c', "from pathlib import Path; Path('out').touch(); print('text')",
         ]
         def interact(win):
-            self.assertFalse(gui.button(win, 'ทำต่อ').winfo_ismapped())
+            self.assertFalse(gui.button(win, 'Continue').winfo_ismapped())
             gui.run_and_wait(win)
             self.choose_next(win, 'unknown-tool')
-            gui.button(win, 'ทำต่อ').invoke()
+            gui.button(win, 'Continue').invoke()
             self.assertTrue(win.winfo_exists())
             self.page.engine.text_tools['both'] = lambda p: [sys.executable, '-c', 'raise SystemExit(2)']
             gui.run_and_wait(win)
             self.root.update_idletasks()
-            self.assertFalse(gui.button(win, 'ทำต่อ').winfo_ismapped())
-            gui.button(win, 'เสร็จงาน').invoke()
+            self.assertFalse(gui.button(win, 'Continue').winfo_ismapped())
+            gui.button(win, 'Finish').invoke()
             self.assertTrue(win.winfo_exists())
             self.page.engine.text_tools['both'] = lambda p: [
                 sys.executable, '-c', "from pathlib import Path; Path('out2').touch(); print('new')",
@@ -156,9 +182,9 @@ class PipelineModesGuiTests(unittest.TestCase):
             gui.run_and_wait(win)
             self.choose_next(win, 'base64_decode')
             stdout = next(w for w in gui.descendants(win)
-                          if isinstance(w, ctk.CTkRadioButton) and w.cget('text') == 'ส่งต่อ stdout')
+                          if isinstance(w, ctk.CTkRadioButton) and w.cget('text') == 'Forward stdout')
             stdout.invoke()
-            gui.button(win, 'ทำต่อ').invoke()
+            gui.button(win, 'Continue').invoke()
         result = self.step('both', interact)
         self.assertEqual(result['output'], b'new\n')
         self.assertEqual(result['next_tool'], 'base64_decode')
@@ -169,7 +195,7 @@ class PipelineModesGuiTests(unittest.TestCase):
         ]
         def interact(win):
             gui.run_and_wait(win)
-            gui.button(win, 'เสร็จงาน').invoke()
+            gui.button(win, 'Finish').invoke()
         result = self.step('quiet', interact)
         self.assertIsNone(result['next_tool'])
         self.assertEqual(result['files'], [self.work / 'out'])
@@ -183,9 +209,9 @@ class PipelineModesGuiTests(unittest.TestCase):
             self.choose_next(win, 'strings')
             next(w for w in gui.descendants(win) if isinstance(w, ctk.CTkRadioButton)).invoke()
             (self.work / 'out').unlink()
-            gui.button(win, 'ทำต่อ').invoke()
+            gui.button(win, 'Continue').invoke()
             self.assertTrue(win.winfo_exists())
-            gui.button(win, 'ปิดการวิเคราะห์').invoke()
+            gui.button(win, 'Close Analysis').invoke()
         self.assertIsNone(self.step('quiet', interact))
 
     def test_saved_and_template_load_into_auto_without_destroying_step(self):
@@ -211,6 +237,14 @@ class PipelineModesGuiTests(unittest.TestCase):
         self.assertEqual(self.page.pipeline_mode, 'Auto')
         warning.assert_called_once()
         self.page._pipeline_running = False
+
+    def test_empty_step_still_explains_required_tool_selection(self):
+        self.page.set_pipeline_mode('Step')
+        with patch('pages.pipeline.messagebox.showwarning') as warning:
+            self.page.run_pipeline()
+        warning.assert_called_once()
+        self.assertIn('Select a tool', warning.call_args.args[1])
+        self.assertEqual(self.page.run_btn.cget('state'), 'normal')
 
     def test_closing_page_during_step_does_not_update_destroyed_widgets(self):
         self.page.set_pipeline_mode('Step')

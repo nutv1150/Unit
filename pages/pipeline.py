@@ -201,12 +201,6 @@ class PipelinePage(ctk.CTkFrame):
 
         self.template_opt.pack(side="left", padx=2)
 
-        self.mode_hint = ctk.CTkLabel(
-            self.work_area, text="Auto · รันชุดเครื่องมือบน canvas ตามลำดับ (การทำงานเดิม)",
-            text_color=TEXT_DIM, anchor="w", font=("Consolas", 11),
-        )
-        self.mode_hint.pack(fill="x", padx=15, pady=(0, 5))
-
         # --- Canvas Area ---
         self.canvas_container = ctk.CTkFrame(self.work_area, fg_color=INPUT_BG, corner_radius=8)
         self.canvas_container.pack(fill="both", expand=True, padx=15, pady=(0, 15))
@@ -215,7 +209,7 @@ class PipelinePage(ctk.CTkFrame):
         self.line_canvas.pack(fill="both", expand=True)
 
         self.placeholder = ctk.CTkLabel(
-            self.line_canvas, text="[ PIPELINE FLOW CANVAS — คลิก tool ด้านซ้ายเพื่อเริ่ม ]",
+            self.line_canvas, text="[ PIPELINE FLOW CANVAS ]",
             font=("Consolas", 12), text_color=TEXT_DIM
         )
         self.placeholder.place(relx=0.5, rely=0.5, anchor="center")
@@ -293,7 +287,7 @@ class PipelinePage(ctk.CTkFrame):
 
     def canvas_busy(self):
         if self._pipeline_running or self.active_runs:
-            messagebox.showwarning("Pipeline running", "ปิดขั้นตอนที่กำลังทำงานก่อนแก้ไขหรือรัน Pipeline ใหม่", parent=self)
+            messagebox.showwarning("Pipeline running", "Close the active step before editing or running another pipeline.", parent=self)
             return True
         return False
 
@@ -331,10 +325,6 @@ class PipelinePage(ctk.CTkFrame):
         self.pipeline_mode = mode
         self.mode_btn.configure(text=f"Mode: {mode}")
         self.run_btn.configure(text="Run All" if mode == "Auto" else "Run Step")
-        self.mode_hint.configure(text=(
-            "Auto · รันชุดเครื่องมือบน canvas ตามลำดับ (การทำงานเดิม)" if mode == "Auto" else
-            "Step · เลือก tool หนึ่งตัว → Run → วิเคราะห์ผล → เลือก tool ถัดไปหรือเสร็จงาน"
-        ))
         self.draw_connections()
         self.after_idle(self.draw_connections)
         return True
@@ -468,7 +458,7 @@ class PipelinePage(ctk.CTkFrame):
 
     def _run_step_analysis(self):
         if not self.nodes:
-            self.mode_hint.configure(text="Step · เลือก tool จากด้านซ้ายหนึ่งตัวก่อนกด Run Step")
+            messagebox.showwarning("No tool selected", "Select a tool before clicking Run Step.", parent=self)
             return
         # Running again starts at the first tool, not at stale downstream results.
         for node in self.nodes[1:]:
@@ -481,7 +471,6 @@ class PipelinePage(ctk.CTkFrame):
         current_data = b""
         while True:
             node = self.nodes[-1]
-            self.mode_hint.configure(text=f"Step · ขั้น {len(self.nodes)}: {node['name']}")
             decision = self.open_step_window(
                 node, current_data, current_data, self.run_logs, False,
                 step_index=len(self.nodes), step_mode=True,
@@ -489,12 +478,10 @@ class PipelinePage(ctk.CTkFrame):
             if not self._page_exists():
                 return
             if decision is None:
-                self.mode_hint.configure(text="Step · หยุดการวิเคราะห์แล้ว (ไม่ได้รันขั้นถัดไป)")
                 return
             self.run_logs.append(dict(tool=node['name'], output=decision['output'], files=decision['files']))
             next_tool = decision['next_tool']
             if next_tool is None:
-                self.mode_hint.configure(text=f"Step · เสร็จงาน {len(self.run_logs)} ขั้น")
                 return
             current_data = decision['output']
             self._append_tool_node(next_tool)
@@ -711,7 +698,7 @@ class PipelinePage(ctk.CTkFrame):
             selected = file_choices.get(file_selection.get())
             result["selected_file"] = selected
             file_status.configure(text=(
-                f"ส่งต่อไฟล์: {selected}" if selected else "ส่งต่อข้อมูล stdout"
+                f"Forward file: {selected}" if selected else "Forward stdout"
             ))
 
         def add_result_file(path):
@@ -719,9 +706,9 @@ class PipelinePage(ctk.CTkFrame):
             try:
                 size = path.stat().st_size
                 if not path.is_file():
-                    raise ValueError("กรุณาเลือกไฟล์")
+                    raise ValueError("Please select a file.")
             except (OSError, ValueError) as error:
-                file_status.configure(text=f"อ่านไฟล์ไม่ได้: {error}")
+                file_status.configure(text=f"Cannot read file: {error}")
                 return None
             key = str(path)
             if key not in file_choices:
@@ -738,7 +725,7 @@ class PipelinePage(ctk.CTkFrame):
                 return
             win.attributes("-topmost", False)
             try:
-                path = filedialog.askopenfilename(parent=win, title="เลือกไฟล์ผลลัพธ์เพื่อส่งต่อ")
+                path = filedialog.askopenfilename(parent=win, title="Select an output file to forward")
             finally:
                 win.attributes("-topmost", True)
             if path:
@@ -763,7 +750,7 @@ class PipelinePage(ctk.CTkFrame):
                 for widget in file_list.winfo_children()
             ):
                 ctk.CTkRadioButton(
-                    file_list, text="ส่งต่อ stdout", variable=file_selection,
+                    file_list, text="Forward stdout", variable=file_selection,
                     value="stdout", command=show_selected_file,
                     text_color="white", fg_color=ACCENT_CYAN,
                 ).pack(anchor="w", padx=5, pady=3)
@@ -1521,13 +1508,13 @@ class PipelinePage(ctk.CTkFrame):
             if res.stderr:
                 output_box.insert("end", "[stderr]\n" + res.stderr.decode(errors="replace") + "\n")
             if res.succeeded:
-                output_box.insert("end", "[สำเร็จ] Exit code: 0\n")
+                output_box.insert("end", "[Success] Exit code: 0\n")
                 if not res.stdout:
-                    output_box.insert("end", "ไม่มีข้อความใน stdout\n")
-                file_status.configure(text="ไฟล์ใหม่/แก้ไขในรอบนี้ — เลือกไฟล์ที่จะส่งต่อ")
+                    output_box.insert("end", "No stdout output\n")
+                file_status.configure(text="New or modified files from this run — select a file to forward")
                 for path in res.files:
                     add_result_file(path)
-                    output_box.insert("end", f"[ไฟล์ผลลัพธ์] {path}\n")
+                    output_box.insert("end", f"[Output file] {path}\n")
                 if file_choices:
                     show_result_panel()
                 elif not res.stdout or res.discovery_note:
@@ -1539,7 +1526,7 @@ class PipelinePage(ctk.CTkFrame):
                 if step_mode:
                     continuation_panel.pack(side="bottom", fill="x", padx=10, pady=10)
             else:
-                output_box.insert("end", f"[ไม่สำเร็จ] Exit code: {res.returncode}\n")
+                output_box.insert("end", f"[Failed] Exit code: {res.returncode}\n")
             output_box.see("end")
             # File/continuation controls resize history after this callback.
             output_box.after_idle(output_box.see, "end")
@@ -1559,7 +1546,7 @@ class PipelinePage(ctk.CTkFrame):
             try:
                 command, input_data, input_path = execute_tool()
             except (OSError, ValueError) as error:
-                output_box.insert("end", f"\n[ไม่สำเร็จ] {error}\n")
+                output_box.insert("end", f"\n[Failed] {error}\n")
                 output_box.see("end")
                 return
             running[0] = True
@@ -1568,7 +1555,7 @@ class PipelinePage(ctk.CTkFrame):
             run_button.configure(state="disabled")
             next_button.configure(state="disabled")
             cancel_button.configure(state="normal")
-            output_box.insert("end", "\n[กำลังทำงาน] กด Cancel เพื่อยกเลิก\n")
+            output_box.insert("end", "\n[Running] Click Cancel to stop\n")
 
             def worker():
                 try:
@@ -1590,7 +1577,7 @@ class PipelinePage(ctk.CTkFrame):
                 next_button.configure(state="normal")
                 cancel_button.configure(state="disabled")
                 if isinstance(outcome, Exception):
-                    output_box.insert("end", f"\n[ไม่สำเร็จ] {outcome}\n")
+                    output_box.insert("end", f"\n[Failed] {outcome}\n")
                 else:
                     show_result(outcome)
                 if closing[0]:
@@ -1630,11 +1617,11 @@ class PipelinePage(ctk.CTkFrame):
             selected = result["selected_file"]
             if selected is not None:
                 if not selected.is_file():
-                    file_status.configure(text="ไม่พบไฟล์ที่เลือก กรุณาเลือกไฟล์ใหม่")
+                    file_status.configure(text="Selected file not found. Please select another file.")
                     return
                 result["output"] = selected
             elif not is_last and file_choices and not file_selection.get():
-                file_status.configure(text="กรุณาเลือกไฟล์ผลลัพธ์ก่อนกด Next")
+                file_status.configure(text="Select an output file before clicking Next.")
                 return
             if is_last:
                 win.destroy()
@@ -1644,10 +1631,9 @@ class PipelinePage(ctk.CTkFrame):
             win.destroy()
 
         if step_mode:
-            ctk.CTkLabel(continuation_panel, text="วิเคราะห์ผลแล้ว — ทำอะไรต่อ?", text_color=ACCENT_CYAN).pack(anchor="w", padx=10, pady=(5, 0))
             next_tools = sorted(set(self.engine.file_tools) | set(self.engine.text_tools))
             next_tool_menu = ctk.CTkComboBox(continuation_panel, values=next_tools, width=300)
-            next_tool_menu.set("เลือก tool ถัดไป")
+            next_tool_menu.set("Select the next tool")
             next_tool_menu.pack(fill="x", padx=10, pady=5)
             decision_status = ctk.CTkLabel(continuation_panel, text="", text_color=ALERT_RED, wraplength=430)
             decision_status.pack(fill="x", padx=10)
@@ -1657,14 +1643,14 @@ class PipelinePage(ctk.CTkFrame):
                     return
                 next_tool = None if finish else next_tool_menu.get().strip()
                 if not finish and next_tool not in self.engine.file_tools and next_tool not in self.engine.text_tools:
-                    decision_status.configure(text="กรุณาเลือก tool ที่มีอยู่ในรายการ")
+                    decision_status.configure(text="Please select a tool from the list.")
                     return
                 selected = result['selected_file']
                 if selected is not None and not selected.is_file():
-                    decision_status.configure(text="ไม่พบไฟล์ที่เลือก กรุณาเลือกไฟล์ใหม่")
+                    decision_status.configure(text="Selected file not found. Please select another file.")
                     return
                 if not finish and file_choices and not file_selection.get():
-                    decision_status.configure(text="กรุณาเลือกไฟล์ผลลัพธ์หรือ stdout ที่จะส่งต่อก่อน")
+                    decision_status.configure(text="Select an output file or stdout to forward before continuing.")
                     return
                 result['decision'] = dict(
                     output=selected if selected is not None else result['output'],
@@ -1674,14 +1660,14 @@ class PipelinePage(ctk.CTkFrame):
 
             decision_buttons = ctk.CTkFrame(continuation_panel, fg_color="transparent")
             decision_buttons.pack(fill="x", padx=10, pady=(0, 10))
-            ctk.CTkButton(decision_buttons, text="ทำต่อ", width=120,
+            ctk.CTkButton(decision_buttons, text="Continue", width=120,
                           command=complete_step, fg_color=ACCENT_CYAN, text_color="black").pack(side="left", padx=(0, 5))
-            ctk.CTkButton(decision_buttons, text="เสร็จงาน", width=120,
+            ctk.CTkButton(decision_buttons, text="Finish", width=120,
                           command=lambda: complete_step(True), fg_color=ACCENT_GREEN, text_color="black").pack(side="left")
 
         next_button = ctk.CTkButton(
             run_controls,
-            text="ปิดการวิเคราะห์" if step_mode else ("Close" if is_last else "Next"),
+            text="Close Analysis" if step_mode else ("Close" if is_last else "Next"),
             fg_color=BORDER_COLOR if is_last else ACCENT_CYAN,
             text_color="white" if is_last else "black",
             hover_color=CARD_COLOR if is_last else "#00CCCC",
@@ -1738,7 +1724,7 @@ class PipelinePage(ctk.CTkFrame):
             try:
                 saved_list = saved_pipelines(saved_path)["saved_pipelines"]
             except Exception as e:
-                self.config_error = f"Saved Pipelines: {e} (ไฟล์เดิมไม่ถูกแก้ไข)"
+                self.config_error = f"Saved Pipelines: {e} (original file unchanged)"
 
         categories = {"Saved Pipelines": []}
 
@@ -2141,7 +2127,7 @@ class PipelinePage(ctk.CTkFrame):
             print(f"Saved pipeline '{pipeline_name}' successfully!")
 
         except Exception as e:
-            messagebox.showerror("Save Pipeline", f"บันทึกไม่สำเร็จ ไฟล์เดิมไม่ถูกเขียนทับ:\n{e}", parent=self)
+            messagebox.showerror("Save Pipeline", f"Save failed. The original file was not overwritten:\n{e}", parent=self)
 
     # โหลด pipeline มาแสดงบน canvas
     def load_saved_pipeline_to_canvas(self, pipeline_name):

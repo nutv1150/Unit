@@ -114,11 +114,6 @@ class DataHashPage(ctk.CTkFrame):
             font=("Consolas", 28, "bold"), text_color=ACCENT_CYAN
         ).pack(anchor="w")
 
-        ctk.CTkLabel(
-            header_frame, text="Universal codec console — encode, decode, hash และ bitwise mask ในที่เดียว",
-            font=("Consolas", 12), text_color=TEXT_DIM
-        ).pack(anchor="w", pady=(2, 0))
-
         # =========================
         # 2. Mode Selector (Segmented Control)
         # =========================

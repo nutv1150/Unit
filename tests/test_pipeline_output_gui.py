@@ -204,7 +204,7 @@ class PipelineOutputGuiTests(unittest.TestCase):
             button(win, 'Next').invoke()
             self.assertTrue(win.winfo_exists())
             stdout = next(w for w in descendants(win)
-                          if isinstance(w, ctk.CTkRadioButton) and w.cget('text') == 'ส่งต่อ stdout')
+                          if isinstance(w, ctk.CTkRadioButton) and w.cget('text') == 'Forward stdout')
             stdout.invoke()
             button(win, 'Next').invoke()
         self.assertEqual(self.step('both', interact), b'log message\n')
