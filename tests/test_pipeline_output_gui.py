@@ -221,15 +221,15 @@ class PipelineOutputGuiTests(unittest.TestCase):
             self.root.update_idletasks()
             choice = next(w for w in descendants(win) if isinstance(w, ctk.CTkRadioButton))
             self.assertTrue(choice.winfo_ismapped())
+            result_list = choice.master
+            self.assertIsInstance(result_list, ctk.CTkScrollableFrame)
             choice.invoke()
             self.page.engine.file_tools['strings_test'] = lambda f, p: ['strings', f]
             run_and_wait(win)
             self.root.update_idletasks()
             self.assertFalse(button(win, 'Browse result file').winfo_ismapped())
             self.assertFalse(any(isinstance(w, ctk.CTkRadioButton) for w in descendants(win)))
-            lists = [w for w in descendants(win) if isinstance(w, ctk.CTkScrollableFrame)]
-            self.assertTrue(lists)
-            self.assertTrue(all(not w.winfo_ismapped() for w in lists))
+            self.assertFalse(result_list.winfo_ismapped())
             button(win, 'Next').invoke()
         self.assertEqual(self.step('strings_test', interact, source), b'UNIT pipeline text\n')
 
