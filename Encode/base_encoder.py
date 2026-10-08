@@ -2,6 +2,7 @@ import base64
 import urllib.parse
 import html
 import codecs
+from Tools.rot import rot_n, parse_rot_algo
 
 BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -43,13 +44,8 @@ def encode_data(text, algo="Base64"):
     elif algo == "Reverse":
         return text[::-1]
     
-    elif algo == "ROT13":
-        return raw.decode(errors="ignore").translate(
-            str.maketrans(
-                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",
-                "NOPQRSTUVWXYZABCDEFGHIJKLMnopqrstuvwxyzabcdefghijklm"
-            )
-        )
+    elif algo.startswith("ROT"):
+        return rot_n(text, *parse_rot_algo(algo))
 
     # =========================
     # NEW Encoding

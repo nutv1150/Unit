@@ -8,6 +8,8 @@ from pages.pipeline import PipelinePage
 from pages.gemini import GeminiPage
 from pages.dashboard import DashboardPage
 from pages.app_portal import AppPortalPage
+from pages.my_tools import MyToolsPage
+from pages.challenge import ChallengePage
 from Tools.dashboard_store import DashboardStore
 
 ctk.set_appearance_mode("Light")
@@ -23,6 +25,7 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.title("Unified Toolkit")
         self.geometry("1200x720")
+        self.configure(fg_color="#0D0D12")
 
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -30,7 +33,7 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.sidebar = Sidebar(self, self.switch_page)
         self.sidebar.grid(row=0, column=0, sticky="ns")
 
-        self.container = ctk.CTkFrame(self, fg_color="#f5f6f8")
+        self.container = ctk.CTkFrame(self, fg_color="#0D0D12")
         self.container.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
         self.container.grid_rowconfigure(0, weight=1)
         self.container.grid_columnconfigure(0, weight=1)
@@ -47,8 +50,11 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
             "Pipeline": PipelinePage(self.container),
             "Gemini CLI": GeminiPage(self.container),
             "App Portal": AppPortalPage(self.container),
+            "My Tools": MyToolsPage(self.container, navigate_callback=self.navigate_to),
+            "Challenge": ChallengePage(self.container),
         }
 
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.current_page = None
         
         # ---------------- จุดที่ 2: เปลี่ยนหน้าเริ่มต้นเป็น Dashboard ----------------
@@ -86,6 +92,30 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         else:
             # ถ้ายังพังอีก มันจะปริ้นท์บอกชัดเจนเลยว่าหาไม่เจอ
             print(f"[ERROR] ❌ เปลี่ยนหน้าไม่ได้! ไม่พบ '{name}' ในระบบเลย")
+
+    def navigate_to(self, name, sub=None):
+        """เปิดหน้าพร้อมเครื่องมือย่อย โดยไม่ launch โปรแกรมภายนอกทันที"""
+        self.switch_page(name)
+        page = self.pages.get(name)
+        if page is None or sub is None:
+            return
+        if name == "Data Hashing":
+            page.set_mode("Bitwise" if sub == "XOR" else "Decode")
+            page.select_quick_algo("XOR Mask" if sub == "XOR" else sub)
+        elif name == "File Inspection":
+            page.tool_menu.set(sub)
+            page.on_tool_change(sub)
+        elif name == "App Portal":
+            page.search_var.set(sub)
+
+    def on_close(self):
+        try:
+            self.pages["Challenge"].save_before_close()
+        except (OSError, ValueError) as error:
+            self.switch_page("Challenge")
+            self.pages["Challenge"].status.configure(text=f"บันทึกเวลาก่อนปิดไม่สำเร็จ: {error}")
+            return
+        self.destroy()
 
     def send_to_hashing(self, text):
         # 1. สลับไปหน้า Data Hashing
