@@ -210,3 +210,6 @@ __marimo__/
 /config/my_tools_groups.json
 /config/challenges.json
 /config/*.tmp
+
+# Local solve history (may contain sensitive analysis data)
+/data/solve_history.sqlite3*

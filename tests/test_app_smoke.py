@@ -11,9 +11,11 @@ class ApplicationSmokeTests(unittest.TestCase):
     def test_all_pages_and_clean_close(self):
         from app import UNITApp
         from Tools.dashboard_store import DashboardStore
+        from Tools.solve_history import SolveHistoryStore
         with tempfile.TemporaryDirectory() as directory:
             work = Path(directory)
             with patch('app.DashboardStore', side_effect=lambda: DashboardStore(work / 'dashboard.json')), \
+                 patch('app.SolveHistoryStore', side_effect=lambda: SolveHistoryStore(work / 'history.sqlite3')), \
                  patch('Tools.workspace_store.CONFIG_DIR', work), \
                  patch('pages.my_tools.CONFIG_DIR', work):
                 root = UNITApp()

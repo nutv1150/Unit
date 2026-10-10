@@ -11,6 +11,7 @@ from pages.app_portal import AppPortalPage
 from pages.my_tools import MyToolsPage
 from pages.challenge import ChallengePage
 from Tools.dashboard_store import DashboardStore
+from Tools.solve_history import SolveHistoryStore
 
 ctk.set_appearance_mode("Light")
 ctk.set_default_color_theme("blue")
@@ -41,6 +42,13 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         # DashboardStore เป็นแหล่งข้อมูลกลางของกิจกรรมทุกหน้า
         # บันทึกข้ามการเปิด/ปิดโปรแกรมที่ ~/.unit/dashboard_state.json
         self.dashboard_store = DashboardStore()
+        self.history_error = ''
+        self.history_active = set()
+        try:
+            self.history_store = SolveHistoryStore()
+        except Exception as error:
+            self.history_store = None
+            self.history_error = f'History unavailable: {error}'
 
         # ---------------- จุดที่ 1: เพิ่ม Dashboard เข้าไประบบ Pages ----------------
         self.pages = {
@@ -121,14 +129,20 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         gemini = self.pages.get("Gemini CLI")
         if gemini is not None:
             gemini.request_stop()
+        if getattr(self, 'history_store', None) is not None:
+            from Tools.history_hooks import finish
+            for event_id in tuple(getattr(self, 'history_active', ())):
+                finish(self, event_id, 'Failed', error='Application closed before the operation completed.')
+            self.history_store.close()
         self.destroy()
 
-    def send_to_hashing(self, text):
+    def send_to_hashing(self, text, source_history_id=None):
         # 1. สลับไปหน้า Data Hashing
         self.switch_page("Data Hashing")
         # 2. ใส่ข้อความลง input_box
         page = self.pages["Data Hashing"]
         page.current_file_path = None
+        page.history_source = (text, source_history_id)
         page.input_box.delete("1.0", "end")
         page.input_box.insert("1.0", text)
         # 3. trigger process_data ทันที

@@ -42,8 +42,11 @@ class DashboardPage(ctk.CTkFrame):
         self._build_detail_sections()
 
     def _build_header(self):
+        from Tools.history_hooks import open_history
         header = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         header.pack(fill="x", pady=(0, 12))
+        ctk.CTkButton(header, text='History', width=90,
+                      command=lambda: open_history(self.winfo_toplevel(), 'All')).pack(side='right', padx=6)
 
         title_box = ctk.CTkFrame(header, fg_color="transparent")
         title_box.pack(side="left", fill="x", expand=True)

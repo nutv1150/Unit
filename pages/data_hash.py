@@ -12,6 +12,7 @@ from Tools.extra_tools import (
     detect_embedded_key,
 )
 from Tools.flag_detector import find_flags
+from Tools import history_hooks
 from tkinter import filedialog, Menu, TclError
 
 # ==========================================
@@ -37,6 +38,8 @@ class DataHashPage(ctk.CTkFrame):
         self.app_root = master.master
         self.current_file_path = None
         self.output_bytes = b""
+        self.history_source = (None, None)
+        self.last_history_id = None
         self.configure(fg_color=BG_COLOR)
 
         # =========================
@@ -108,6 +111,8 @@ class DataHashPage(ctk.CTkFrame):
         # =========================
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=(20, 5))
+        ctk.CTkButton(header_frame, text='History', width=90,
+                      command=lambda: history_hooks.open_history(self.app_root, 'Data Hashing')).pack(side='right')
 
         ctk.CTkLabel(
             header_frame, text=">_ DATA_FORGE :: [ENCODE / DECODE / HASH]",
@@ -328,6 +333,20 @@ class DataHashPage(ctk.CTkFrame):
             self.update_output_label()
             return
 
+        options = {'mode': self.mode, 'algorithm': algo}
+        if algo == 'ROT':
+            options.update(rotation=self.rot_entry.get(), alphabet=self.rot_mode_var.get())
+        if algo == 'Hex' and self.mode == 'Decode':
+            options['hex_alphabet'] = self.custom_hex_entry.get()
+        if self.mode == 'Bitwise':
+            options['key'] = self.key_entry.get()
+        source_text, source_id = self.history_source
+        history_id = history_hooks.begin(
+            self.app_root, category='Data Hashing', tool=f'{self.mode}: {algo}',
+            input_data=data, options=options, parent_id=source_id if data == source_text else None,
+            files=[self.current_file_path] if self.current_file_path else [],
+        )
+        self.last_history_id = history_id
         try:
             if algo == "ROT":
                 n = int(self.rot_entry.get().strip() or "13")
@@ -435,6 +454,7 @@ class DataHashPage(ctk.CTkFrame):
             self.output_box.delete("1.0", "end")
             self.output_box.insert("1.0", result)
             self.save_raw_button.configure(state="normal" if self.output_bytes else "disabled")
+            history_hooks.finish(self.app_root, history_id, 'Success', output_data=self.output_bytes)
 
             self._record_activity(
                 tool=f"{self.mode}: {algo}",
@@ -445,6 +465,7 @@ class DataHashPage(ctk.CTkFrame):
             )
 
         except Exception as e:
+            history_hooks.finish(self.app_root, history_id, 'Failed', error=str(e))
             self.output_bytes = b""
             self.save_raw_button.configure(state="disabled")
             self.output_box.delete("1.0", "end")
@@ -471,6 +492,7 @@ class DataHashPage(ctk.CTkFrame):
         try:
             with open(path, "wb") as handle:
                 handle.write(self.output_bytes)
+            history_hooks.attach_file(self.app_root, self.last_history_id, path)
         except OSError as exc:
             self.output_box.insert("end", f"\nError saving raw output: {exc}")
 
