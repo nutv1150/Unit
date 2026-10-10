@@ -9,8 +9,10 @@ import threading
 import hashlib
 import mmap  
 import queue
+import uuid
 
 from Tools.flag_detector import UNIVERSAL_FLAG_REGEX, find_flags
+from Tools import history_hooks
 
 # ==========================================
 # ธีมสีหลัก (Cyberpunk / Terminal)
@@ -54,7 +56,11 @@ class ResultBox(ctk.CTkFrame):
         try:
             sel = self.textbox.get("sel.first", "sel.last").strip()
             if sel and hasattr(self.app_root, "send_to_hashing"):
-                self.app_root.send_to_hashing(sel)
+                source = getattr(self, 'history_id', None)
+                if source:
+                    self.app_root.send_to_hashing(sel, source_history_id=source)
+                else:
+                    self.app_root.send_to_hashing(sel)
         except: pass
         
     def show_context_menu(self, e):
@@ -201,6 +207,7 @@ class FileInspectionPage(ctk.CTkFrame):
         self._worker_context = threading.local()
         self._analysis_generation = 0
         self._metadata_generation = 0
+        self._history_pending = set()
         self.after(40, self._drain_ui)
         self.app_root = master.master 
         self.configure(fg_color=BG_COLOR)
@@ -240,6 +247,8 @@ class FileInspectionPage(ctk.CTkFrame):
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.grid(row=0, column=0, sticky="ew", padx=30, pady=(20, 5))
         ctk.CTkLabel(header_frame, text=">_ DATA_INSPECTOR :: [BATCH_SCAN]", font=("Consolas", 28, "bold"), text_color=ACCENT_CYAN).pack(side="left")
+        ctk.CTkButton(header_frame, text='History', width=90,
+                      command=lambda: history_hooks.open_history(self.app_root, 'File Inspection')).pack(side='right')
 
         # 2. 🚀 Drag & Drop Zone 
         self.drop_zone = ctk.CTkFrame(self, fg_color="#0A0A0F", corner_radius=4, border_width=1, border_color="#333344")
@@ -559,9 +568,16 @@ class FileInspectionPage(ctk.CTkFrame):
             pattern = self.regex_var.get()
             re.compile(pattern)
         except (ValueError, re.error) as error:
+            event_id = history_hooks.begin(self.app_root, category='File Inspection', tool=self.tool_menu.get(),
+                input_data='\n'.join(self.selected_files), options={'regex': self.regex_var.get(),
+                'display_limit': self.max_display_entry.get()}, files=self.selected_files)
+            history_hooks.finish(self.app_root, event_id, 'Failed', error=str(error))
             self.warning_label.configure(text=f"ERROR: {error}", text_color=ALERT_RED)
             return
 
+        for event_id in self._history_pending:
+            history_hooks.finish(self.app_root, event_id, 'Failed', error='Superseded by another analysis.')
+        self._history_pending.clear()
         self._analysis_generation += 1
         
         self.populate_file_nav()
@@ -575,6 +591,18 @@ class FileInspectionPage(ctk.CTkFrame):
 
         job = dict(generation=self._analysis_generation, limit=limit, pattern=pattern,
                    paths=tuple(self.selected_files), boxes=dict(self.result_boxes), flags={})
+        group_id = uuid.uuid4().hex
+        job['history'] = {
+            path: history_hooks.begin(self.app_root, category='File Inspection', tool=choice,
+                    input_data=path, options={'regex': pattern, 'display_limit': limit},
+                    files=[path], group_id=group_id)
+            for path in job['paths']
+        }
+        for path, event_id in job['history'].items():
+            if event_id:
+                self._history_pending.add(event_id)
+            if path in job['boxes']:
+                job['boxes'][path].history_id = event_id
         threading.Thread(target=self._run_analysis_logic, args=(choice, job), daemon=True).start()
 
     def _run_analysis_logic(self, choice, job):
@@ -602,10 +630,18 @@ class FileInspectionPage(ctk.CTkFrame):
             status = "failed" if self._worker_context.failed else "success"
             flags = job["flags"].get(path, []) if choice == "Strings" else []
             self._post_ui(lambda p=path, s=status, f=flags: self._record_activity(choice, p, flags=f, status=s))
+            self._post_ui(lambda p=path, s=status: self._finish_history(job, p, s))
             if status == "failed":
                 state["failed"] = True
 
         self._post_ui(lambda: self.finish_analysis(choice, state['match_count'], state.get('failed', False)))
+
+    def _finish_history(self, job, path, status):
+        box = job['boxes'].get(path)
+        output = box.textbox.get('1.0', 'end-1c') if box else ''
+        history_hooks.finish(self.app_root, job.get('history', {}).get(path),
+                             'Success' if status == 'success' else 'Failed', output_data=output)
+        self._history_pending.discard(job.get('history', {}).get(path))
 
     def check_if_executable(self, path):
         try:

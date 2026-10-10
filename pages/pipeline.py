@@ -10,7 +10,9 @@ import os
 import shlex
 import threading
 import queue
+import uuid
 from pathlib import Path
+from Tools import history_hooks
 
 from Tools.artifact_bridge import (
     resolve_file_input,
@@ -200,6 +202,8 @@ class PipelinePage(ctk.CTkFrame):
         )
 
         self.template_opt.pack(side="left", padx=2)
+        ctk.CTkButton(self.controls, text='History', width=90,
+                      command=lambda: history_hooks.open_history(self.app_root, 'Pipeline')).pack(side='left', padx=6)
 
         # --- Canvas Area ---
         self.canvas_container = ctk.CTkFrame(self.work_area, fg_color=INPUT_BG, corner_radius=8)
@@ -443,6 +447,7 @@ class PipelinePage(ctk.CTkFrame):
         if self.canvas_busy():
             return
         self._pipeline_running = True
+        self._history_group_id = uuid.uuid4().hex
         self.mode_btn.configure(state="disabled")
         self.run_btn.configure(state="disabled")
         try:
@@ -479,7 +484,8 @@ class PipelinePage(ctk.CTkFrame):
                 return
             if decision is None:
                 return
-            self.run_logs.append(dict(tool=node['name'], output=decision['output'], files=decision['files']))
+            self.run_logs.append(dict(tool=node['name'], output=decision['output'], files=decision['files'],
+                                      history_id=decision.get('history_id')))
             next_tool = decision['next_tool']
             if next_tool is None:
                 return
@@ -515,7 +521,8 @@ class PipelinePage(ctk.CTkFrame):
 
             self.run_logs.append({
                 "tool": tool,
-                "output": output
+                "output": output,
+                "history_id": getattr(self, '_last_history_id', None),
             })
 
             current_data = output
@@ -546,6 +553,10 @@ class PipelinePage(ctk.CTkFrame):
     def open_step_window(self, node, previous_output, original_data, logs, is_last, step_index=1, total_steps=1, step_mode=False):
 
         tool_name = node["name"]
+        history_group = getattr(self, '_history_group_id', None) if self._pipeline_running else None
+        history_group = history_group or uuid.uuid4().hex
+        input_source = {'text': None, 'id': None}
+        history_tags = {}
         # A selected output file is distinct from stdout containing a path.
         forwarded_file = previous_output if isinstance(previous_output, Path) else None
         if forwarded_file is not None:
@@ -599,11 +610,24 @@ class PipelinePage(ctk.CTkFrame):
         )
         output_box.pack(fill="both", expand=True, padx=10, pady=10)
 
+        def selected_history_id():
+            try:
+                start, end = output_box.index('sel.first'), output_box.index('sel.last')
+            except tk.TclError:
+                return result.get('history_id')
+            for tag, event_id in history_tags.items():
+                ranges = output_box.tag_ranges(tag)
+                if len(ranges) == 2 and output_box.compare(start, '>=', ranges[0]) and output_box.compare(end, '<=', ranges[1]):
+                    return event_id
+            return None
+
         def send_selected_to_input():
             try:
                 selected = output_box.get("sel.first", "sel.last")
+                source_id = selected_history_id()
                 input_entry.delete(0, "end")
                 input_entry.insert(0, selected.strip())
+                input_source.update(text=selected.strip(), id=source_id)
             except tk.TclError:
                 pass
 
@@ -629,7 +653,11 @@ class PipelinePage(ctk.CTkFrame):
         def send_selected_to_hashing():
             text = get_selected_or_output_text()
             if text and hasattr(self.app_root, "send_to_hashing"):
-                self.app_root.send_to_hashing(text)
+                source_id = selected_history_id()
+                if source_id:
+                    self.app_root.send_to_hashing(text, source_history_id=source_id)
+                else:
+                    self.app_root.send_to_hashing(text)
 
         context_menu = tk.Menu(output_box, tearoff=0)
         context_menu.add_command(
@@ -654,7 +682,7 @@ class PipelinePage(ctk.CTkFrame):
 
         output_box.bind("<Button-3>", show_context_menu)
 
-        result = {"output": None, "run": None, "selected_file": None, "decision": None}
+        result = {"output": None, "run": None, "selected_file": None, "decision": None, "history_id": None}
 
         continuation_panel = ctk.CTkFrame(output_footer, fg_color=CARD_COLOR)
 
@@ -676,8 +704,13 @@ class PipelinePage(ctk.CTkFrame):
             if isinstance(out, bytes):
                 out = out.decode(errors="ignore")
 
+            start = output_box.index('end-1c')
             output_box.insert("end", f"\n>>> {tool}\n")
             output_box.insert("end", str(out) + "\n")
+            if log.get('history_id'):
+                tag = 'history_' + log['history_id']
+                output_box.tag_add(tag, start, 'end-1c')
+                history_tags[tag] = log['history_id']
 
         file_selection = tk.StringVar(value="")
         file_panel = ctk.CTkFrame(output_footer, fg_color=CARD_COLOR)
@@ -734,6 +767,7 @@ class PipelinePage(ctk.CTkFrame):
                     show_result_panel()
                     file_selection.set(key)
                     show_selected_file()
+                    history_hooks.attach_file(self.app_root, result.get('history_id'), path)
 
         browse_result_button = ctk.CTkButton(
             output_footer, text="Browse result file", command=browse_result_file,
@@ -763,8 +797,9 @@ class PipelinePage(ctk.CTkFrame):
             win.attributes("-topmost", True)
 
             if path:
-                with open(path, "wb") as f:
-                    f.write(result["output"])
+                    with open(path, "wb") as f:
+                        f.write(result["output"])
+                    history_hooks.attach_file(self.app_root, result.get('history_id'), path)
 
         ctk.CTkButton(
             output_footer, text="Save Output as File", command=save_output,
@@ -1429,7 +1464,12 @@ class PipelinePage(ctk.CTkFrame):
         preview_label.pack(anchor="w", padx=20, pady=5)
 
         # Observe all edits, including Send to Input, paste and file selection.
-        input_var.trace_add("write", update_preview)
+        if logs and (previous_output or forwarded_file is not None):
+            input_source.update(text=input_entry.get(), id=logs[-1].get('history_id'))
+        def input_changed(*args):
+            input_source.update(text=None, id=None)
+            update_preview()
+        input_var.trace_add("write", input_changed)
         update_preview()
 
         # -------- Description --------
@@ -1509,6 +1549,7 @@ class PipelinePage(ctk.CTkFrame):
                 return command_for(), input_bytes, None
 
         def show_result(res):
+            start = output_box.index('end-1c')
             result["run"] = res
             result["output"] = res.stdout if res.succeeded else None
             output_box.insert("end", f"\n>>> output ({tool_name})\n")
@@ -1539,6 +1580,10 @@ class PipelinePage(ctk.CTkFrame):
             output_box.see("end")
             # File/continuation controls resize history after this callback.
             output_box.after_idle(output_box.see, "end")
+            if result.get('history_id'):
+                tag = 'history_' + result['history_id']
+                output_box.tag_add(tag, start, 'end-1c')
+                history_tags[tag] = result['history_id']
 
         def run_tool():
             if running[0]:
@@ -1555,9 +1600,18 @@ class PipelinePage(ctk.CTkFrame):
             try:
                 command, input_data, input_path = execute_tool()
             except (OSError, ValueError) as error:
+                failed_id = history_hooks.begin(self.app_root, category='Pipeline', tool=tool_name,
+                    input_data=input_entry.get(), options=node.get('params', ''), group_id=history_group)
+                history_hooks.finish(self.app_root, failed_id, 'Failed', error=str(error))
                 output_box.insert("end", f"\n[Failed] {error}\n")
                 output_box.see("end")
                 return
+            parent_id = input_source['id'] if input_source['text'] == input_entry.get() else None
+            source_files = [input_path] if input_path else ([str(forwarded_file)] if forwarded_file is not None and not input_entry.get() else [])
+            result['history_id'] = history_hooks.begin(self.app_root, category='Pipeline', tool=tool_name,
+                input_data=input_data if input_data is not None else input_path,
+                options=command, files=source_files, group_id=history_group, parent_id=parent_id)
+            self._last_history_id = result['history_id']
             running[0] = True
             cancel_event.clear()
             self.active_runs.add(cancel_event)
@@ -1586,8 +1640,12 @@ class PipelinePage(ctk.CTkFrame):
                 next_button.configure(state="normal")
                 cancel_button.configure(state="disabled")
                 if isinstance(outcome, Exception):
+                    history_hooks.finish(self.app_root, result['history_id'], 'Failed', error=str(outcome))
                     output_box.insert("end", f"\n[Failed] {outcome}\n")
                 else:
+                    history_hooks.finish(self.app_root, result['history_id'],
+                        'Success' if outcome.succeeded else 'Failed', output_data=outcome.stdout,
+                        error=outcome.stderr, files=source_files + [str(p) for p in outcome.files])
                     show_result(outcome)
                 if closing[0]:
                     result["output"] = None
@@ -1663,7 +1721,7 @@ class PipelinePage(ctk.CTkFrame):
                     return
                 result['decision'] = dict(
                     output=selected if selected is not None else result['output'],
-                    files=list(file_choices.values()), next_tool=next_tool,
+                    files=list(file_choices.values()), next_tool=next_tool, history_id=result['history_id'],
                 )
                 win.destroy()
 

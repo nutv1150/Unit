@@ -28,6 +28,215 @@
     }
   ],
   "events": [
-    
+    {
+      "id": "e72f042eef594038972d663e49e477f2",
+      "timestamp": "2026-10-08T17:48:56.508087+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "0af00043dbad41f9ac3e98a2d2316998",
+      "timestamp": "2026-10-08T17:48:57.927281+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "f53699c419f849aea9c6c2242580271b",
+      "timestamp": "2026-10-08T18:00:20.194048+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/hidden_payload.iso",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "c394dd3b5c4e4b079e1dd55c8fad2119",
+      "timestamp": "2026-10-08T18:00:23.440092+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/hidden_payload.iso",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "45b84713cd334bf592ff81c7af7ee0c0",
+      "timestamp": "2026-10-08T18:00:27.949275+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 95 characters"
+    },
+    {
+      "id": "2c2db174443146bcaed2582cdd91bdbb",
+      "timestamp": "2026-10-08T18:00:30.979487+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 95 characters"
+    },
+    {
+      "id": "f14a848122e24f13ae5104b3445d084c",
+      "timestamp": "2026-10-08T18:00:31.898061+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 94 characters"
+    },
+    {
+      "id": "0bec80e3d11340779d9923dab20d13cd",
+      "timestamp": "2026-10-08T18:00:32.270860+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 93 characters"
+    },
+    {
+      "id": "ba22ed410c564331808f0a2161aa03b4",
+      "timestamp": "2026-10-08T18:00:32.823920+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 92 characters"
+    },
+    {
+      "id": "5b34f87c767a4d0785b82fff6ac6da9c",
+      "timestamp": "2026-10-08T18:00:33.871504+00:00",
+      "competition": "General",
+      "tool": "Encode: Base64",
+      "category": "Data Hashing",
+      "action": "Encode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 92 characters"
+    },
+    {
+      "id": "8ffaccfcc32c426580912cccf7739bdb",
+      "timestamp": "2026-10-08T18:00:34.325637+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 92 characters"
+    },
+    {
+      "id": "d051e5be8c3e4e3e9ebb3bf3ea5136a8",
+      "timestamp": "2026-10-08T18:01:52.491296+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/check_history.iso",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "6d5104c110a346ddb345ba48b44bf755",
+      "timestamp": "2026-10-08T18:01:59.138644+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 200 characters"
+    },
+    {
+      "id": "43009501cf15409a95162e53dbe0d039",
+      "timestamp": "2026-10-08T18:02:01.760700+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 200 characters"
+    },
+    {
+      "id": "338296677fa743138a01b017c121b725",
+      "timestamp": "2026-10-08T18:04:01.276705+00:00",
+      "competition": "General",
+      "tool": "Encode: Base64",
+      "category": "Data Hashing",
+      "action": "Encode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 200 characters"
+    },
+    {
+      "id": "9ea37c7e036d48b8b5a3fa29bceeb0c4",
+      "timestamp": "2026-10-08T18:04:01.536978+00:00",
+      "competition": "General",
+      "tool": "Hash: sha256",
+      "category": "Data Hashing",
+      "action": "Hash",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 200 characters"
+    },
+    {
+      "id": "0bcba7162bc947f9b5ed86b44cf24e98",
+      "timestamp": "2026-10-08T18:04:01.820756+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 200 characters"
+    }
   ]
 }
