@@ -29,9 +29,8 @@ class GeminiSafetyTests(unittest.TestCase):
 
     def test_nonzero_cli_with_stdout_is_failure(self):
         page = self.page()
-        process = Mock(returncode=9)
-        process.communicate.return_value = ("partial output", "failure")
-        with patch("pages.gemini.subprocess.Popen", return_value=process):
+        process = Mock(returncode=9, stdout=b'partial output', stderr=b'failure', stdout_file=None, stderr_file=None)
+        with patch("pages.gemini.run_capture", return_value=process):
             with self.assertRaisesRegex(RuntimeError, "failure"):
                 page.call_gemini_cli("hello")
         self.assertIsNone(page.current_process)
@@ -72,9 +71,8 @@ class GeminiSafetyTests(unittest.TestCase):
         page = self.page()
         page.call_gemini_cli = Mock(side_effect=["[EXEC]true[/EXEC]", "done"])
         page.ask_action_confirm = Mock(return_value=True)
-        process = Mock(returncode=0)
-        process.communicate.return_value = ("", "")
-        with patch("pages.gemini.subprocess.Popen", return_value=process):
+        process = Mock(returncode=0, stdout=b'', stderr=b'', stdout_file=None, stderr_file=None)
+        with patch("pages.gemini.run_capture", return_value=process):
             page.process_request("analyze")
         feedback = page.call_gemini_cli.call_args_list[1].args[0]
         self.assertIn("Exit code: 0", feedback)

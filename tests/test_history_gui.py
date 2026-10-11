@@ -58,6 +58,8 @@ class HistoryGuiTests(unittest.TestCase):
         from pages.file_inspection import ResultBox
         box = ResultBox(self.root.pages['File Inspection'], 'sample', self.root)
         self.addCleanup(box.destroy)
+        self.assertEqual(box.context_menu.entrycget(0, 'label'), '🚀 FORWARD TO HASHING MODULE')
+        self.assertEqual(box.context_menu.entrycget(1, 'label'), '🚀 FORWARD TO GEMINI MODULE')
         selected = '  selected evidence  '
         box.textbox.insert('1.0', selected + '\nnot selected')
         box.textbox.tag_add('sel', '1.0', '1.end')
@@ -67,12 +69,12 @@ class HistoryGuiTests(unittest.TestCase):
             box.show_context_menu(SimpleNamespace(x_root=0, y_root=0))
             popup.assert_called_once()
             box.textbox.tag_remove('sel', '1.0', 'end')
-            box.context_menu.invoke('Send to Gemini')
+            box.context_menu.invoke('🚀 FORWARD TO GEMINI MODULE')
             self.assertEqual(gemini.input_field.get(), selected)
             send.assert_called_once_with()
             send.reset_mock()
             box.show_context_menu(SimpleNamespace(x_root=0, y_root=0))
-            box.context_menu.invoke('Send to Gemini')
+            box.context_menu.invoke('🚀 FORWARD TO GEMINI MODULE')
             send.assert_not_called()
         self.assertFalse(self.errors)
 

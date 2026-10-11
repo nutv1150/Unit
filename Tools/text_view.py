@@ -57,18 +57,24 @@ def copy_atomic(source, destination):
             os.unlink(name)
 
 
-def save_async(parent, source, destination, on_done=None):
+def save_async(parent, source, destination, on_done=None, owner=None):
     def complete(_, error):
         if error:
             messagebox.showerror('Save output', str(error), parent=parent)
         elif on_done:
             on_done()
-    background(parent, lambda: copy_atomic(source, destination), complete)
+    def copy():
+        # Keep a temporary source alive if its result panel is replaced meanwhile.
+        retained_owner = owner
+        copy_atomic(source, destination)
+    background(parent, copy, complete)
 
 
-def open_text_view(parent, path):
+def open_text_view(parent, path, owner=None):
+    source_owner = owner if owner is not None else path
     path = Path(path)
     win = ctk.CTkToplevel(parent)
+    win._source_owner = source_owner
     win.title('Full output — paged view')
     fit_window(win, '1100x760')
     box = ctk.CTkTextbox(win, wrap='none')
@@ -113,7 +119,7 @@ def open_text_view(parent, path):
     def save():
         destination = filedialog.asksaveasfilename(parent=win, title='Save complete output')
         if destination:
-            save_async(win, path, destination)
+            save_async(win, path, destination, owner=source_owner)
     previous = ctk.CTkButton(bar, text='Previous', command=lambda: show(current[0] - 1))
     previous.pack(side='left', padx=4)
     following = ctk.CTkButton(bar, text='Next', command=lambda: show(current[0] + 1))

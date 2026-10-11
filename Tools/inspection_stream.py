@@ -1,7 +1,7 @@
 """Streaming strings extraction for File Inspection.
 
-The destination is replaced only after a complete UTF-8 pass succeeds.  A
-binary pass emits printable ASCII runs in the historical ``  run\n`` format,
+The caller supplies a private temporary destination. An invalid UTF-8 pass
+is restarted as binary, emitting printable ASCII runs in ``  run\n`` format,
 without retaining a long run in memory.
 """
 from pathlib import Path

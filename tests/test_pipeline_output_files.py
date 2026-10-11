@@ -73,8 +73,9 @@ class OutputFilesTests(unittest.TestCase):
                 output.parent.mkdir()
                 output.write_bytes(b'\x00\xff')
                 source.write_bytes(b'changed input')
-                return subprocess.CompletedProcess(args[0], 0, b'', b'')
-            with patch('Pipeline.pipeline_engine.subprocess.run', side_effect=execute):
+                from types import SimpleNamespace
+                return SimpleNamespace(stdout=b'', stderr=b'', returncode=0, stdout_file=None, stderr_file=None, close=lambda: None)
+            with patch('Pipeline.pipeline_engine.run_capture', side_effect=execute):
                 result = self.engine.run_file_tool('test_openssl', str(source), detailed=True)
             self.assertEqual(result.files, [output])
 
@@ -96,7 +97,7 @@ class OutputFilesTests(unittest.TestCase):
 
     def test_command_errors_do_not_publish_files(self):
         for error in [FileNotFoundError(), subprocess.TimeoutExpired('tool', 30), PermissionError('denied')]:
-            with patch('Pipeline.pipeline_engine.subprocess.run', side_effect=error):
+            with patch('Pipeline.pipeline_engine.run_capture', side_effect=error):
                 result = self.engine.run_text_tool('base64_decode', b'', detailed=True)
             self.assertFalse(result.succeeded)
             self.assertEqual(result.files, [])

@@ -32,6 +32,18 @@ ACCENT_GREEN = "#00FF41"
 TEXT_DIM = "#8892B0"        
 ALERT_RED = "#FF3366"       
 
+
+class _OutputDirectory:
+    """Shared lifetime for a worker, its result panels and open full viewers."""
+    def __init__(self, prefix):
+        self.name = tempfile.mkdtemp(prefix=prefix)
+
+    def cleanup(self):
+        shutil.rmtree(self.name, ignore_errors=True)
+
+    def __del__(self):
+        self.cleanup()
+
 # --- ⭐ 1. คลาสสำหรับการสร้าง "กรอบ" ผลลัพธ์ ---
 class ResultBox(ctk.CTkFrame):
     def __init__(self, master, filename, app_root, **kwargs):
@@ -76,12 +88,14 @@ class ResultBox(ctk.CTkFrame):
         self.context_menu = Menu(self, tearoff=0, bg=PANEL_COLOR, fg="white", activebackground=ACCENT_CYAN, activeforeground="black", font=("Consolas", 10))
         self.context_menu.add_command(label="🚀 FORWARD TO HASHING MODULE", command=self.send_selection)
         self.gemini_selection = ""
-        self.context_menu.add_command(label="Send to Gemini", command=self.send_selection_to_gemini)
+        self.context_menu.add_command(label="🚀 FORWARD TO GEMINI MODULE", command=self.send_selection_to_gemini)
         self.textbox.bind("<Button-3>", self.show_context_menu)
 
     def set_full_output_path(self, path):
         self.full_output_path = path
         self._preview_bytes_used = 0
+        self.save_button.configure(state='disabled')
+        self.view_button.configure(state='disabled')
 
     def reset_output(self):
         self._preview_bytes_used = 0
@@ -95,11 +109,14 @@ class ResultBox(ctk.CTkFrame):
             defaultextension=".txt", filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
         )
         if destination:
-            save_async(self, Path(self.full_output_path), destination)
+            event_id = getattr(self, 'history_id', None)
+            save_async(self, Path(self.full_output_path), destination,
+                       lambda: history_hooks.attach_file(self.app_root, event_id, destination),
+                       owner=getattr(self, '_output_owner', None))
 
     def view_full_output(self):
         if self.full_output_path and os.path.isfile(self.full_output_path):
-            open_text_view(self, self.full_output_path)
+            open_text_view(self, self.full_output_path, owner=getattr(self, '_output_owner', None))
 
     def insert_preview(self, text, tag=None):
         if not text or self._preview_bytes_used >= self.preview_bytes:
@@ -520,14 +537,11 @@ class FileInspectionPage(ctk.CTkFrame):
         job = getattr(self._worker_context, "job", None)
         if not job or target_file not in job.get("boxes", {}):
             return
-        path = job["boxes"][target_file].full_output_path
+        path = job.get('outputs', {}).get(target_file)
         if not path:
             return
-        try:
-            with open(path, "a", encoding="utf-8", errors="replace") as stream:
-                stream.write(text)
-        except OSError:
-            pass
+        with open(path, "a", encoding="utf-8", errors="replace") as stream:
+            stream.write(text)
 
     def _post_ui(self, callback):
         generation = getattr(self._worker_context, "generation", self._analysis_generation)
@@ -676,10 +690,12 @@ class FileInspectionPage(ctk.CTkFrame):
 
         job = dict(generation=self._analysis_generation, limit=limit, pattern=pattern,
                    paths=tuple(self.selected_files), boxes=dict(self.result_boxes), flags={})
-        job['output_dir'] = tempfile.mkdtemp(prefix='unit-inspection-')
+        job['owner'] = _OutputDirectory(prefix='unit-inspection-')
+        job['output_dir'] = job['owner'].name
         job['outputs'] = {path: os.path.join(job['output_dir'], uuid.uuid4().hex + '.txt') for path in job['paths']}
         for path, box in job['boxes'].items():
             box.set_full_output_path(job['outputs'][path])
+            box._output_owner = job['owner']
         group_id = uuid.uuid4().hex
         job['history'] = {
             path: history_hooks.begin(self.app_root, category='File Inspection', tool=choice,
@@ -714,7 +730,11 @@ class FileInspectionPage(ctk.CTkFrame):
                 elif choice == "zsteg Analysis": self.run_zsteg_analysis(path)
                 elif choice == "Exiftool": self.run_exiftool_analysis(path)
             except Exception as error:
-                self.safe_log(f"[!] ANALYSIS ERROR: {error}", "error", target_file=path)
+                self._worker_context.failed = True
+                try:
+                    self.safe_log(f"[!] ANALYSIS ERROR: {error}", "error", target_file=path)
+                except OSError:
+                    self._post_ui(lambda p=path, message=str(error): self.log(f'[!] Output could not be saved: {message}', 'error', target_file=p))
 
             status = "failed" if self._worker_context.failed else "success"
             flags = job["flags"].get(path, []) if choice == "Strings" else []
@@ -728,10 +748,13 @@ class FileInspectionPage(ctk.CTkFrame):
     def _finish_history(self, job, path, status):
         box = job['boxes'].get(path)
         output = ''
-        if box and box.full_output_path and os.path.isfile(box.full_output_path):
+        full_path = job.get('outputs', {}).get(path)
+        if box and full_path and os.path.isfile(full_path):
             try:
-                with open(box.full_output_path, 'r', encoding='utf-8', errors='replace') as stream:
-                    output = stream.read(2 * 1024 * 1024)
+                with open(full_path, 'rb') as stream:
+                    output = stream.read(16385)
+                box.save_button.configure(state='normal')
+                box.view_button.configure(state='normal')
             except OSError:
                 pass
         elif box:
@@ -770,46 +793,45 @@ class FileInspectionPage(ctk.CTkFrame):
         except Exception as e:
             self.safe_log(f"[!] ERROR: {str(e)}", "error", target_file=path)
 
-    def run_zsteg_analysis(self, path):
-        ext = os.path.splitext(path)[1].lower()
-        if ext not in [".png", ".bmp"]:
-            self.safe_log("[!] ZSTEG ERROR: TARGET MUST BE PNG OR BMP", "error", target_file=path)
-            return
+    def _log_capture(self, path, capture, channel='stdout', tag=None):
+        preview = getattr(capture, channel).decode('utf-8', errors='replace')
+        full_path = getattr(capture, channel + '_file')
+        if full_path:
+            with full_path.open('r', encoding='utf-8', errors='replace') as stream:
+                for chunk in iter(lambda: stream.read(65536), ''):
+                    self._write_full_output(path, chunk)
+            self._post_ui(lambda: self.log(preview + '\n[Preview only — use VIEW FULL OUTPUT / SAVE FULL OUTPUT.]', tag, True, path))
+        else:
+            self.safe_log(preview, tag, target_file=path)
+
+    def _external_analysis(self, command, path, timeout):
+        generation = self._worker_context.job['generation']
+        class Superseded:
+            def is_set(_):
+                return generation != self._analysis_generation
+        capture = run_capture(command, timeout=timeout, cancel_event=Superseded())
         try:
-            res = run_capture(["zsteg", path], timeout=30)
-            stdout = res.stdout.decode("utf-8", errors="replace")
-            stderr = res.stderr.decode("utf-8", errors="replace")
-            if res.stdout_file:
-                stdout = Path(res.stdout_file).read_text(encoding="utf-8", errors="replace")
-            if res.stderr_file:
-                stderr = Path(res.stderr_file).read_text(encoding="utf-8", errors="replace")
-            if res.returncode != 0:
-                self.safe_log(f"[!] ZSTEG EXIT {res.returncode}: {stderr or stdout}", "error", target_file=path)
+            if capture.returncode != 0:
+                self.safe_log(f'[!] {command[0]} EXIT {capture.returncode}', 'error', target_file=path)
+                if capture.stdout:
+                    self._log_capture(path, capture, 'stdout')
+                if capture.stderr:
+                    self._log_capture(path, capture, 'stderr', 'error')
             else:
-                self.safe_log(stdout or "[?] NO HIDDEN DATA DETECTED.", target_file=path)
-            res.close()
-        except (OSError, subprocess.TimeoutExpired) as error:
-            self.safe_log(f"[!] ZSTEG ERROR: {error}", "error", target_file=path)
+                self._log_capture(path, capture)
+                if capture.stderr:
+                    self._log_capture(path, capture, 'stderr')
+        finally:
+            capture.close()
+
+    def run_zsteg_analysis(self, path):
+        if os.path.splitext(path)[1].lower() not in ('.png', '.bmp'):
+            self.safe_log('[!] ZSTEG ERROR: TARGET MUST BE PNG OR BMP', 'error', target_file=path)
+            return
+        self._external_analysis(['zsteg', path], path, 30)
 
     def run_exiftool_analysis(self, path):
-        try:
-            res = run_capture(["exiftool", path], timeout=10)
-            stdout = res.stdout.decode("utf-8", errors="replace")
-            stderr = res.stderr.decode("utf-8", errors="replace")
-            if res.stdout_file:
-                stdout = Path(res.stdout_file).read_text(encoding="utf-8", errors="replace")
-            if res.stderr_file:
-                stderr = Path(res.stderr_file).read_text(encoding="utf-8", errors="replace")
-            if res.returncode == 0 and stdout.strip():
-                self.safe_log(stdout, target_file=path)
-                res.close()
-                return
-            self.safe_log(f"[!] EXIFTOOL EXIT {res.returncode}: {stderr or '(empty output)'}", "error", target_file=path)
-            res.close()
-            return
-        except (OSError, subprocess.TimeoutExpired) as error:
-            self.safe_log(f"[!] EXIFTOOL ERROR: {error}", "error", target_file=path)
-            return
+        self._external_analysis(['exiftool', path], path, 10)
 
     def extract_all_strings(self, path, state):
         from Tools.inspection_stream import extract_strings
@@ -846,34 +868,7 @@ class FileInspectionPage(ctk.CTkFrame):
 
     # 🌟 ฟังก์ชันรันคำสั่ง file ดิบๆ (แก้ไข Error text_color แล้ว)
     def run_file_command(self, path):
-        if path not in self.result_boxes:
-            return
-
-        self.safe_log(f"\n[{'='*40}]", target_file=path)
-        self.safe_log(">>> RUNNING COMMAND: file <<<", tag="highlight", target_file=path)
-        
-        try:
-            result = run_capture(['file', path], timeout=5)
-            stdout = result.stdout.decode("utf-8", errors="replace")
-            stderr = result.stderr.decode("utf-8", errors="replace")
-            if result.stdout_file:
-                stdout = Path(result.stdout_file).read_text(encoding="utf-8", errors="replace")
-            if result.stderr_file:
-                stderr = Path(result.stderr_file).read_text(encoding="utf-8", errors="replace")
-            
-            if result.returncode == 0:
-                file_info = stdout.strip()
-                self.safe_log(f"{file_info}", tag="found", target_file=path)
-            else:
-                self.safe_log(f"[!] ERROR: {stderr.strip()}", "error", target_file=path)
-            result.close()
-                
-        except FileNotFoundError:
-            self.safe_log("[!] COMMAND 'file' NOT FOUND (อาจไม่ได้รันบน Linux/WSL)", "error", target_file=path)
-        except Exception as e:
-            self.safe_log(f"[!] UNKNOWN ERROR: {str(e)}", "error", target_file=path)
-            
-        self.safe_log(f"[{'='*40}]\n", target_file=path)
+        self._external_analysis(['file', path], path, 5)
 
     def _record_activity(self, tool, path, flags=None, status="success", details=""):
         if not hasattr(self.app_root, "record_activity"):
@@ -897,7 +892,7 @@ class FileInspectionPage(ctk.CTkFrame):
         if failed:
             self.warning_label.configure(text="STATUS: COMPLETED WITH ERRORS", text_color=ALERT_RED)
         elif choice == "Strings" and self.regex_var.get():
-            self.warning_label.configure(text=f"STATUS: FOUND {total_matches} MATCHES", text_color=ACCENT_GREEN)
+            self.warning_label.configure(text=f"STATUS: FOUND {total_matches} MATCHES IN DISPLAYED PREVIEW", text_color=ACCENT_GREEN)
         else:
             self.warning_label.configure(text="STATUS: COMPLETE", text_color=ACCENT_GREEN)
 

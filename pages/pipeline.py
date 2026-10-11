@@ -287,6 +287,7 @@ class PipelinePage(ctk.CTkFrame):
             remove_temp_artifact(path)
 
         self.temp_artifacts.clear()
+        self.engine.prune_captures()
 
     def cancel_active_runs(self):
         for event in tuple(self.active_runs):
@@ -1570,6 +1571,9 @@ class PipelinePage(ctk.CTkFrame):
         def show_result(res):
             start = output_box.index('end-1c')
             result["run"] = res
+            for stream_path in (res.stdout_file, res.stderr_file):
+                if stream_path:
+                    self.register_temp_artifact(str(stream_path))
             result["output"] = (res.stdout_file or res.stdout) if res.succeeded else None
             # Bound the visible run log; complete streams remain on disk.
             if int(output_box.index('end-1c').split('.')[0]) > 3000 or len(output_box.get('1.0', 'end-1c')) > PREVIEW_BYTES:

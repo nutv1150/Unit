@@ -1,6 +1,5 @@
 import customtkinter as ctk
 import threading
-import queue
 import tempfile
 import os
 from concurrent.futures import Future
@@ -43,48 +42,66 @@ MAX_FILE_BYTES = 64 * 1024 * 1024
 PREVIEW_CHARS = 12000
 
 
+class _TempOutputPath(str):
+    def __del__(self):
+        try:
+            os.unlink(self)
+        except OSError:
+            pass
+
+
 class _DaemonLatestExecutor:
     """One daemon worker; at most one queued (supersedable) job."""
     def __init__(self):
-        self._queue = queue.Queue()
-        self._lock = threading.Lock()
+        self._condition = threading.Condition()
         self._pending = None
+        self._pending_job = None
         self._closed = False
         self._thread = threading.Thread(target=self._run, name="data-hash", daemon=True)
         self._thread.start()
 
     def submit(self, function, argument):
         future = Future()
-        with self._lock:
+        with self._condition:
             if self._closed:
                 future.cancel()
                 return future
             if self._pending is not None:
                 self._pending.cancel()
             self._pending = future
-            self._queue.put((future, function, argument))
+            self._pending_job = (future, function, argument)
+            self._condition.notify()
         return future
 
     def _run(self):
         while True:
-            future, function, argument = self._queue.get()
-            with self._lock:
+            with self._condition:
+                while self._pending_job is None and not self._closed:
+                    self._condition.wait()
+                if self._closed and self._pending_job is None:
+                    return
+                future, function, argument = self._pending_job
+                self._pending_job = None
                 if self._pending is future:
                     self._pending = None
-                closed = self._closed
-            if closed or future.cancelled():
-                continue
+                if future.cancelled() or not future.set_running_or_notify_cancel():
+                    continue
             try:
                 future.set_result(function(argument))
             except BaseException as error:
                 future.set_exception(error)
+            finally:
+                # Do not keep the previous large input/result while idle.
+                del future, function, argument
 
     def shutdown(self):
-        with self._lock:
+        with self._condition:
             self._closed = True
             if self._pending is not None:
                 self._pending.cancel()
                 self._pending = None
+            self._pending_job = None
+            self._condition.notify_all()
 
 
 class DataHashPage(ctk.CTkFrame):
@@ -411,11 +428,12 @@ class DataHashPage(ctk.CTkFrame):
     # =========================
     def _input_changed(self, event=None):
         # A file preview is only authoritative until the user edits it.
-        if not self._loading_programmatically:
-            if self._file_source_text is not None:
+        if not self._loading_programmatically and self._file_source_text is not None:
+            visible = self.input_box.get("1.0", "end-1c")
+            if visible != self._file_preview_text:
                 self.input_status_label.configure(text="EDITED PREVIEW ONLY — browse again to use full file")
-            self._file_source_text = None
-            self._file_preview_text = None
+                self._file_source_text = None
+                self._file_preview_text = None
         self.process_data(event)
 
     def _snapshot_source(self):
@@ -430,8 +448,13 @@ class DataHashPage(ctk.CTkFrame):
         if len(result) > PREVIEW_CHARS:
             handle = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", delete=False, prefix="unit-output-", suffix=".txt")
             with handle:
-                handle.write(result)
-            full_path = handle.name
+                if "[… binary preview truncated …]" in result:
+                    handle.write(f"[BINARY HEX | {len(output)} bytes]\n")
+                    for offset in range(0, len(output), 65536):
+                        handle.write(output[offset:offset + 65536].hex())
+                else:
+                    handle.write(result)
+            full_path = _TempOutputPath(handle.name)
         return output, result, algo, detected, full_path
 
     @staticmethod
@@ -485,12 +508,8 @@ class DataHashPage(ctk.CTkFrame):
         if self.mode == "Bitwise" and isinstance(detected, dict) and not self.key_entry.get().strip():
             self.key_entry.insert(0, detected["key"])
         display = result if len(result) <= PREVIEW_CHARS else result[:PREVIEW_CHARS] + f"\n[… preview truncated; {len(result):,} characters total …]"
-        if self._full_output_path and self._full_output_path != full_path:
-            try:
-                os.unlink(self._full_output_path)
-            except OSError:
-                pass
-            self._temp_outputs.discard(self._full_output_path)
+        # Viewers retain their own reference; unused old temporary output can go.
+        self._temp_outputs.clear()
         self._full_output_path = full_path
         if full_path:
             self._temp_outputs.add(full_path)
@@ -506,6 +525,8 @@ class DataHashPage(ctk.CTkFrame):
         self.update_output_label()
 
     def _job_done(self, future, generation, history_id, data):
+        if getattr(self, '_active_future', None) is future:
+            self._active_future = None
         if generation != self._job_generation:
             history_hooks.finish(self.app_root, history_id, 'Failed', error='Superseded by newer input')
             return
@@ -530,6 +551,8 @@ class DataHashPage(ctk.CTkFrame):
             self.after(20, self._poll_future, future, callback)
 
     def process_data(self, event=None):
+        if getattr(self, '_file_loading', False):
+            return
         # Tk's `end` includes the implicit trailing newline.  Remove only
         # that sentinel; user whitespace is meaningful for hashes/encodings.
         data = self._snapshot_source()
@@ -557,7 +580,7 @@ class DataHashPage(ctk.CTkFrame):
         if algo == 'Hex' and self.mode == 'Decode':
             options['hex_alphabet'] = self.custom_hex_entry.get()
             try:
-                preview = custom_hex_to_hex(data, self.custom_hex_entry.get())
+                preview = custom_hex_to_hex(data[:160], self.custom_hex_entry.get())
                 preview = preview[:80] + ("…" if len(preview) > 80 else "")
                 self.custom_hex_preview.configure(text=f"HEX PREVIEW: {preview}")
             except ValueError:
@@ -566,7 +589,7 @@ class DataHashPage(ctk.CTkFrame):
             options['key'] = self.key_entry.get()
         source_text, source_id = self.history_source
         history_input = data
-        if len(data.encode("utf-8")) >= LARGE_INPUT_BYTES:
+        if len(data) >= LARGE_INPUT_BYTES:
             history_input = data[:PREVIEW_CHARS] + f"\n[… input preview truncated; {len(data):,} characters total …]"
         history_id = history_hooks.begin(
             self.app_root, category='Data Hashing', tool=f'{self.mode}: {algo}',
@@ -576,7 +599,11 @@ class DataHashPage(ctk.CTkFrame):
         self.last_history_id = history_id
         options_snapshot = dict(options)
         snapshot = (data, self.mode, algo, options_snapshot)
-        if len(data.encode("utf-8")) >= LARGE_INPUT_BYTES:
+        if len(data) >= LARGE_INPUT_BYTES:
+            self.output_bytes = b""
+            self._full_output_path = None
+            self.save_raw_button.configure(state="disabled")
+            self.view_full_button.configure(state="disabled")
             self.output_box.delete("1.0", "end")
             self.output_box.insert("1.0", "Processing large input in background…")
             if self._active_future is not None:
@@ -618,8 +645,9 @@ class DataHashPage(ctk.CTkFrame):
             return
         try:
             if len(self.output_bytes) >= LARGE_INPUT_BYTES:
+                event_id = self.last_history_id
                 save_async(self, self.output_bytes, path,
-                           lambda: history_hooks.attach_file(self.app_root, self.last_history_id, path))
+                           lambda: history_hooks.attach_file(self.app_root, event_id, path))
                 return
             with open(path, "wb") as handle:
                 handle.write(self.output_bytes)
@@ -651,28 +679,39 @@ class DataHashPage(ctk.CTkFrame):
             return
 
         self.current_file_path = file_path
+        self._file_loading = True
+        self.output_bytes = b""
+        self._full_output_path = None
+        self.save_raw_button.configure(state="disabled")
+        self.view_full_button.configure(state="disabled")
+        self.output_box.delete("1.0", "end")
         with self._job_lock:
             self._job_generation += 1
             load_generation = self._job_generation
         self.input_box.delete("1.0", "end")
         self.input_box.insert("1.0", "Loading file…")
+        self.input_box.configure(state='disabled')
         self._file_source_text = None
         self._file_preview_text = None
 
         def read_file():
-            with open(file_path, "r", encoding="utf-8") as handle:
-                content = handle.read(MAX_FILE_BYTES + 1)
-            if len(content.encode("utf-8")) > MAX_FILE_BYTES:
+            with open(file_path, "rb") as handle:
+                raw = handle.read(MAX_FILE_BYTES + 1)
+            if len(raw) > MAX_FILE_BYTES:
                 raise ValueError(f"File exceeds the 64 MiB Data Hashing limit ({MAX_FILE_BYTES:,} bytes)")
-            return content
+            return raw.decode("utf-8")
 
         def loaded(future):
             if load_generation != self._job_generation:
                 return
+            self._file_loading = False
+            self.input_box.configure(state='normal')
             try:
                 content = future.result()
-            except (OSError, UnicodeError) as exc:
-                self.after(0, lambda: self.input_box.insert("end", f"\nError reading file: {exc}"))
+            except (OSError, UnicodeError, ValueError) as exc:
+                self.input_box.delete("1.0", "end")
+                self.input_status_label.configure(text="FILE NOT LOADED")
+                self.output_box.insert("end", f"Error reading file: {exc}")
                 return
             def install():
                 if load_generation != self._job_generation:
@@ -690,7 +729,7 @@ class DataHashPage(ctk.CTkFrame):
                           else "FILE LOADED")
                 )
                 self.process_data()
-            self.after(0, install)
+            install()
         future = self._job_executor.submit(lambda _: read_file(), None)
         self.after(20, self._poll_future, future, loaded)
 

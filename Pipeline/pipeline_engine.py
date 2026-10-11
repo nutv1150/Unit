@@ -188,9 +188,22 @@ class PipelineEngine:
 
     def _communicate(self, cmd, input_data, cancel_event):
         capture = run_capture(cmd, input_data, cancel_event)
-        self._captures.append(capture)
-        return CommandResult(capture.stdout, capture.stderr, capture.returncode,
+        result = CommandResult(capture.stdout, capture.stderr, capture.returncode,
                              stdout_file=capture.stdout_file, stderr_file=capture.stderr_file)
+        if capture.stdout_file or capture.stderr_file:
+            self._captures.append(capture)
+        else:
+            capture.close()
+        return result
+
+    def prune_captures(self):
+        keep = []
+        for capture in self._captures:
+            if any(path and path.exists() for path in (capture.stdout_file, capture.stderr_file)):
+                keep.append(capture)
+            else:
+                capture.close()
+        self._captures = keep
 
     def _run_command(self, cmd, input_data=None, input_path=None, detailed=False, cancel_event=None):
         if cancel_event is not None and cancel_event.is_set():
@@ -199,7 +212,7 @@ class PipelineEngine:
         locations = output_locations(cmd, input_path) if detailed else []
         before, complete_before = snapshot_files(locations)
         try:
-            if cancel_event is not None:
+            if detailed or cancel_event is not None:
                 result = self._communicate(cmd, input_data, cancel_event)
             else:
                 process = subprocess.run(

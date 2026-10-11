@@ -411,15 +411,47 @@ class SolveHistoryStore:
             "parent_id": row[11],
         }
 
-    def list_events(self, category: str = "All") -> list[dict[str, Any]]:
+    def count_events(self, category='All'):
+        _validate_category(category)
+        with self._lock:
+            return self._ensure_open().execute(
+                'SELECT COUNT(*) FROM solve_history_events' + (' WHERE category = ?' if category != 'All' else ''),
+                (category,) if category != 'All' else ()).fetchone()[0]
+
+    def iter_events(self, category='All'):
+        """Keyset batches: export without loading the whole history into RAM."""
+        _validate_category(category)
+        with self._lock:
+            ceiling = self._ensure_open().execute('SELECT COALESCE(MAX(seq), 0) FROM solve_history_events').fetchone()[0]
+        cursor = 0
+        while cursor < ceiling:
+            query = 'SELECT id, seq, category, tool, status, input, options, output, error, files, group_id, parent_id FROM solve_history_events WHERE seq > ? AND seq <= ?'
+            args = (cursor, ceiling)
+            if category != 'All':
+                query += ' AND category = ?'
+                args += (category,)
+            with self._lock:
+                rows = self._ensure_open().execute(query + ' ORDER BY seq LIMIT 100', args).fetchall()
+            if not rows:
+                return
+            for row in rows:
+                yield self._row_to_event(row)
+            cursor = rows[-1][1]
+
+    def list_events(self, category: str = "All", limit=None, offset=0, summaries=False) -> list[dict[str, Any]]:
         _validate_category(category)
         connection = self._ensure_open()
         query = "SELECT id, seq, category, tool, status, input, options, output, error, files, group_id, parent_id FROM solve_history_events"
+        if summaries:
+            query = "SELECT id, seq, category, tool, status, '', '', '', '', '', group_id, parent_id FROM solve_history_events"
         params: tuple[Any, ...] = ()
         if category != "All":
             query += " WHERE category = ?"
             params = (category,)
         query += " ORDER BY seq ASC"
+        if limit is not None:
+            query += ' LIMIT ? OFFSET ?'
+            params += (max(1, min(100, int(limit))), max(0, int(offset)))
         with self._lock:
             rows = connection.execute(query, params).fetchall()
         return [self._row_to_event(row) for row in rows]
@@ -479,70 +511,53 @@ def _event_text(event: Mapping[str, Any], key: str) -> str:
 
 
 def export_html(path: str | os.PathLike[str], events: Iterable[Mapping[str, Any]]) -> None:
-    """Write a static escaped HTML report atomically with private permissions."""
-
+    """Atomically stream an escaped report; memory is bounded to one record."""
+    import shutil
     destination = Path(path).expanduser().resolve()
     if destination.exists() and destination.is_file():
-        try:
-            with destination.open("rb") as file_obj:
-                if file_obj.read(16) == b"SQLite format 3\x00":
-                    raise ValueError("Refusing to overwrite a SQLite database")
-        except OSError:
-            pass
+        with destination.open('rb') as existing:
+            if existing.read(16) == b'SQLite format 3\x00':
+                raise ValueError('Refusing to overwrite a SQLite database')
     destination.parent.mkdir(parents=True, exist_ok=True)
-    rows = list(events)
-    rendered = []
-    for event in rows:
-        files = event.get("files") or []
-        if not isinstance(files, (list, tuple)):
-            files = [files]
-        file_html = "".join(f"<li><code>{html.escape(str(item), quote=True)}</code></li>" for item in files)
-        rendered.append(
-            "<article>"
-            f"<h2>#{html.escape(_event_text(event, 'seq'), quote=True)} "
-            f"{html.escape(_event_text(event, 'tool'), quote=True)}</h2>"
-            "<dl>"
-            + "".join(
-                f"<dt>{label}</dt><dd><code>{html.escape(_event_text(event, key), quote=True)}</code></dd>"
-                for label, key in (
-                    ("ID", "id"),
-                    ("Category", "category"),
-                    ("Status", "status"),
-                    ("Group", "group_id"),
-                    ("Parent", "parent_id"),
-                    ("Input", "input"),
-                    ("Options", "options"),
-                    ("Output", "output"),
-                    ("Error", "error"),
-                )
-            )
-            + "</dl><h3>Files</h3><ul>"
-            + file_html
-            + "</ul></article>"
-        )
-    document = (
-        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
-        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-        "<title>UNIT solve history</title><style>"
-        "body{font:14px system-ui,sans-serif;max-width:1000px;margin:2rem auto;padding:0 1rem;color:#222}"
-        "article{border:1px solid #ccd2d8;border-radius:6px;padding:1rem;margin:1rem 0}"
-        "dl{display:grid;grid-template-columns:8rem 1fr;gap:.35rem 1rem}dt{font-weight:600}"
-        "dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}code{white-space:pre-wrap}"
-        "ul{margin-top:.25rem}</style></head><body>"
-        f"<h1>UNIT solve history</h1><p>{len(rows)} event(s)</p>"
-        + ("".join(rendered) or "<p>No events.</p>")
-        + "</body></html>"
-    )
-    temporary_path: str | None = None
+    temporary_path = None
     try:
-        with tempfile.NamedTemporaryFile(
-            mode="w", encoding="utf-8", dir=destination.parent, prefix=".solve-history-", suffix=".tmp", delete=False
-        ) as file_obj:
-            temporary_path = file_obj.name
-            os.chmod(temporary_path, 0o600)
-            file_obj.write(document)
-            file_obj.flush()
-            os.fsync(file_obj.fileno())
+        with tempfile.TemporaryFile(mode='w+t', encoding='utf-8') as body:
+            count = 0
+            for event in events:
+                count += 1
+                escape = lambda key: html.escape(_event_text(event, key), quote=True)
+                body.write(f"<article><h2>#{escape('seq')} {escape('tool')}</h2><dl>")
+                for label, key in (('ID','id'), ('Category','category'), ('Status','status'),
+                                   ('Group','group_id'), ('Parent','parent_id'), ('Input','input'),
+                                   ('Options','options'), ('Output','output'), ('Error','error')):
+                    body.write(f'<dt>{label}</dt><dd><code>{escape(key)}</code></dd>')
+                body.write('</dl><h3>Files</h3><ul>')
+                files = event.get('files') or []
+                if not isinstance(files, (list, tuple)):
+                    files = [files]
+                for item in files:
+                    body.write(f'<li><code>{html.escape(str(item), quote=True)}</code></li>')
+                body.write('</ul></article>')
+            body.seek(0)
+            with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=destination.parent,
+                    prefix='.solve-history-', suffix='.tmp', delete=False) as file_obj:
+                temporary_path = file_obj.name
+                os.chmod(temporary_path, 0o600)
+                file_obj.write('<!doctype html><html lang="en"><head><meta charset="utf-8">'
+                    '<meta name="viewport" content="width=device-width,initial-scale=1">'
+                    '<title>UNIT solve history</title><style>'
+                    'body{font:14px system-ui,sans-serif;max-width:1000px;margin:2rem auto;padding:0 1rem;color:#222}'
+                    'article{border:1px solid #ccd2d8;border-radius:6px;padding:1rem;margin:1rem 0}'
+                    'dl{display:grid;grid-template-columns:8rem 1fr;gap:.35rem 1rem}dt{font-weight:600}'
+                    'dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}code{white-space:pre-wrap}'
+                    'ul{margin-top:.25rem}</style></head><body>'
+                    f'<h1>UNIT solve history</h1><p>{count} event(s)</p>')
+                shutil.copyfileobj(body, file_obj, 65536)
+                if not count:
+                    file_obj.write('<p>No events.</p>')
+                file_obj.write('</body></html>')
+                file_obj.flush()
+                os.fsync(file_obj.fileno())
         os.replace(temporary_path, destination)
         temporary_path = None
     finally:
@@ -551,6 +566,5 @@ def export_html(path: str | os.PathLike[str], events: Iterable[Mapping[str, Any]
                 os.unlink(temporary_path)
             except FileNotFoundError:
                 pass
-
 
 __all__ = ["CATEGORIES", "STATUSES", "MAX_TEXT", "DEFAULT_DB_PATH", "SolveHistoryStore", "export_html"]

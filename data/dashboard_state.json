@@ -361,6 +361,776 @@
         "flag{powershell_xor_hidden_so_easy}"
       ],
       "details": "Input length: 198 characters"
+    },
+    {
+      "id": "399ed60d7fd04533a5c6deec0f8d147b",
+      "timestamp": "2026-10-11T15:27:18.756396+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/payload123.iso",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "f97c55d08b1e44e5bdc3a4468ca1d8dd",
+      "timestamp": "2026-10-11T15:27:21.360643+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/payload123.iso",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "f75a72b0eb254ca0aed469d898e6c688",
+      "timestamp": "2026-10-11T15:28:26.791974+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 200 characters"
+    },
+    {
+      "id": "52b25554c90d4c46bd47a7744dc7fb44",
+      "timestamp": "2026-10-11T15:28:28.277237+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 200 characters"
+    },
+    {
+      "id": "19c8d0bfae2b4a3b8faba676b5508433",
+      "timestamp": "2026-10-11T15:28:31.536170+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 200 characters"
+    },
+    {
+      "id": "b6a437f66bba478c86f7babb6641352a",
+      "timestamp": "2026-10-11T15:28:31.775168+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 199 characters"
+    },
+    {
+      "id": "55f2405565c941469f989be21b7e7b50",
+      "timestamp": "2026-10-11T15:28:32.603417+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "8e78e8f52dc64d79adebf6143278f47d",
+      "timestamp": "2026-10-11T15:28:40.066104+00:00",
+      "competition": "General",
+      "tool": "Hash: sha256",
+      "category": "Data Hashing",
+      "action": "Hash",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "971423ea15904a4d876ec50e19286d4d",
+      "timestamp": "2026-10-11T15:28:40.453235+00:00",
+      "competition": "General",
+      "tool": "Encode: Base64",
+      "category": "Data Hashing",
+      "action": "Encode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "6846191a0b204eb1967028aa72d6845e",
+      "timestamp": "2026-10-11T15:28:40.754400+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "1f562dbf2ea5407485b56b0960f0e279",
+      "timestamp": "2026-10-11T15:28:41.033267+00:00",
+      "competition": "General",
+      "tool": "Hash: sha256",
+      "category": "Data Hashing",
+      "action": "Hash",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "c5c1294030b6424687d4db600e5a22e5",
+      "timestamp": "2026-10-11T15:28:41.560127+00:00",
+      "competition": "General",
+      "tool": "Encode: Base64",
+      "category": "Data Hashing",
+      "action": "Encode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "cb490d8c848041f9ac604778a1b52601",
+      "timestamp": "2026-10-11T15:28:50.119632+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "68c9540d5d7448618439c2be16449a4f",
+      "timestamp": "2026-10-11T15:29:03.087860+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "5552e304bdb243d7958aa3121e356aec",
+      "timestamp": "2026-10-11T15:29:03.415144+00:00",
+      "competition": "General",
+      "tool": "Bitwise: OR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "4da8cdb4c6124d5da50ce2082da7ac74",
+      "timestamp": "2026-10-11T15:29:03.699892+00:00",
+      "competition": "General",
+      "tool": "Bitwise: AND Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "0658359c7c2c4e0491835cabcf61153d",
+      "timestamp": "2026-10-11T15:29:04.043013+00:00",
+      "competition": "General",
+      "tool": "Bitwise: OR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "c3bdd007d6a64d428073a9463691cbff",
+      "timestamp": "2026-10-11T15:29:04.342394+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "f5af494425514c55838eca1845d19708",
+      "timestamp": "2026-10-11T15:29:04.637884+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "b7ca6b28ef104d2fb539d211adc3c1f1",
+      "timestamp": "2026-10-11T15:29:04.881786+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "def6e6c77e7f4d2eb60e3b3bb1b433b9",
+      "timestamp": "2026-10-11T15:29:05.121669+00:00",
+      "competition": "General",
+      "tool": "Bitwise: OR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "12512a74ba9247a59f12bac10c689c00",
+      "timestamp": "2026-10-11T15:29:05.371559+00:00",
+      "competition": "General",
+      "tool": "Bitwise: AND Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "540aeda00e724c1b8b662da8ae7a9ce3",
+      "timestamp": "2026-10-11T15:29:05.626942+00:00",
+      "competition": "General",
+      "tool": "Bitwise: OR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "0cf75a59a1b04586a12cec19d2e71275",
+      "timestamp": "2026-10-11T15:29:05.864861+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "3bce2ec7e16a4f41a2cc15a86c277a49",
+      "timestamp": "2026-10-11T15:29:06.071735+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "f0f5970a80b34845ba22c33fe940e4fd",
+      "timestamp": "2026-10-11T15:29:06.307161+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "131a0146dab843f2822c8ff1cd89cbf2",
+      "timestamp": "2026-10-11T15:29:06.523485+00:00",
+      "competition": "General",
+      "tool": "Bitwise: OR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "420fe85b753b46f1afeac17662a31d4d",
+      "timestamp": "2026-10-11T15:29:06.796213+00:00",
+      "competition": "General",
+      "tool": "Bitwise: AND Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "db8fa816d6bf437c986f122ab1e2a510",
+      "timestamp": "2026-10-11T15:29:07.335220+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "bd2b43461e564badad461d8814f1883b",
+      "timestamp": "2026-10-11T15:29:07.534768+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "fc3dc606447f4536896b19f01371a430",
+      "timestamp": "2026-10-11T15:29:07.799300+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "68254e45c26a4acdb8a06edd3661b21a",
+      "timestamp": "2026-10-11T15:29:08.038850+00:00",
+      "competition": "General",
+      "tool": "Bitwise: OR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "2bfde4860da34c6cbd730eebb50042d3",
+      "timestamp": "2026-10-11T15:29:08.247532+00:00",
+      "competition": "General",
+      "tool": "Bitwise: AND Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "19bfeff487034692b2d359970801a44c",
+      "timestamp": "2026-10-11T15:29:08.510807+00:00",
+      "competition": "General",
+      "tool": "Bitwise: OR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "777bec6ddf2b4bd3be9fce65d967f177",
+      "timestamp": "2026-10-11T15:29:08.748881+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "621fef19e4d84376bb4de6db3221ce0a",
+      "timestamp": "2026-10-11T15:29:09.002590+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "0a60c48642104e5da5c2ca2a3f7cda5b",
+      "timestamp": "2026-10-11T15:29:09.270862+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "a0b0dac5d1d047198171ce9ef4e9993e",
+      "timestamp": "2026-10-11T15:29:09.952000+00:00",
+      "competition": "General",
+      "tool": "Bitwise: OR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "2fa9ce489ba44eb1808733d893aa93d5",
+      "timestamp": "2026-10-11T15:29:10.166441+00:00",
+      "competition": "General",
+      "tool": "Bitwise: AND Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "2f02983f83604f5f955f94288b3ad127",
+      "timestamp": "2026-10-11T15:29:10.532360+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "393ef9e6ebe44dc5b6618863c0515d0b",
+      "timestamp": "2026-10-11T15:29:11.123182+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "0f4f5563b58b4974b0b6b0325d4707ca",
+      "timestamp": "2026-10-11T15:29:11.506146+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "64f6e8162271482db5dea30dd5b40439",
+      "timestamp": "2026-10-11T15:29:11.733326+00:00",
+      "competition": "General",
+      "tool": "Bitwise: OR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "c7a10b7939cc40319a2b3aeb2c81f4d9",
+      "timestamp": "2026-10-11T15:29:11.947812+00:00",
+      "competition": "General",
+      "tool": "Bitwise: AND Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "4d8a69401e764c1da9a0c61b5c8ab826",
+      "timestamp": "2026-10-11T15:29:12.576671+00:00",
+      "competition": "General",
+      "tool": "Bitwise: OR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "34c9c43f2cba473bbad76010d59fd94e",
+      "timestamp": "2026-10-11T15:29:12.828092+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "492e853ddd32485cb4c84e89c6cdca7a",
+      "timestamp": "2026-10-11T15:29:13.409130+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "381c083d3c634ad88b4d629460409cb9",
+      "timestamp": "2026-10-11T15:29:13.715267+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "942b091d0df04a749fcfed99ad9d46f1",
+      "timestamp": "2026-10-11T15:29:14.005902+00:00",
+      "competition": "General",
+      "tool": "Bitwise: OR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "fa5ed4ea1f304a6ca3dc34671c9345ed",
+      "timestamp": "2026-10-11T15:29:14.332536+00:00",
+      "competition": "General",
+      "tool": "Bitwise: AND Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "9055190b1f35495dab17cf6963a1faaf",
+      "timestamp": "2026-10-11T15:29:14.690543+00:00",
+      "competition": "General",
+      "tool": "Bitwise: OR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "2196753b17294dd2b75e00b857990c54",
+      "timestamp": "2026-10-11T15:29:14.918429+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "e6aa4aa78e5747a0bc5f5b4c185cb919",
+      "timestamp": "2026-10-11T15:29:15.132212+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "26e6b1d3adc14dd29895e9596ebe4d99",
+      "timestamp": "2026-10-11T15:29:15.881372+00:00",
+      "competition": "General",
+      "tool": "Bitwise: AND Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "ac22e6dab7304e7680f10614e965f066",
+      "timestamp": "2026-10-11T15:29:16.468545+00:00",
+      "competition": "General",
+      "tool": "Bitwise: OR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "d02bda78d29f47dbb3f378e3476a73bd",
+      "timestamp": "2026-10-11T15:29:17.023335+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "83d32177f0394bcdbb7bbcfc02251f48",
+      "timestamp": "2026-10-11T15:29:20.607053+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Mask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "8bbedd5fe22940bdb9aec7ea7863ac73",
+      "timestamp": "2026-10-11T15:29:21.004978+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 198 characters"
+    },
+    {
+      "id": "2eb81f2ba59f44aaaff3ed85e05c68b9",
+      "timestamp": "2026-10-11T15:29:52.497407+00:00",
+      "competition": "General",
+      "tool": "Bitwise: XOR Unmask",
+      "category": "Data Hashing",
+      "action": "Bitwise",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "flag{powershell_xor_hidden_so_easy}"
+      ],
+      "details": "Input length: 199 characters"
     }
   ]
 }
