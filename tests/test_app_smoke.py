@@ -22,6 +22,9 @@ class ApplicationSmokeTests(unittest.TestCase):
                 errors = []
                 root.report_callback_exception = lambda *args: errors.append(args)
                 try:
+                    root.update()
+                    self.assertLessEqual(root.winfo_width(), root.winfo_screenwidth() - 80)
+                    self.assertLessEqual(root.winfo_height(), root.winfo_screenheight() - 100)
                     self.assertEqual(len(root.pages), 8)
                     for name, page in root.pages.items():
                         root.switch_page(name)

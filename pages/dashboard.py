@@ -3,6 +3,7 @@ import platform
 from datetime import datetime
 
 import customtkinter as ctk
+from Tools.window_layout import fit_window
 
 
 BG_COLOR = "#0D0D12"
@@ -570,7 +571,7 @@ class DashboardPage(ctk.CTkFrame):
         if not available:
             return
 
-        popup = self._create_popup("PIN TOOL", "540x390")
+        popup = self._create_popup("PIN TOOL", "620x450")
         ctk.CTkLabel(
             popup,
             text=">_ PIN TOOL TO DASHBOARD",
@@ -644,7 +645,7 @@ class DashboardPage(ctk.CTkFrame):
         ).pack(fill="x")
 
     def open_category_popup(self):
-        popup = self._create_popup("MANAGE CATEGORIES", "480x430")
+        popup = self._create_popup("MANAGE CATEGORIES", "550x490")
         ctk.CTkLabel(
             popup,
             text=">_ CUSTOM TOOL CATEGORIES",
@@ -727,7 +728,7 @@ class DashboardPage(ctk.CTkFrame):
         render_categories()
 
     def open_competition_popup(self):
-        popup = self._create_popup("ADD CTF COMPETITION", "450x240")
+        popup = self._create_popup("ADD CTF COMPETITION", "520x280")
         ctk.CTkLabel(
             popup,
             text=">_ NEW CTF COMPETITION",
@@ -769,7 +770,7 @@ class DashboardPage(ctk.CTkFrame):
     def _create_popup(self, title, geometry):
         popup = ctk.CTkToplevel(self)
         popup.title(title)
-        popup.geometry(geometry)
+        fit_window(popup, geometry)
         popup.configure(fg_color=BG_COLOR)
         popup.attributes("-topmost", True)
         popup.grab_set()

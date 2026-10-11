@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from tkinter import filedialog, Menu
+from tkinter import filedialog, Menu, TclError
 from tkinterdnd2 import DND_FILES
 import puremagic
 import os
@@ -10,9 +10,17 @@ import hashlib
 import mmap  
 import queue
 import uuid
+import tempfile
+import shutil
+import io
+import codecs
+from pathlib import Path
 
 from Tools.flag_detector import UNIVERSAL_FLAG_REGEX, find_flags
 from Tools import history_hooks
+from Tools.window_layout import fit_window
+from Tools.stream_capture import run_capture
+from Tools.text_view import save_async, open_text_view
 
 # ==========================================
 # ธีมสีหลัก (Cyberpunk / Terminal)
@@ -48,9 +56,62 @@ class ResultBox(ctk.CTkFrame):
         self.textbox.tag_config("error", foreground=ALERT_RED)
         
         self.app_root = app_root
+        self.full_output_path = None
+        self.preview_bytes = 128 * 1024
+        self._preview_bytes_used = 0
+        self.save_button = ctk.CTkButton(
+            self.header, text="SAVE FULL OUTPUT", width=135, height=25,
+            font=("Consolas", 10, "bold"), fg_color="transparent",
+            border_width=1, border_color=ACCENT_GREEN, text_color=ACCENT_GREEN,
+            hover_color="#003311", command=self.save_full_output,
+        )
+        self.save_button.pack(side="right", padx=8)
+        self.view_button = ctk.CTkButton(
+            self.header, text="VIEW FULL OUTPUT", width=135, height=25,
+            font=("Consolas", 10, "bold"), fg_color="transparent",
+            border_width=1, border_color=ACCENT_CYAN, text_color=ACCENT_CYAN,
+            hover_color="#003344", command=self.view_full_output,
+        )
+        self.view_button.pack(side="right", padx=2)
         self.context_menu = Menu(self, tearoff=0, bg=PANEL_COLOR, fg="white", activebackground=ACCENT_CYAN, activeforeground="black", font=("Consolas", 10))
         self.context_menu.add_command(label="🚀 FORWARD TO HASHING MODULE", command=self.send_selection)
+        self.gemini_selection = ""
+        self.context_menu.add_command(label="Send to Gemini", command=self.send_selection_to_gemini)
         self.textbox.bind("<Button-3>", self.show_context_menu)
+
+    def set_full_output_path(self, path):
+        self.full_output_path = path
+        self._preview_bytes_used = 0
+
+    def reset_output(self):
+        self._preview_bytes_used = 0
+        self.textbox.delete("1.0", "end")
+
+    def save_full_output(self):
+        if not self.full_output_path or not os.path.isfile(self.full_output_path):
+            return
+        destination = filedialog.asksaveasfilename(
+            title="Save full inspection output", initialfile=os.path.basename(self.title.cget("text")).strip(" 📄") + ".txt",
+            defaultextension=".txt", filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+        )
+        if destination:
+            save_async(self, Path(self.full_output_path), destination)
+
+    def view_full_output(self):
+        if self.full_output_path and os.path.isfile(self.full_output_path):
+            open_text_view(self, self.full_output_path)
+
+    def insert_preview(self, text, tag=None):
+        if not text or self._preview_bytes_used >= self.preview_bytes:
+            return
+        remaining = self.preview_bytes - self._preview_bytes_used
+        encoded = text.encode("utf-8", errors="replace")
+        if len(encoded) > remaining:
+            text = encoded[:remaining].decode("utf-8", errors="ignore")
+            text += "\n[⚠️] PREVIEW TRUNCATED — USE SAVE FULL OUTPUT FOR COMPLETE RESULTS.\n"
+        self._preview_bytes_used += len(text.encode("utf-8", errors="replace"))
+        self.textbox.insert("end", text, tag)
+        self.textbox.see("end")
 
     def send_selection(self):
         try:
@@ -64,8 +125,20 @@ class ResultBox(ctk.CTkFrame):
         except: pass
         
     def show_context_menu(self, e):
-        if self.textbox.tag_ranges("sel"):
-            self.context_menu.tk_popup(e.x_root, e.y_root)
+        try:
+            self.gemini_selection = self.textbox.get("sel.first", "sel.last")
+        except TclError:
+            self.gemini_selection = ""
+        if self.gemini_selection.strip():
+            try:
+                self.context_menu.tk_popup(e.x_root, e.y_root)
+            finally:
+                self.context_menu.grab_release()
+        return "break"
+
+    def send_selection_to_gemini(self):
+        if self.gemini_selection.strip():
+            self.app_root.send_to_gemini(self.gemini_selection)
 
     def search_keyword(self, keyword):
         self.textbox.tag_remove("highlight", "1.0", "end")
@@ -97,7 +170,7 @@ class RegexSelectionPopup(ctk.CTkToplevel):
         super().__init__(parent)
         self.withdraw()
         self.title("SELECT REGEX PATTERN :: [CONFIG]")
-        self.geometry("650x580")
+        fit_window(self, "740x660")
         self.configure(fg_color=BG_COLOR)
         
         self.callback = callback
@@ -435,14 +508,26 @@ class FileInspectionPage(ctk.CTkFrame):
     def log(self, msg, tag=None, newline=True, target_file=None):
         txt = msg + ("\n" if newline else "")
         if target_file and target_file in self.result_boxes:
-            tb = self.result_boxes[target_file].textbox
-            tb.insert("end", txt, tag)
-            tb.see("end")
+            self.result_boxes[target_file].insert_preview(txt, tag)
 
     def safe_log(self, msg, tag=None, newline=True, target_file=None):
         if tag == "error":
             self._worker_context.failed = True
+        self._write_full_output(target_file, msg + ("\n" if newline else ""))
         self._post_ui(lambda: self.log(msg, tag, newline, target_file))
+
+    def _write_full_output(self, target_file, text):
+        job = getattr(self._worker_context, "job", None)
+        if not job or target_file not in job.get("boxes", {}):
+            return
+        path = job["boxes"][target_file].full_output_path
+        if not path:
+            return
+        try:
+            with open(path, "a", encoding="utf-8", errors="replace") as stream:
+                stream.write(text)
+        except OSError:
+            pass
 
     def _post_ui(self, callback):
         generation = getattr(self._worker_context, "generation", self._analysis_generation)
@@ -591,6 +676,10 @@ class FileInspectionPage(ctk.CTkFrame):
 
         job = dict(generation=self._analysis_generation, limit=limit, pattern=pattern,
                    paths=tuple(self.selected_files), boxes=dict(self.result_boxes), flags={})
+        job['output_dir'] = tempfile.mkdtemp(prefix='unit-inspection-')
+        job['outputs'] = {path: os.path.join(job['output_dir'], uuid.uuid4().hex + '.txt') for path in job['paths']}
+        for path, box in job['boxes'].items():
+            box.set_full_output_path(job['outputs'][path])
         group_id = uuid.uuid4().hex
         job['history'] = {
             path: history_hooks.begin(self.app_root, category='File Inspection', tool=choice,
@@ -638,7 +727,15 @@ class FileInspectionPage(ctk.CTkFrame):
 
     def _finish_history(self, job, path, status):
         box = job['boxes'].get(path)
-        output = box.textbox.get('1.0', 'end-1c') if box else ''
+        output = ''
+        if box and box.full_output_path and os.path.isfile(box.full_output_path):
+            try:
+                with open(box.full_output_path, 'r', encoding='utf-8', errors='replace') as stream:
+                    output = stream.read(2 * 1024 * 1024)
+            except OSError:
+                pass
+        elif box:
+            output = box.textbox.get('1.0', 'end-1c')
         history_hooks.finish(self.app_root, job.get('history', {}).get(path),
                              'Success' if status == 'success' else 'Failed', output_data=output)
         self._history_pending.discard(job.get('history', {}).get(path))
@@ -679,119 +776,73 @@ class FileInspectionPage(ctk.CTkFrame):
             self.safe_log("[!] ZSTEG ERROR: TARGET MUST BE PNG OR BMP", "error", target_file=path)
             return
         try:
-            res = subprocess.run(["zsteg", path], capture_output=True, text=True, timeout=30)
+            res = run_capture(["zsteg", path], timeout=30)
+            stdout = res.stdout.decode("utf-8", errors="replace")
+            stderr = res.stderr.decode("utf-8", errors="replace")
+            if res.stdout_file:
+                stdout = Path(res.stdout_file).read_text(encoding="utf-8", errors="replace")
+            if res.stderr_file:
+                stderr = Path(res.stderr_file).read_text(encoding="utf-8", errors="replace")
             if res.returncode != 0:
-                self.safe_log(f"[!] ZSTEG EXIT {res.returncode}: {res.stderr or res.stdout}", "error", target_file=path)
+                self.safe_log(f"[!] ZSTEG EXIT {res.returncode}: {stderr or stdout}", "error", target_file=path)
             else:
-                self.safe_log(res.stdout or "[?] NO HIDDEN DATA DETECTED.", target_file=path)
+                self.safe_log(stdout or "[?] NO HIDDEN DATA DETECTED.", target_file=path)
+            res.close()
         except (OSError, subprocess.TimeoutExpired) as error:
             self.safe_log(f"[!] ZSTEG ERROR: {error}", "error", target_file=path)
 
     def run_exiftool_analysis(self, path):
         try:
-            res = subprocess.run(["exiftool", path], capture_output=True, text=True, timeout=10)
-            if res.returncode == 0 and res.stdout.strip():
-                self.safe_log(res.stdout, target_file=path)
+            res = run_capture(["exiftool", path], timeout=10)
+            stdout = res.stdout.decode("utf-8", errors="replace")
+            stderr = res.stderr.decode("utf-8", errors="replace")
+            if res.stdout_file:
+                stdout = Path(res.stdout_file).read_text(encoding="utf-8", errors="replace")
+            if res.stderr_file:
+                stderr = Path(res.stderr_file).read_text(encoding="utf-8", errors="replace")
+            if res.returncode == 0 and stdout.strip():
+                self.safe_log(stdout, target_file=path)
+                res.close()
                 return
-            self.safe_log(f"[!] EXIFTOOL EXIT {res.returncode}: {res.stderr or '(empty output)'}", "error", target_file=path)
+            self.safe_log(f"[!] EXIFTOOL EXIT {res.returncode}: {stderr or '(empty output)'}", "error", target_file=path)
+            res.close()
             return
         except (OSError, subprocess.TimeoutExpired) as error:
             self.safe_log(f"[!] EXIFTOOL ERROR: {error}", "error", target_file=path)
             return
 
     def extract_all_strings(self, path, state):
+        from Tools.inspection_stream import extract_strings
+        from Tools.regex_runner import find_match_spans
         job = self._worker_context.job
-        p = job["pattern"]
-        try:
-            file_size = os.path.getsize(path)
-            if file_size == 0:
-                self.safe_log("[!] TARGET FILE IS EMPTY.", target_file=path)
-                return
-            if file_size > 64 * 1024 * 1024:
-                self.safe_log("[!] File exceeds 64 MiB inspection limit; use Pipeline strings with filters.", "error", target_file=path)
-                return
-
-            if path not in job["boxes"]:
-                return
-            
-            textbox = job["boxes"][path].textbox
-            self._post_ui(lambda: textbox.delete("1.0", "end"))
-
-            with open(path, "rb") as f:
-                data = f.read(64 * 1024 * 1024 + 1)
-            if len(data) > 64 * 1024 * 1024:
-                self.safe_log("[!] File exceeds 64 MiB inspection limit; use Pipeline strings with filters.", "error", target_file=path)
-                return
-            try:
-                file_content = data.decode("utf-8")
-                is_text_file = True
-            except UnicodeDecodeError:
-                is_text_file = False
-                
-                ascii_strings = re.findall(b"[\x20-\x7E]{4,}", data)
-                file_content = "\n".join([b.decode('ascii', errors='ignore') for b in ascii_strings])
-
-            job["flags"][path] = find_flags(file_content)
-
-            lines = file_content.splitlines()
-            if len(lines) > state['max_display']:
-                lines = lines[:state['max_display']]
-                warning_msg = f"\n[⚠️] REACHED MAX DISPLAY LIMIT ({state['max_display']} LINES)."
-                state['warned'] = True
-            else:
-                warning_msg = ""
-            
-            display_content = "\n".join(lines)
-            prefix = "" if is_text_file else "  "
-            
-            if not is_text_file:
-                display_content = prefix + display_content.replace("\n", "\n" + prefix)
-
-            if not p:
-                self._post_ui(lambda: textbox.insert("end", display_content + warning_msg))
-                state['display_count'] += len(lines)
-                return
-
-            from Tools.regex_runner import find_match_spans
-            matches = find_match_spans(p, display_content)
-            
-            if not matches:
-                self._post_ui(lambda: textbox.insert("end", display_content + warning_msg))
-                state['display_count'] += len(lines)
-                return
-
-            state['match_count'] += len(matches)
-            
-            insert_data = []
-            last_pos = 0
-            
-            for st, en in matches:
-                if st > last_pos:
-                    insert_data.append((display_content[last_pos:st], None))
-                insert_data.append((display_content[st:en], "found"))
-                last_pos = en
-            
-            if last_pos < len(display_content):
-                insert_data.append((display_content[last_pos:], None))
-                
-            if warning_msg:
-                insert_data.append((warning_msg, None))
-
-            def update_ui(data):
-                for text, tag in data:
-                    if tag:
-                        textbox.insert("end", text, tag)
-                    else:
-                        textbox.insert("end", text)
-                textbox.see("end")
-
-            self._post_ui(lambda: update_ui(insert_data))
-            state['display_count'] += len(lines)
-
-        except MemoryError:
-            self.safe_log("[!] ERROR: FILE IS TOO LARGE TO PROCESS IN MEMORY.", "error", target_file=path)
-        except Exception as e: 
-            self.safe_log(f"[!] STRINGS EXTRACTION ERROR: {str(e)}", "error", target_file=path)
+        if path not in job['boxes']:
+            return
+        box = job['boxes'][path]
+        destination = Path(job['outputs'][path])
+        extract_strings(Path(path), destination,
+                        lambda: job['generation'] != self._analysis_generation)
+        # Preview only: full extraction remains on disk, including long lines.
+        with destination.open('r', encoding='utf-8', newline='') as stream:
+            sample = stream.read(128 * 1024 + 1)
+        truncated = len(sample) > 128 * 1024
+        lines = sample[:128 * 1024].splitlines()
+        line_limited = len(lines) > state['max_display']
+        display = '\n'.join(lines[:state['max_display']])
+        state['display_count'] += min(len(lines), state['max_display'])
+        state['warned'] = truncated or line_limited
+        # Highlighting is scoped to the displayed portion, as before.
+        matches = find_match_spans(job['pattern'], display) if job['pattern'] else []
+        state['match_count'] += len(matches)
+        job['flags'][path] = find_flags(display)
+        warning = ('\n[Preview only — use VIEW FULL OUTPUT / SAVE FULL OUTPUT for all results. Regex highlights apply to this preview.]'
+                   if state['warned'] else '')
+        def render():
+            box.reset_output()
+            box.insert_preview(display)
+            for start, end in matches:
+                box.textbox.tag_add('found', f'1.0+{start}c', f'1.0+{end}c')
+            box.textbox.insert('end', warning)
+        self._post_ui(render)
 
     # 🌟 ฟังก์ชันรันคำสั่ง file ดิบๆ (แก้ไข Error text_color แล้ว)
     def run_file_command(self, path):
@@ -802,13 +853,20 @@ class FileInspectionPage(ctk.CTkFrame):
         self.safe_log(">>> RUNNING COMMAND: file <<<", tag="highlight", target_file=path)
         
         try:
-            result = subprocess.run(['file', path], capture_output=True, text=True, timeout=5)
+            result = run_capture(['file', path], timeout=5)
+            stdout = result.stdout.decode("utf-8", errors="replace")
+            stderr = result.stderr.decode("utf-8", errors="replace")
+            if result.stdout_file:
+                stdout = Path(result.stdout_file).read_text(encoding="utf-8", errors="replace")
+            if result.stderr_file:
+                stderr = Path(result.stderr_file).read_text(encoding="utf-8", errors="replace")
             
             if result.returncode == 0:
-                file_info = result.stdout.strip()
+                file_info = stdout.strip()
                 self.safe_log(f"{file_info}", tag="found", target_file=path)
             else:
-                self.safe_log(f"[!] ERROR: {result.stderr.strip()}", "error", target_file=path)
+                self.safe_log(f"[!] ERROR: {stderr.strip()}", "error", target_file=path)
+            result.close()
                 
         except FileNotFoundError:
             self.safe_log("[!] COMMAND 'file' NOT FOUND (อาจไม่ได้รันบน Linux/WSL)", "error", target_file=path)
@@ -847,7 +905,7 @@ class FileInspectionPage(ctk.CTkFrame):
         info_window = ctk.CTkToplevel(self)
         info_window.withdraw()
         info_window.title("SYS_MANUAL :: REGEX")
-        info_window.geometry("520x500")
+        fit_window(info_window, "600x570")
         info_window.configure(fg_color=BG_COLOR)
 
         container = ctk.CTkFrame(info_window, fg_color=PANEL_COLOR, corner_radius=4, border_width=1, border_color=ACCENT_CYAN)

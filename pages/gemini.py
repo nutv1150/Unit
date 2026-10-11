@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from tkinter import filedialog
+from tkinter import filedialog, Menu, TclError
 import threading
 import os
 import re
@@ -8,6 +8,7 @@ import shutil
 import time
 import signal
 from Tools.flag_detector import find_flags
+from Tools.window_layout import fit_window
 
 class GeminiPage(ctk.CTkFrame):
     def __init__(self, master):
@@ -119,6 +120,17 @@ class GeminiPage(ctk.CTkFrame):
         self.chat_display.pack(pady=10, fill="both", expand=True, padx=40)
         self.chat_display.configure(state="disabled")
 
+        self.hashing_selection = ""
+        self.context_menu = Menu(
+            self, tearoff=0, bg=PANEL_COLOR, fg="white",
+            activebackground=ACCENT_CYAN, activeforeground="black",
+            font=("Consolas", 11),
+        )
+        self.context_menu.add_command(
+            label="Send to Data Hashing", command=self.send_selection_to_hashing,
+        )
+        self.chat_display.bind("<Button-3>", self.show_context_menu)
+
         # ==========================================
         # 4. กล่องพิมพ์ข้อความ (COMMAND INPUT)
         # ==========================================
@@ -211,6 +223,25 @@ class GeminiPage(ctk.CTkFrame):
         self.history = []  
 
     # --- ฟังก์ชันเสริม UI ---
+    def show_context_menu(self, event):
+        # Snapshot before the menu changes focus; never forward the entire chat.
+        try:
+            self.hashing_selection = self.chat_display.get("sel.first", "sel.last")
+        except TclError:
+            self.hashing_selection = ""
+        self.context_menu.entryconfigure(
+            0, state="normal" if self.hashing_selection.strip() else "disabled",
+        )
+        try:
+            self.context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.context_menu.grab_release()
+        return "break"
+
+    def send_selection_to_hashing(self):
+        if self.hashing_selection.strip():
+            self.app_root.send_to_hashing(self.hashing_selection)
+
     def toggle_api_visibility(self):
         if self.api_entry.cget("show") == "*":
             self.api_entry.configure(show="")
@@ -252,7 +283,7 @@ class GeminiPage(ctk.CTkFrame):
         dialog = ctk.CTkToplevel(self)
         self._confirm_dialog = dialog
         dialog.title("⚠️ SECURITY WARNING")
-        dialog.geometry("550x380")
+        fit_window(dialog, "630x440")
         dialog.attributes("-topmost", True)
         dialog.configure(fg_color="#0D0D12")
         dialog.transient(self.winfo_toplevel()) 

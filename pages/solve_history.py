@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import customtkinter as ctk
 from Tools.solve_history import export_html
+from Tools.window_layout import fit_window
 
 
 CATEGORIES = ['All', 'Data Hashing', 'File Inspection', 'Pipeline']
@@ -16,8 +17,8 @@ class HistoryWindow(ctk.CTkToplevel):
         self.app_root = root
         self.store = getattr(root, 'history_store', None)
         self.title('Solve History')
-        self.geometry('1050x700')
-        self.minsize(850, 550)
+        width, height = fit_window(self, '1200x800')
+        self.minsize(min(850, width), min(550, height))
         self.configure(fg_color='#0D0D12')
         self.page_index = 0
         self.events = []

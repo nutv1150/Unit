@@ -1,5 +1,6 @@
 """Shared dark colors and CTk-only dialogs for personal workspace pages."""
 import customtkinter as ctk
+from Tools.window_layout import fit_window
 
 # ใช้โทนเข้มคงที่เหมือน Dashboard แม้ appearance mode ของแอปเป็น Light
 THEME_COLORS = {
@@ -21,10 +22,10 @@ def label(parent, text, **kwargs):
     return ctk.CTkLabel(parent, text=text, font=FONT, text_color=THEME_COLORS['text'], **kwargs)
 
 
-def dialog(parent, title, geometry='400x520'):
+def dialog(parent, title, geometry='460x600'):
     window = ctk.CTkToplevel(parent)
     window.title(title)
-    window.geometry(geometry)
+    fit_window(window, geometry)
     window.configure(fg_color=THEME_COLORS['bg'])
     window.transient(parent.winfo_toplevel())
     window.after(100, lambda: window.grab_set() if window.winfo_exists() else None)
@@ -36,7 +37,7 @@ class CTkMessagebox(ctk.CTkToplevel):
     def __init__(self, parent, message, on_confirm):
         super().__init__(parent)
         self.title('Confirm delete')
-        self.geometry('400x180')
+        fit_window(self, '460x210')
         self.configure(fg_color=THEME_COLORS['bg'])
         self.transient(parent.winfo_toplevel())
         previous_grab = parent.grab_current()

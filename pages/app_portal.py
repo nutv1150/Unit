@@ -6,6 +6,7 @@ import json
 import glob
 import tempfile
 from pathlib import Path
+from Tools.window_layout import fit_window
 
 # ==========================================
 # ธีมสีหลัก (Cyberpunk / Terminal)
@@ -264,7 +265,7 @@ class AppPortalPage(ctk.CTkFrame):
     def open_add_tool_popup(self):
         popup = ctk.CTkToplevel(self)
         popup.title("ADD CUSTOM TOOL :: [CONFIG]")
-        popup.geometry("500x620")
+        fit_window(popup, "580x710")
         popup.configure(fg_color=BG_COLOR)
         
         ctk.CTkLabel(popup, text=">_ DEPLOY_NEW_MODULE", font=("Consolas", 18, "bold"), text_color=ACCENT_CYAN).pack(pady=(15,5))
@@ -340,7 +341,7 @@ class AppPortalPage(ctk.CTkFrame):
     def open_edit_tool_popup(self, tool):
         popup = ctk.CTkToplevel(self)
         popup.title("EDIT CUSTOM TOOL :: [CONFIG]")
-        popup.geometry("500x620")
+        fit_window(popup, "580x710")
         popup.configure(fg_color=BG_COLOR)
         
         ctk.CTkLabel(popup, text=">_ EDIT_MODULE", font=("Consolas", 18, "bold"), text_color="#FFB800").pack(pady=(15,5))
@@ -416,7 +417,7 @@ class AppPortalPage(ctk.CTkFrame):
     def open_system_apps_picker(self, ent_name, ent_check, ent_cmd):
         picker = ctk.CTkToplevel(self)
         picker.title("SELECT INSTALLED APP")
-        picker.geometry("480x560")
+        fit_window(picker, "550x640")
         picker.configure(fg_color=BG_COLOR)
         
         ctk.CTkLabel(picker, text=">_ SELECT_SYSTEM_APPLICATION", font=("Consolas", 16, "bold"), text_color=ACCENT_CYAN).pack(pady=(15, 10))
