@@ -12,6 +12,8 @@ class CommandResult:
     returncode: int | None = None
     files: list[Path] = field(default_factory=list)
     discovery_note: str = ""
+    stdout_file: Path | None = None
+    stderr_file: Path | None = None
 
     @property
     def succeeded(self):

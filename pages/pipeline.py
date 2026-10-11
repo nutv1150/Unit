@@ -13,6 +13,9 @@ import queue
 import uuid
 from pathlib import Path
 from Tools import history_hooks
+from Tools.window_layout import fit_window
+from Tools.stream_capture import PREVIEW_BYTES
+from Tools.text_view import open_text_view, save_async
 
 from Tools.artifact_bridge import (
     resolve_file_input,
@@ -284,6 +287,7 @@ class PipelinePage(ctk.CTkFrame):
             remove_temp_artifact(path)
 
         self.temp_artifacts.clear()
+        self.engine.prune_captures()
 
     def cancel_active_runs(self):
         for event in tuple(self.active_runs):
@@ -565,7 +569,7 @@ class PipelinePage(ctk.CTkFrame):
         win = ctk.CTkToplevel(self)
         step_label = f"Step {step_index}" if step_mode else f"Step {step_index}/{total_steps}"
         win.title(f"{step_label} — {tool_name}")
-        win.geometry("1000x660")
+        fit_window(win, "1200x780")
         win.attributes("-topmost", True)
         win.configure(fg_color=BG_COLOR)
 
@@ -639,6 +643,10 @@ class PipelinePage(ctk.CTkFrame):
             except Exception:
                 pass
             if result["output"] is not None:
+                if isinstance(result["output"], Path):
+                    messagebox.showinfo('Select output',
+                        'Large output is stored in a file. Select text from the preview, or open View Full Output.', parent=win)
+                    return ""
                 try:
                     return result["output"].decode(errors="ignore").strip()
                 except Exception:
@@ -697,12 +705,12 @@ class PipelinePage(ctk.CTkFrame):
 
         output_box.insert("end", preview + "\n")
 
-        for log in logs:
+        for log in logs[-8:]:
             tool = log["tool"]
             out = log["output"]
 
             if isinstance(out, bytes):
-                out = out.decode(errors="ignore")
+                out = out[:16384].decode(errors="ignore")
 
             start = output_box.index('end-1c')
             output_box.insert("end", f"\n>>> {tool}\n")
@@ -797,15 +805,27 @@ class PipelinePage(ctk.CTkFrame):
             win.attributes("-topmost", True)
 
             if path:
-                    with open(path, "wb") as f:
-                        f.write(result["output"])
-                    history_hooks.attach_file(self.app_root, result.get('history_id'), path)
+                event_id = result.get('history_id')
+                source = result["output"]
+                save_async(win, source, path,
+                    lambda: history_hooks.attach_file(self.app_root, event_id, path))
 
         ctk.CTkButton(
             output_footer, text="Save Output as File", command=save_output,
             fg_color="transparent", border_width=1, border_color=ACCENT_CYAN,
             text_color=ACCENT_CYAN, hover_color=CARD_COLOR
         ).pack(pady=5)
+
+        full_buttons = ctk.CTkFrame(output_footer, fg_color='transparent')
+        def view_stream(which):
+            run = result.get('run')
+            path = getattr(run, which + '_file', None)
+            if path:
+                open_text_view(win, path)
+        ctk.CTkButton(full_buttons, text='View Full Output', width=145,
+                      command=lambda: view_stream('stdout')).pack(side='left', padx=5)
+        ctk.CTkButton(full_buttons, text='View Full Error', width=145,
+                      command=lambda: view_stream('stderr')).pack(side='left', padx=5)
 
         # ---------------- RIGHT PANEL ----------------
         right_shell = ctk.CTkFrame(container, width=380, fg_color=PANEL_COLOR, border_width=1, border_color=BORDER_COLOR)
@@ -1540,7 +1560,7 @@ class PipelinePage(ctk.CTkFrame):
                 inp_data = input_entry.get()
 
                 if not inp_data and forwarded_file is not None:
-                    input_bytes = forwarded_file.read_bytes()
+                    input_bytes = forwarded_file
                 elif not inp_data and previous_output:
                     input_bytes = previous_output
                 else:
@@ -1551,12 +1571,24 @@ class PipelinePage(ctk.CTkFrame):
         def show_result(res):
             start = output_box.index('end-1c')
             result["run"] = res
-            result["output"] = res.stdout if res.succeeded else None
+            for stream_path in (res.stdout_file, res.stderr_file):
+                if stream_path:
+                    self.register_temp_artifact(str(stream_path))
+            result["output"] = (res.stdout_file or res.stdout) if res.succeeded else None
+            # Bound the visible run log; complete streams remain on disk.
+            if int(output_box.index('end-1c').split('.')[0]) > 3000 or len(output_box.get('1.0', 'end-1c')) > PREVIEW_BYTES:
+                output_box.delete('1.0', 'end')
+                output_box.insert('end', '[Earlier preview cleared; saved history is unchanged.]\n')
             output_box.insert("end", f"\n>>> output ({tool_name})\n")
             if res.stdout:
                 output_box.insert("end", res.stdout.decode(errors="replace") + "\n")
             if res.stderr:
                 output_box.insert("end", "[stderr]\n" + res.stderr.decode(errors="replace") + "\n")
+            if res.stdout_file or res.stderr_file:
+                full_buttons.pack(pady=5)
+                output_box.insert('end', '[Preview only. Full streams are retained; use View Full Output/Error or Save Output as File.]\n')
+            else:
+                full_buttons.pack_forget()
             if res.succeeded:
                 output_box.insert("end", "[Success]\n")
                 if not res.stdout:
@@ -1863,7 +1895,7 @@ class PipelinePage(ctk.CTkFrame):
     def show_startup_popup(self, saved_data):
         popup = ctk.CTkToplevel(self)
         popup.title("Pipeline Manager")
-        popup.geometry("400x420")
+        fit_window(popup, "460x480")
         popup.attributes("-topmost", True)
         popup.configure(fg_color=BG_COLOR)
 
@@ -1938,7 +1970,7 @@ class PipelinePage(ctk.CTkFrame):
 
         wizard = ctk.CTkToplevel(self)
         wizard.title(f"Create Pipeline - Step {current_step}")
-        wizard.geometry("520x650")
+        fit_window(wizard, "600x740")
         wizard.attributes("-topmost", True)
         wizard.configure(fg_color=BG_COLOR)
 
@@ -1997,7 +2029,7 @@ class PipelinePage(ctk.CTkFrame):
         def open_add_option_popup():
             popup = ctk.CTkToplevel(wizard)
             popup.title("Add Custom Option")
-            popup.geometry("620x350")
+            fit_window(popup, "700x400")
             popup.attributes("-topmost", True)
             popup.configure(fg_color=BG_COLOR)
 
@@ -2273,7 +2305,7 @@ class PipelinePage(ctk.CTkFrame):
     def open_add_tool_window(self):
         win = ctk.CTkToplevel(self)
         win.title("Add Tool")
-        win.geometry("300x250")
+        fit_window(win, "350x290")
         win.configure(fg_color=BG_COLOR)
 
         ctk.CTkLabel(win, text="Tool Name", text_color=TEXT_DIM).pack(pady=5)

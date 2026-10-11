@@ -8,6 +8,7 @@ import time
 from Tools.flag_detector import find_first_flag
 from Pipeline.output_files import CommandResult, output_locations, snapshot_files, changed_files
 from Pipeline.config_store import read_json, write_json
+from Tools.stream_capture import run_capture
 
 class PipelineEngine:
     # path ของไฟล์นี้
@@ -18,6 +19,7 @@ class PipelineEngine:
 
     def __init__(self):
         self.load_error = ""
+        self._captures = []
         self.file_tools = {} # tool ที่ใช้กับไฟล์
         self.text_tools = {} # tool ที่ใช้กับ text
         self.tool_descriptions = {} 
@@ -184,29 +186,24 @@ class PipelineEngine:
             raise ValueError(f"Unknown tool: {tool}")
         return cmd + self.arguments(after_params)
 
-    @staticmethod
-    def _communicate(cmd, input_data, cancel_event):
-        with subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE, start_new_session=(os.name == "posix")) as process:
-            deadline = time.monotonic() + 30
-            first = True
-            while True:
-                if cancel_event.is_set() or time.monotonic() >= deadline:
-                    if os.name == "posix":
-                        try:
-                            os.killpg(process.pid, signal.SIGKILL)
-                        except ProcessLookupError:
-                            pass
-                    else:
-                        process.kill()
-                    out, err = process.communicate()
-                    reason = b"Cancelled" if cancel_event.is_set() else b"Command timeout"
-                    return CommandResult(out, err + b"\n" + reason)
-                try:
-                    out, err = process.communicate(input=input_data if first else None, timeout=0.1)
-                    return CommandResult(out, err, process.returncode)
-                except subprocess.TimeoutExpired:
-                    first = False
+    def _communicate(self, cmd, input_data, cancel_event):
+        capture = run_capture(cmd, input_data, cancel_event)
+        result = CommandResult(capture.stdout, capture.stderr, capture.returncode,
+                             stdout_file=capture.stdout_file, stderr_file=capture.stderr_file)
+        if capture.stdout_file or capture.stderr_file:
+            self._captures.append(capture)
+        else:
+            capture.close()
+        return result
+
+    def prune_captures(self):
+        keep = []
+        for capture in self._captures:
+            if any(path and path.exists() for path in (capture.stdout_file, capture.stderr_file)):
+                keep.append(capture)
+            else:
+                capture.close()
+        self._captures = keep
 
     def _run_command(self, cmd, input_data=None, input_path=None, detailed=False, cancel_event=None):
         if cancel_event is not None and cancel_event.is_set():
@@ -215,7 +212,7 @@ class PipelineEngine:
         locations = output_locations(cmd, input_path) if detailed else []
         before, complete_before = snapshot_files(locations)
         try:
-            if cancel_event is not None:
+            if detailed or cancel_event is not None:
                 result = self._communicate(cmd, input_data, cancel_event)
             else:
                 process = subprocess.run(

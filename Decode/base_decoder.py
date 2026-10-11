@@ -64,11 +64,13 @@ def auto_detect_decode(data):
     ]
 
     # ลองทุก shift แต่ไม่ใช้ความ printable เพียงอย่างเดียวตัดสินค่า ROT
-    rot_candidates = [
-        (f"ROT:{n}:{mode}", rot_n(text, n, mode))
-        for mode, limit in (("alpha", 25), ("ascii", 93))
-        for n in range(1, limit + 1)
-    ]
+    # Keep ROT candidates lazy: each candidate can be as large as the source
+    # itself, so constructing all 118 strings up front multiplied peak memory
+    # and made Auto Detect noticeably stall on large inputs.
+    def iter_rot_candidates():
+        for mode, limit in (("alpha", 25), ("ascii", 93)):
+            for n in range(1, limit + 1):
+                yield f"ROT:{n}:{mode}", rot_n(text, n, mode)
     fallback = None
     for name, func in candidates:
         try:
@@ -84,7 +86,7 @@ def auto_detect_decode(data):
         except Exception:
             pass
 
-    for name, decoded_text in rot_candidates:
+    for name, decoded_text in iter_rot_candidates():
         if decoded_text != text and find_flags(decoded_text):
             return name, decoded_text
     if fallback is not None:

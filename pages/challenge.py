@@ -119,7 +119,7 @@ class ChallengePage(ctk.CTkFrame):
             self.editor.focus()
             return self.editor
         row = self.store.get(record_id)
-        window = self.editor = dialog(self, row['name'], '400x310')
+        window = self.editor = dialog(self, row['name'], '460x360')
         self.edit_id = record_id
         label(window, f"Solved problems / {row['total_items']}").pack(anchor='w', padx=20, pady=(20, 8))
         solved = ctk.CTkEntry(window, **ENTRY_STYLE)

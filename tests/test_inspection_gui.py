@@ -64,8 +64,8 @@ class InspectionGuiTests(unittest.TestCase):
         self.assertIn('.gif', text)
         self.assertNotIn('Plain Text', text)
         self.page.tool_menu.set('Exiftool')
-        failure = subprocess.CompletedProcess([], 2, '', 'invalid data')
-        with patch('pages.file_inspection.subprocess.run', return_value=failure):
+        failure = Mock(returncode=2, stdout=b'', stderr=b'invalid data', stdout_file=None, stderr_file=None)
+        with patch('pages.file_inspection.run_capture', return_value=failure):
             self.page.start_analysis_thread()
             self.wait_done()
         self.assertIn('ERRORS', self.page.warning_label.cget('text'))

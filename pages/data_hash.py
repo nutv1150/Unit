@@ -1,4 +1,8 @@
 import customtkinter as ctk
+import threading
+import tempfile
+import os
+from concurrent.futures import Future
 from Encode.base_encoder import encode_data
 from Decode.base_decoder import (
     decode_data, decode_to_bytes, custom_hex_to_hex, STANDARD_HEX_ALPHABET,
@@ -12,6 +16,7 @@ from Tools.extra_tools import (
     detect_embedded_key,
 )
 from Tools.flag_detector import find_flags
+from Tools.text_view import open_text_view, save_async
 from Tools import history_hooks
 from tkinter import filedialog, Menu, TclError
 
@@ -30,6 +35,74 @@ TEXT_DIM = "#8892B0"
 ALERT_RED = "#FF3366"
 ALERT_AMBER = "#FFB800"
 
+# Large text is processed off the Tk event loop.  The complete result remains
+# in ``output_bytes``; only the widget preview is bounded.
+LARGE_INPUT_BYTES = 16 * 1024
+MAX_FILE_BYTES = 64 * 1024 * 1024
+PREVIEW_CHARS = 12000
+
+
+class _TempOutputPath(str):
+    def __del__(self):
+        try:
+            os.unlink(self)
+        except OSError:
+            pass
+
+
+class _DaemonLatestExecutor:
+    """One daemon worker; at most one queued (supersedable) job."""
+    def __init__(self):
+        self._condition = threading.Condition()
+        self._pending = None
+        self._pending_job = None
+        self._closed = False
+        self._thread = threading.Thread(target=self._run, name="data-hash", daemon=True)
+        self._thread.start()
+
+    def submit(self, function, argument):
+        future = Future()
+        with self._condition:
+            if self._closed:
+                future.cancel()
+                return future
+            if self._pending is not None:
+                self._pending.cancel()
+            self._pending = future
+            self._pending_job = (future, function, argument)
+            self._condition.notify()
+        return future
+
+    def _run(self):
+        while True:
+            with self._condition:
+                while self._pending_job is None and not self._closed:
+                    self._condition.wait()
+                if self._closed and self._pending_job is None:
+                    return
+                future, function, argument = self._pending_job
+                self._pending_job = None
+                if self._pending is future:
+                    self._pending = None
+                if future.cancelled() or not future.set_running_or_notify_cancel():
+                    continue
+            try:
+                future.set_result(function(argument))
+            except BaseException as error:
+                future.set_exception(error)
+            finally:
+                # Do not keep the previous large input/result while idle.
+                del future, function, argument
+
+    def shutdown(self):
+        with self._condition:
+            self._closed = True
+            if self._pending is not None:
+                self._pending.cancel()
+                self._pending = None
+            self._pending_job = None
+            self._condition.notify_all()
+
 
 class DataHashPage(ctk.CTkFrame):
 
@@ -38,8 +111,17 @@ class DataHashPage(ctk.CTkFrame):
         self.app_root = master.master
         self.current_file_path = None
         self.output_bytes = b""
+        self._full_output_path = None
+        self._temp_outputs = set()
         self.history_source = (None, None)
         self.last_history_id = None
+        self._job_generation = 0
+        self._job_executor = _DaemonLatestExecutor()
+        self._job_lock = threading.Lock()
+        self._loading_programmatically = False
+        self._file_source_text = None
+        self._file_preview_text = None
+        self._active_future = None
         self.configure(fg_color=BG_COLOR)
 
         # =========================
@@ -214,6 +296,8 @@ class DataHashPage(ctk.CTkFrame):
         input_header.grid(row=3, column=0, sticky="ew", padx=30, pady=(10, 0))
 
         ctk.CTkLabel(input_header, text=">_ INPUT_STREAM", font=("Consolas", 14, "bold"), text_color=ACCENT_CYAN).pack(side="left")
+        self.input_status_label = ctk.CTkLabel(input_header, text="", font=("Consolas", 10), text_color=TEXT_DIM)
+        self.input_status_label.pack(side="left", padx=12)
 
         ctk.CTkButton(
             input_header, text="[ BROWSE ]", width=100, height=28,
@@ -260,6 +344,14 @@ class DataHashPage(ctk.CTkFrame):
         )
         self.save_raw_button.pack(side="right", padx=(0, 8))
 
+        self.view_full_button = ctk.CTkButton(
+            output_header, text="[ VIEW FULL ]", width=100, height=28,
+            font=("Consolas", 11, "bold"), fg_color="transparent",
+            border_width=1, border_color=ACCENT_GREEN, text_color=ACCENT_GREEN,
+            hover_color="#003311", command=self.view_full_output, state="disabled",
+        )
+        self.view_full_button.pack(side="right", padx=(0, 8))
+
         self.search_entry = ctk.CTkEntry(
             output_header, placeholder_text="Search in output...",
             font=("Consolas", 12), height=28, width=200,
@@ -289,11 +381,28 @@ class DataHashPage(ctk.CTkFrame):
                 lambda event, box=textbox: self.show_context_menu(event, box),
             )
 
-        self.input_box.bind("<KeyRelease>", self.process_data)
+        self.input_box.bind("<KeyRelease>", self._input_changed)
 
         # ตั้งค่าเริ่มต้น: โหมด Decode + สร้างปุ่มลัดชุดแรก + ไฮไลต์ปุ่มโหมด
         self.refresh_quick_chips()
         self.update_mode_button_styles()
+
+    def destroy(self):
+        """Stop queued work when navigating away without waiting on a huge job."""
+        future = getattr(self, "_active_future", None)
+        if future is not None:
+            future.cancel()
+        executor = getattr(self, "_job_executor", None)
+        if executor is not None:
+            executor.shutdown()
+            self._job_executor = None
+        for path in getattr(self, "_temp_outputs", set()):
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+        self._temp_outputs.clear()
+        super().destroy()
 
     def show_context_menu(self, event, textbox):
         # เก็บเฉพาะข้อความที่เลือกในช่องที่คลิก ก่อน popup เปลี่ยน focus
@@ -317,17 +426,149 @@ class DataHashPage(ctk.CTkFrame):
     # =========================
     # Process Main Logic
     # =========================
+    def _input_changed(self, event=None):
+        # A file preview is only authoritative until the user edits it.
+        if not self._loading_programmatically and self._file_source_text is not None:
+            visible = self.input_box.get("1.0", "end-1c")
+            if visible != self._file_preview_text:
+                self.input_status_label.configure(text="EDITED PREVIEW ONLY — browse again to use full file")
+                self._file_source_text = None
+                self._file_preview_text = None
+        self.process_data(event)
+
+    def _snapshot_source(self):
+        visible = self.input_box.get("1.0", "end-1c")
+        if self._file_source_text is not None and visible == self._file_preview_text:
+            return self._file_source_text
+        return visible
+
+    @staticmethod
+    def _worker_result(output, result, algo, detected):
+        full_path = None
+        if len(result) > PREVIEW_CHARS:
+            handle = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", delete=False, prefix="unit-output-", suffix=".txt")
+            with handle:
+                if "[… binary preview truncated …]" in result:
+                    handle.write(f"[BINARY HEX | {len(output)} bytes]\n")
+                    for offset in range(0, len(output), 65536):
+                        handle.write(output[offset:offset + 65536].hex())
+                else:
+                    handle.write(result)
+            full_path = _TempOutputPath(handle.name)
+        return output, result, algo, detected, full_path
+
+    @staticmethod
+    def _compute_snapshot(snapshot):
+        """Pure worker operation.  It must never touch Tk objects."""
+        data, mode, algo, options = snapshot
+        if algo == "ROT":
+            n = int(options.get("rotation", "13").strip() or "13")
+            rot_mode = "ascii" if options.get("alphabet", "").startswith("ascii") else "alpha"
+            algo = f"ROT:{n}:{rot_mode}"
+        if mode == "Encode":
+            output = encode_data(data, algo).encode("utf-8")
+            return DataHashPage._worker_result(output, output.decode("utf-8"), algo, None)
+        if mode == "Decode":
+            if algo == "Hex":
+                alphabet = options.get("hex_alphabet")
+                output = decode_to_bytes(data, algo, alphabet=alphabet)
+                result = output.decode("utf-8") if is_probably_text(output) else f"[BINARY HEX | {len(output)} bytes]\n{output[:65536].hex()}" + ("\n[… binary preview truncated …]" if len(output) > 65536 else "")
+                return DataHashPage._worker_result(output, result, algo, None)
+            if algo == "Auto Detect":
+                from Decode.base_decoder import auto_detect_decode
+                detected, result = auto_detect_decode(data.encode())
+                output = result.encode("utf-8")
+                return DataHashPage._worker_result(output, result, algo, detected)
+            output = decode_to_bytes(data, algo)
+            result = output.decode("utf-8") if is_probably_text(output) else f"[BINARY HEX | {len(output)} bytes]\n{output[:65536].hex()}" + ("\n[… binary preview truncated …]" if len(output) > 65536 else "")
+            return DataHashPage._worker_result(output, result, algo, None)
+        if mode == "Hash":
+            result = hash_data(data, algo)
+            output = result.encode("utf-8")
+            return DataHashPage._worker_result(output, result, algo, None)
+        key = options.get("key", "").strip()
+        if not key:
+            detected_key = detect_embedded_key(data)
+            if detected_key:
+                key = detected_key["key"]
+            else:
+                raise ValueError("กรุณาใส่ Key หรือวางข้อมูลที่มี key เช่น $key = 0x4A")
+        if algo == "XOR Mask": result = bitwise_mask(data, key, "xor")
+        elif algo == "XOR Unmask": result = bitwise_unmask(data, key)
+        elif algo == "OR Mask": result = bitwise_mask(data, key, "or")
+        elif algo == "AND Mask": result = bitwise_mask(data, key, "and")
+        output = result.encode("utf-8") if isinstance(result, str) else bytes(result)
+        return DataHashPage._worker_result(output, result, algo, {"key": key})
+
+    def _show_result(self, output_bytes, result, algo, detected, full_path, history_id, data, generation):
+        if generation != self._job_generation:
+            return
+        self.output_bytes = output_bytes
+        self.current_detected_algo = detected or (algo if self.mode == "Decode" and algo != "Auto Detect" else None)
+        if self.mode == "Bitwise" and isinstance(detected, dict) and not self.key_entry.get().strip():
+            self.key_entry.insert(0, detected["key"])
+        display = result if len(result) <= PREVIEW_CHARS else result[:PREVIEW_CHARS] + f"\n[… preview truncated; {len(result):,} characters total …]"
+        # Viewers retain their own reference; unused old temporary output can go.
+        self._temp_outputs.clear()
+        self._full_output_path = full_path
+        if full_path:
+            self._temp_outputs.add(full_path)
+        self.output_box.delete("1.0", "end")
+        self.output_box.insert("1.0", display)
+        self.save_raw_button.configure(state="normal" if output_bytes else "disabled")
+        self.view_full_button.configure(state="normal" if full_path else "disabled")
+        history_hooks.finish(self.app_root, history_id, 'Success', output_data=output_bytes)
+        # Activity reporting is deliberately bounded too; scanning a massive
+        # generated output on the Tk thread would defeat the responsiveness
+        # guarantee.  Save Raw still retains the complete bytes above.
+        self._record_activity(tool=f"{self.mode}: {algo}", action=self.mode, status="success", flags=find_flags(result[:PREVIEW_CHARS]), details=f"Input length: {len(data)} characters")
+        self.update_output_label()
+
+    def _job_done(self, future, generation, history_id, data):
+        if getattr(self, '_active_future', None) is future:
+            self._active_future = None
+        if generation != self._job_generation:
+            history_hooks.finish(self.app_root, history_id, 'Failed', error='Superseded by newer input')
+            return
+        try:
+            output, result, algo, detected, full_path = future.result()
+        except Exception as exc:
+            history_hooks.finish(self.app_root, history_id, 'Failed', error=str(exc))
+            self.output_bytes = b""
+            self.save_raw_button.configure(state="disabled")
+            self.output_box.delete("1.0", "end")
+            self.output_box.insert("1.0", f"Error: {exc}")
+            self._record_activity(tool=f"{self.mode}: {self.algo_menu.get()}", action=self.mode, status="failed", details=str(exc))
+            self.update_output_label()
+            return
+        self._show_result(output, result, algo, detected, full_path, history_id, data, generation)
+
+    def _poll_future(self, future, callback):
+        """Poll completion from Tk; worker threads never call Tk APIs."""
+        if future.done():
+            callback(future)
+        else:
+            self.after(20, self._poll_future, future, callback)
+
     def process_data(self, event=None):
+        if getattr(self, '_file_loading', False):
+            return
         # Tk's `end` includes the implicit trailing newline.  Remove only
         # that sentinel; user whitespace is meaningful for hashes/encodings.
-        data = self.input_box.get("1.0", "end-1c")
+        data = self._snapshot_source()
         algo = self.algo_menu.get()
+
+        with self._job_lock:
+            self._job_generation += 1
+            generation = self._job_generation
 
         self.custom_hex_preview.configure(text="HEX PREVIEW: —")
 
         if not data:
             self.output_bytes = b""
+            self._full_output_path = None
             self.save_raw_button.configure(state="disabled")
+            self.view_full_button.configure(state="disabled")
             self.output_box.delete("1.0", "end")
             self.current_detected_algo = None # เคลียร์ค่าที่เจอ
             self.update_output_label()
@@ -338,136 +579,49 @@ class DataHashPage(ctk.CTkFrame):
             options.update(rotation=self.rot_entry.get(), alphabet=self.rot_mode_var.get())
         if algo == 'Hex' and self.mode == 'Decode':
             options['hex_alphabet'] = self.custom_hex_entry.get()
+            try:
+                preview = custom_hex_to_hex(data[:160], self.custom_hex_entry.get())
+                preview = preview[:80] + ("…" if len(preview) > 80 else "")
+                self.custom_hex_preview.configure(text=f"HEX PREVIEW: {preview}")
+            except ValueError:
+                self.custom_hex_preview.configure(text="HEX PREVIEW: invalid alphabet/input")
         if self.mode == 'Bitwise':
             options['key'] = self.key_entry.get()
         source_text, source_id = self.history_source
+        history_input = data
+        if len(data) >= LARGE_INPUT_BYTES:
+            history_input = data[:PREVIEW_CHARS] + f"\n[… input preview truncated; {len(data):,} characters total …]"
         history_id = history_hooks.begin(
             self.app_root, category='Data Hashing', tool=f'{self.mode}: {algo}',
-            input_data=data, options=options, parent_id=source_id if data == source_text else None,
+            input_data=history_input, options=options, parent_id=source_id if data == source_text else None,
             files=[self.current_file_path] if self.current_file_path else [],
         )
         self.last_history_id = history_id
-        try:
-            if algo == "ROT":
-                n = int(self.rot_entry.get().strip() or "13")
-                mode = "ascii" if self.rot_mode_var.get().startswith("ascii") else "alpha"
-                algo = f"ROT:{n}:{mode}"
-            if self.mode == "Encode":
-                result = encode_data(data, algo)
-                self.output_bytes = result.encode("utf-8")
-
-            elif self.mode == "Decode":
-                # ⭐ แก้ไข: ถ้าเป็น Auto Detect ให้ไปเรียกฟังก์ชันหลักมาตรงๆ เพื่อเอาชื่อด้วย
-                if algo == "Hex":
-                    alphabet = self.custom_hex_entry.get()
-                    hex_text = custom_hex_to_hex(data, alphabet)
-                    preview = hex_text[:80] + ("…" if len(hex_text) > 80 else "")
-                    self.custom_hex_preview.configure(text=f"HEX PREVIEW: {preview}")
-                    self.output_bytes = decode_to_bytes(data, algo, alphabet=alphabet)
-                    if is_probably_text(self.output_bytes):
-                        result = self.output_bytes.decode("utf-8")
-                    else:
-                        result = f"[BINARY HEX | {len(self.output_bytes)} bytes]\n{self.output_bytes.hex()}"
-                    self.current_detected_algo = algo
-                elif algo == "Auto Detect":
-                    from Decode.base_decoder import auto_detect_decode
-                    detected_name, result = auto_detect_decode(data.encode())
-                    self.output_bytes = result.encode("utf-8")
-                    self.current_detected_algo = detected_name # บันทึกชื่อที่หาเจอไว้
-                else:
-                    decoded = decode_to_bytes(data, algo)
-                    self.output_bytes = decoded
-                    if is_probably_text(decoded):
-                        result = decoded.decode("utf-8")
-                    else:
-                        result = f"[BINARY HEX | {len(decoded)} bytes]\n{decoded.hex()}"
-                    self.current_detected_algo = algo # ถ้าไม่ได้ Auto ก็ใช้ชื่อจากเมนู
-
-            elif self.mode == "Hash":
-                result = hash_data(data, algo)
-                self.output_bytes = result.encode("utf-8")
-
-            elif self.mode == "Bitwise":
-
-                key = self.key_entry.get().strip()
-
-                # =====================================================
-                # P0.4A - AUTO KEY DETECTION
-                # =====================================================
-
-                if not key:
-
-                    detected_key = detect_embedded_key(
-                        data
-                    )
-
-                    if detected_key:
-
-                        key = detected_key["key"]
-
-                        # เติม key ลงช่อง UI ให้ user เห็น
-                        self.key_entry.delete(
-                            0,
-                            "end"
-                        )
-
-                        self.key_entry.insert(
-                            0,
-                            key
-                        )
-
-                    else:
-                        raise ValueError(
-                            "กรุณาใส่ Key "
-                            "หรือวางข้อมูลที่มี key เช่น "
-                            "$key = 0x4A"
-                        )
-
-                if algo == "XOR Mask":
-                    result = bitwise_mask(
-                        data,
-                        key,
-                        "xor"
-                    )
-
-                elif algo == "XOR Unmask":
-                    result = bitwise_unmask(
-                        data,
-                        key
-                    )
-
-                elif algo == "OR Mask":
-                    result = bitwise_mask(
-                        data,
-                        key,
-                        "or"
-                    )
-
-                elif algo == "AND Mask":
-                    result = bitwise_mask(
-                        data,
-                        key,
-                        "and"
-                    )
-                self.output_bytes = result.encode("utf-8") if isinstance(result, str) else bytes(result)
-
+        options_snapshot = dict(options)
+        snapshot = (data, self.mode, algo, options_snapshot)
+        if len(data) >= LARGE_INPUT_BYTES:
+            self.output_bytes = b""
+            self._full_output_path = None
+            self.save_raw_button.configure(state="disabled")
+            self.view_full_button.configure(state="disabled")
             self.output_box.delete("1.0", "end")
-            self.output_box.insert("1.0", result)
-            self.save_raw_button.configure(state="normal" if self.output_bytes else "disabled")
-            history_hooks.finish(self.app_root, history_id, 'Success', output_data=self.output_bytes)
-
-            self._record_activity(
-                tool=f"{self.mode}: {algo}",
-                action=self.mode,
-                status="success",
-                flags=find_flags(result),
-                details=f"Input length: {len(data)} characters",
-            )
-
+            self.output_box.insert("1.0", "Processing large input in background…")
+            if self._active_future is not None:
+                self._active_future.cancel()
+            future = self._job_executor.submit(self._compute_snapshot, snapshot)
+            self._active_future = future
+            self.after(20, self._poll_future, future,
+                       lambda f: self._job_done(f, generation, history_id, data))
+            return
+        try:
+            output, result, resolved_algo, detected, full_path = self._compute_snapshot(snapshot)
+            self._show_result(output, result, resolved_algo, detected, full_path, history_id, data, generation)
         except Exception as e:
             history_hooks.finish(self.app_root, history_id, 'Failed', error=str(e))
             self.output_bytes = b""
+            self._full_output_path = None
             self.save_raw_button.configure(state="disabled")
+            self.view_full_button.configure(state="disabled")
             self.output_box.delete("1.0", "end")
             self.output_box.insert("1.0", f"Error: {e}")
             self._record_activity(
@@ -490,11 +644,21 @@ class DataHashPage(ctk.CTkFrame):
         if not path:
             return
         try:
+            if len(self.output_bytes) >= LARGE_INPUT_BYTES:
+                event_id = self.last_history_id
+                save_async(self, self.output_bytes, path,
+                           lambda: history_hooks.attach_file(self.app_root, event_id, path))
+                return
             with open(path, "wb") as handle:
                 handle.write(self.output_bytes)
             history_hooks.attach_file(self.app_root, self.last_history_id, path)
         except OSError as exc:
             self.output_box.insert("end", f"\nError saving raw output: {exc}")
+
+    def view_full_output(self):
+        path = getattr(self, "_full_output_path", None)
+        if path:
+            open_text_view(self, path)
 
     # =========================
     # Highlight Output
@@ -514,17 +678,60 @@ class DataHashPage(ctk.CTkFrame):
         if not file_path:
             return
 
-        try:
-            self.current_file_path = file_path
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
+        self.current_file_path = file_path
+        self._file_loading = True
+        self.output_bytes = b""
+        self._full_output_path = None
+        self.save_raw_button.configure(state="disabled")
+        self.view_full_button.configure(state="disabled")
+        self.output_box.delete("1.0", "end")
+        with self._job_lock:
+            self._job_generation += 1
+            load_generation = self._job_generation
+        self.input_box.delete("1.0", "end")
+        self.input_box.insert("1.0", "Loading file…")
+        self.input_box.configure(state='disabled')
+        self._file_source_text = None
+        self._file_preview_text = None
 
-            self.input_box.delete("1.0", "end")
-            self.input_box.insert("1.0", content)
-            self.process_data()
+        def read_file():
+            with open(file_path, "rb") as handle:
+                raw = handle.read(MAX_FILE_BYTES + 1)
+            if len(raw) > MAX_FILE_BYTES:
+                raise ValueError(f"File exceeds the 64 MiB Data Hashing limit ({MAX_FILE_BYTES:,} bytes)")
+            return raw.decode("utf-8")
 
-        except Exception as e:
-            print("Read file error:", e)
+        def loaded(future):
+            if load_generation != self._job_generation:
+                return
+            self._file_loading = False
+            self.input_box.configure(state='normal')
+            try:
+                content = future.result()
+            except (OSError, UnicodeError, ValueError) as exc:
+                self.input_box.delete("1.0", "end")
+                self.input_status_label.configure(text="FILE NOT LOADED")
+                self.output_box.insert("end", f"Error reading file: {exc}")
+                return
+            def install():
+                if load_generation != self._job_generation:
+                    return
+                self._file_source_text = content
+                self._file_preview_text = content if len(content.encode("utf-8")) <= LARGE_INPUT_BYTES else content[:PREVIEW_CHARS]
+                self._loading_programmatically = True
+                try:
+                    self.input_box.delete("1.0", "end")
+                    self.input_box.insert("1.0", self._file_preview_text)
+                finally:
+                    self._loading_programmatically = False
+                self.input_status_label.configure(
+                    text=(f"FULL FILE ACTIVE ({len(content):,} chars)" if self._file_preview_text != content
+                          else "FILE LOADED")
+                )
+                self.process_data()
+            install()
+        future = self._job_executor.submit(lambda _: read_file(), None)
+        self.after(20, self._poll_future, future, loaded)
 
     def _record_activity(self, tool, action, status, flags=None, details=""):
         if not hasattr(self.app_root, "record_activity"):

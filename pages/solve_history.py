@@ -4,6 +4,8 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import customtkinter as ctk
 from Tools.solve_history import export_html
+from Tools.window_layout import fit_window
+from Tools.text_view import background
 
 
 CATEGORIES = ['All', 'Data Hashing', 'File Inspection', 'Pipeline']
@@ -16,11 +18,13 @@ class HistoryWindow(ctk.CTkToplevel):
         self.app_root = root
         self.store = getattr(root, 'history_store', None)
         self.title('Solve History')
-        self.geometry('1050x700')
-        self.minsize(850, 550)
+        width, height = fit_window(self, '1200x800')
+        self.minsize(min(850, width), min(550, height))
         self.configure(fg_color='#0D0D12')
         self.page_index = 0
         self.events = []
+        self.total_events = 0
+        self._exporting = False
         self.selected_ids = set()
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
@@ -95,34 +99,33 @@ class HistoryWindow(ctk.CTkToplevel):
 
     def update_notice(self):
         error = getattr(self.app_root, 'history_error', '')
-        self.notice.configure(text=error or f'{len(self.events)} records · Page {self.page_index + 1} · {len(self.selected_ids)} selected · Ctrl/Shift to select')
+        if not self._exporting:
+            self.notice.configure(text=error or f'{self.total_events} records · Page {self.page_index + 1} · {len(self.selected_ids)} selected · Ctrl/Shift to select')
 
     def refresh(self):
         if self.store is None:
             self.notice.configure(text=getattr(self.app_root, 'history_error', '') or 'History unavailable')
             return
         try:
-            events = self.store.list_events(self.filter.get())
+            self.total_events = self.store.count_events(self.filter.get())
+            self.page_index = min(self.page_index, max(0, (self.total_events - 1) // self.PAGE_SIZE))
+            events = self.store.list_events(self.filter.get(), limit=self.PAGE_SIZE,
+                                           offset=self.page_index * self.PAGE_SIZE, summaries=True)
         except Exception as error:
             self.notice.configure(text=f'Cannot read history: {error}')
             return
         self.events = events
-        self.page_index = min(self.page_index, max(0, (len(events) - 1) // self.PAGE_SIZE))
-        visible = events[self.page_index * self.PAGE_SIZE:(self.page_index + 1) * self.PAGE_SIZE]
+        visible = events
         self.capture_selection()
         selected = self.selected_ids
         signature = [(e['id'], e['status'], e.get('output'), e.get('error')) for e in visible]
         if signature != getattr(self, '_signature', None):
             self._signature = signature
             self.table.delete(*self.table.get_children())
-            groups = {}
-            for event in events:
-                if event.get('group_id'):
-                    groups.setdefault(event['group_id'], event['seq'])
             for event in visible:
                 group = event.get('group_id')
                 self.table.insert('', 'end', iid=event['id'], values=(event['seq'], event['category'],
-                                  event['tool'], self.status_text(event), f"Run #{groups[group]}" if group else ''))
+                                  event['tool'], self.status_text(event), f"Run {group[:8]}" if group else ''))
             self.table.selection_set([e['id'] for e in visible if e['id'] in selected])
             self.show_details()
         self.update_notice()
@@ -140,7 +143,10 @@ class HistoryWindow(ctk.CTkToplevel):
         selected = set(self.table.selection())
         records = [e for e in self.events if e['id'] in selected]
         parts = []
-        for item in records[:1]:
+        for summary in records[:1]:
+            item = self.store.get_event(summary['id'])
+            if item is None:
+                continue
             parts.append(f"#{item['seq']} · {item['category']} · {item['tool']} · {self.status_text(item)}")
             if item.get('parent_id'):
                 try:
@@ -162,16 +168,19 @@ class HistoryWindow(ctk.CTkToplevel):
     def export_selected(self):
         self.capture_selection()
         try:
-            self.export([e for e in self.store.list_events() if e['id'] in self.selected_ids])
+            selected = set(self.selected_ids)
+            self.export((e for e in self.store.iter_events() if e['id'] in selected), len(selected))
         except Exception as error:
             messagebox.showerror('Export History', str(error), parent=self)
 
     def export_all(self):
         self.refresh()
-        self.export(self.events)
+        self.export(self.store.iter_events(self.filter.get()), self.total_events)
 
-    def export(self, records):
-        if not records:
+    def export(self, records, count=None):
+        if self._exporting:
+            return
+        if count == 0 or (count is None and not records):
             messagebox.showinfo('Export History', 'No records selected.', parent=self)
             return
         path = filedialog.asksaveasfilename(parent=self, title='Export History',
@@ -184,20 +193,37 @@ class HistoryWindow(ctk.CTkToplevel):
             if target.suffix.lower() not in ('.html', '.htm'):
                 raise ValueError('Choose an .html or .htm report file.')
             # Exports must not replace any referenced evidence file.
-            protected = {str(Path(p).resolve()) for e in self.store.list_events() for p in e.get('files', [])}
-            if str(target) in protected:
-                raise ValueError('Choose a new report path, not a source or result file.')
-            export_html(target, records)
-            self.notice.configure(text=f'Exported {len(records)} records')
+            def write():
+                for event in self.store.iter_events():
+                    if any(Path(p).resolve() == target for p in event.get('files', [])):
+                        raise ValueError('Choose a new report path, not a source or result file.')
+                export_html(target, records)
+            def finished(_, error):
+                self._exporting = False
+                if error:
+                    messagebox.showerror('Export History', str(error), parent=self)
+                else:
+                    self.notice.configure(text='Export completed')
+            if self.store.count_events() > 100:
+                self._exporting = True
+                self.notice.configure(text='Exporting in background…')
+                background(self, write, finished)
+            else:
+                write()
+                self.notice.configure(text='Export completed')
         except Exception as error:
             messagebox.showerror('Export History', str(error), parent=self)
 
     def clear_history(self):
         if self.store is None:
             return
+        if self._exporting:
+            messagebox.showinfo('Clear History', 'Wait for the export to finish.', parent=self)
+            return
         self.refresh()
         category = self.filter.get()
-        if any(e['id'] in getattr(self.app_root, 'history_active', set()) for e in self.events):
+        active = (self.store.get_event(event_id) for event_id in getattr(self.app_root, 'history_active', set()))
+        if any(e and (category == 'All' or e['category'] == category) for e in active):
             messagebox.showinfo('Clear History', 'Wait for running operations to finish.', parent=self)
             return
         scope = 'all categories' if category == 'All' else category
@@ -207,7 +233,7 @@ class HistoryWindow(ctk.CTkToplevel):
         try:
             self.store.clear(category)
             self.table.selection_remove(self.table.selection())
-            self.selected_ids.intersection_update(e['id'] for e in self.store.list_events())
+            self.selected_ids = {event_id for event_id in self.selected_ids if self.store.get_event(event_id)}
             self.refresh()
         except Exception as error:
             messagebox.showerror('Clear History', str(error), parent=self)

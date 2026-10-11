@@ -6,6 +6,7 @@ import time
 import tkinter as tk
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import customtkinter as ctk
@@ -52,6 +53,72 @@ class HistoryGuiTests(unittest.TestCase):
             if time.monotonic() > deadline:
                 self.fail('Inspection did not finish')
             time.sleep(.01)
+
+    def test_inspection_selection_to_gemini(self):
+        from pages.file_inspection import ResultBox
+        box = ResultBox(self.root.pages['File Inspection'], 'sample', self.root)
+        self.addCleanup(box.destroy)
+        self.assertEqual(box.context_menu.entrycget(0, 'label'), '🚀 FORWARD TO HASHING MODULE')
+        self.assertEqual(box.context_menu.entrycget(1, 'label'), '🚀 FORWARD TO GEMINI MODULE')
+        selected = '  selected evidence  '
+        box.textbox.insert('1.0', selected + '\nnot selected')
+        box.textbox.tag_add('sel', '1.0', '1.end')
+        gemini = self.root.pages['Gemini CLI']
+        with patch.object(box.context_menu, 'tk_popup') as popup, \
+             patch.object(gemini, 'send_message') as send:
+            box.show_context_menu(SimpleNamespace(x_root=0, y_root=0))
+            popup.assert_called_once()
+            box.textbox.tag_remove('sel', '1.0', 'end')
+            box.context_menu.invoke('🚀 FORWARD TO GEMINI MODULE')
+            self.assertEqual(gemini.input_field.get(), selected)
+            send.assert_called_once_with()
+            send.reset_mock()
+            box.show_context_menu(SimpleNamespace(x_root=0, y_root=0))
+            box.context_menu.invoke('🚀 FORWARD TO GEMINI MODULE')
+            send.assert_not_called()
+        self.assertFalse(self.errors)
+
+    def test_gemini_selection_to_hashing_preserves_text_and_clears_stale_selection(self):
+        gemini = self.root.pages['Gemini CLI']
+        hashing = self.root.pages['Data Hashing']
+        hashing.set_mode('Hash')
+        hashing.algo_menu.set('sha256')
+        selected = '  selected reply\nsecond line  '
+        gemini.chat_display.configure(state='normal')
+        gemini.chat_display.insert('1.0', selected + '\nnot selected')
+        gemini.chat_display.configure(state='disabled')
+        gemini.chat_display.tag_add('sel', '1.0', '2.end')
+        with patch.object(gemini.context_menu, 'tk_popup'):
+            gemini.show_context_menu(SimpleNamespace(x_root=0, y_root=0))
+            gemini.chat_display.tag_remove('sel', '1.0', 'end')
+            gemini.context_menu.invoke('Send to Data Hashing')
+            self.assertEqual(hashing.input_box.get('1.0', 'end-1c'), selected)
+            import hashlib
+            self.assertEqual(hashing.output_bytes.decode(), hashlib.sha256(selected.encode()).hexdigest())
+            self.assertIsNone(self.store.list_events()[-1]['parent_id'])
+            with patch.object(self.root, 'send_to_hashing') as send:
+                gemini.show_context_menu(SimpleNamespace(x_root=0, y_root=0))
+                self.assertEqual(gemini.context_menu.entrycget(0, 'state'), 'disabled')
+                gemini.context_menu.invoke(0)
+                gemini.send_selection_to_hashing()
+                send.assert_not_called()
+        self.assertEqual(gemini.chat_display._textbox.cget('state'), 'disabled')
+        self.assertFalse(self.errors)
+
+    def test_existing_hashing_selection_to_gemini(self):
+        hashing = self.root.pages['Data Hashing']
+        gemini = self.root.pages['Gemini CLI']
+        for textbox in (hashing.input_box, hashing.output_box):
+            with self.subTest(textbox=textbox):
+                textbox.insert('1.0', 'selected\nnot selected')
+                textbox.tag_add('sel', '1.0', '1.end')
+                with patch.object(hashing.context_menu, 'tk_popup'), \
+                     patch.object(gemini, 'send_message') as send:
+                    hashing.show_context_menu(SimpleNamespace(x_root=0, y_root=0), textbox)
+                    hashing.context_menu.invoke(0)
+                    self.assertEqual(gemini.input_field.get(), 'selected')
+                    send.assert_called_once_with()
+        self.assertFalse(self.errors)
 
     def test_inspection_to_hashing_and_pipeline_retries_are_ordered(self):
         source = self.work / 'sample.txt'

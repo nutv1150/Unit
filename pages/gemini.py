@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from tkinter import filedialog
+from tkinter import filedialog, Menu, TclError
 import threading
 import os
 import re
@@ -8,6 +8,13 @@ import shutil
 import time
 import signal
 from Tools.flag_detector import find_flags
+from Tools.window_layout import fit_window
+from Tools.stream_capture import run_capture
+from Tools.text_view import open_text_view
+from pathlib import Path
+
+MAX_PROMPT_BYTES = 4 * 1024 * 1024
+MAX_ATTACHMENT_BYTES = 1024 * 1024
 
 class GeminiPage(ctk.CTkFrame):
     def __init__(self, master):
@@ -119,6 +126,27 @@ class GeminiPage(ctk.CTkFrame):
         self.chat_display.pack(pady=10, fill="both", expand=True, padx=40)
         self.chat_display.configure(state="disabled")
 
+        self.hashing_selection = ""
+        self.context_menu = Menu(
+            self, tearoff=0, bg=PANEL_COLOR, fg="white",
+            activebackground=ACCENT_CYAN, activeforeground="black",
+            font=("Consolas", 11),
+        )
+        self.context_menu.add_command(
+            label="Send to Data Hashing", command=self.send_selection_to_hashing,
+        )
+        self.chat_display.bind("<Button-3>", self.show_context_menu)
+        self._captures = []
+        self._full_response_path = None
+        self._command_output_path = None
+        self.full_response_button = ctk.CTkButton(
+            self, text='View Full Response', state='disabled',
+            command=lambda: open_text_view(self, self._full_response_path) if self._full_response_path else None)
+        self.full_response_button.pack(padx=40, anchor='e')
+        self.command_output_button = ctk.CTkButton(self, text='View Full Command Output',
+            command=lambda: open_text_view(self, self._command_output_path) if self._command_output_path else None)
+        self.command_output_button.pack(padx=40, anchor='e')
+
         # ==========================================
         # 4. กล่องพิมพ์ข้อความ (COMMAND INPUT)
         # ==========================================
@@ -211,6 +239,25 @@ class GeminiPage(ctk.CTkFrame):
         self.history = []  
 
     # --- ฟังก์ชันเสริม UI ---
+    def show_context_menu(self, event):
+        # Snapshot before the menu changes focus; never forward the entire chat.
+        try:
+            self.hashing_selection = self.chat_display.get("sel.first", "sel.last")
+        except TclError:
+            self.hashing_selection = ""
+        self.context_menu.entryconfigure(
+            0, state="normal" if self.hashing_selection.strip() else "disabled",
+        )
+        try:
+            self.context_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.context_menu.grab_release()
+        return "break"
+
+    def send_selection_to_hashing(self):
+        if self.hashing_selection.strip():
+            self.app_root.send_to_hashing(self.hashing_selection)
+
     def toggle_api_visibility(self):
         if self.api_entry.cget("show") == "*":
             self.api_entry.configure(show="")
@@ -252,7 +299,7 @@ class GeminiPage(ctk.CTkFrame):
         dialog = ctk.CTkToplevel(self)
         self._confirm_dialog = dialog
         dialog.title("⚠️ SECURITY WARNING")
-        dialog.geometry("550x380")
+        fit_window(dialog, "630x440")
         dialog.attributes("-topmost", True)
         dialog.configure(fg_color="#0D0D12")
         dialog.transient(self.winfo_toplevel()) 
@@ -430,7 +477,16 @@ class GeminiPage(ctk.CTkFrame):
 
     # ⭐ แก้ไขให้ใช้ Popen แทนการกำหนด timeout ตายตัว
     def call_gemini_cli(self, prompt_text, max_retries=3):
-        cmd = [self.gemini_cmd, "-m", self.model_name, "-p", prompt_text]
+        encoded_prompt = prompt_text.encode('utf-8')
+        if len(encoded_prompt) > MAX_PROMPT_BYTES:
+            raise ValueError('Prompt and history exceed 4 MiB. Reduce the input or start a new conversation; nothing was sent.')
+        # Installed Gemini CLI appends -p to stdin in headless mode. Keep argv
+        # short instead of putting file contents into an OS command argument.
+        cmd = [self.gemini_cmd, "-m", self.model_name, "-p", 'Respond to the request above.']
+        self._full_response_path = None
+        class StopRequested:
+            def is_set(_):
+                return self._stop_requested
         last_error = None
 
         for attempt in range(1, max_retries + 1):
@@ -438,19 +494,15 @@ class GeminiPage(ctk.CTkFrame):
                 return "❌ [ระบบ]: ถูกยกเลิกโดยผู้ใช้"
 
             try:
-                self.current_process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    env=self._build_env(),
-                    stdin=subprocess.DEVNULL,
-                    cwd=self.cli_workdir,
-                    start_new_session=(os.name == "posix"),
-                )
-                
-                # รันไปเรื่อยๆ จนกว่าจะเสร็จ หรือถูก Kill จากปุ่ม STOP
-                out, err = self.current_process.communicate()
+                capture = run_capture(cmd, input_data=encoded_prompt, timeout=300, cancel_event=StopRequested(),
+                    env=self._build_env(), cwd=self.cli_workdir,
+                    on_process=lambda process: setattr(self, 'current_process', process))
+                if not hasattr(self, '_captures'):
+                    self._captures = []
+                self._captures.append(capture)
+                self._full_response_path = capture.stdout_file or capture.stderr_file
+                out = capture.stdout.decode('utf-8', errors='replace')
+                err = capture.stderr.decode('utf-8', errors='replace')
 
                 if self._stop_requested:
                     return "❌ [ระบบ]: ถูกยกเลิกโดยผู้ใช้"
@@ -493,10 +545,13 @@ class GeminiPage(ctk.CTkFrame):
                     time.sleep(3 * attempt)
                     continue
 
-                if self.current_process.returncode != 0:
+                if capture.returncode != 0:
                     raise RuntimeError(combined_err or "Gemini CLI คืนค่า error โดยไม่มีรายละเอียด")
                 
-                return (combined_out or combined_err).strip()
+                response = (combined_out or combined_err).strip()
+                if self._full_response_path:
+                    response += '\n[Preview only — View Full Response contains the complete output. Automatic EXEC/SAVE parsing is disabled for this oversized response.]'
+                return response
 
             except Exception as e:
                 if self._stop_requested:
@@ -526,18 +581,27 @@ class GeminiPage(ctk.CTkFrame):
                 clean_path = word.strip('"\'')
                 if os.path.isfile(clean_path):
                     try:
-                        with open(clean_path, "r", encoding="utf-8") as f:
-                            file_data += f"\n\n--- ข้อมูลไฟล์: {clean_path} ---\n{f.read()}\n------------------\n"
-                    except Exception:
-                        pass
+                        with open(clean_path, "rb") as f:
+                            content = f.read(MAX_ATTACHMENT_BYTES + 1)
+                        if len(content) > MAX_ATTACHMENT_BYTES:
+                            raise ValueError('Attachment exceeds 1 MiB. Extract relevant text first; the file was not sent or truncated.')
+                        file_data += f"\n\n--- ข้อมูลไฟล์: {clean_path} ---\n{content.decode('utf-8')}\n------------------\n"
+                        if len(file_data.encode('utf-8')) > MAX_PROMPT_BYTES:
+                            raise ValueError('Attachments exceed the 4 MiB request limit; nothing was sent.')
+                    except UnicodeDecodeError:
+                        raise ValueError('Binary attachments are not sent as text. Extract relevant text with File Inspection first.')
             if file_data:
                 enhanced_prompt = f"{prompt}\n{file_data}"
 
             full_prompt = self.build_prompt_with_history(enhanced_prompt)
             output = self.call_gemini_cli(full_prompt)
+            if getattr(self, '_full_response_path', None):
+                self.after(0, self.finish_response, output)
+                return
 
             self.history.append(("user", enhanced_prompt))
             self.history.append(("model", output))
+            self.history = self.history[-6:]
 
             # ==========================================
             # 1. จัดการ Execution (EXEC)
@@ -556,22 +620,16 @@ class GeminiPage(ctk.CTkFrame):
                     self.after(0, self.update_chat_ui, "System", f"⚙️ AI ได้รับอนุญาตให้รันคำสั่ง: {cmd}")
 
                     try:
-                        self.current_process = subprocess.Popen(
-                            cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                            stdin=subprocess.DEVNULL, text=True, start_new_session=(os.name == "posix"),
-                        )
-                        try:
-                            stdout, stderr = self.current_process.communicate(timeout=30)
-                        except subprocess.TimeoutExpired:
-                            if os.name == "posix":
-                                os.killpg(self.current_process.pid, signal.SIGKILL)
-                            else:
-                                self.current_process.kill()
-                            self.current_process.communicate()
-                            raise RuntimeError("Command timeout")
-                        code = self.current_process.returncode
+                        capture = run_capture(cmd, shell=True, timeout=30,
+                            on_process=lambda process: setattr(self, 'current_process', process))
+                        if not hasattr(self, '_captures'):
+                            self._captures = []
+                        self._captures.append(capture)
+                        self._command_output_path = capture.report_path()
+                        stdout = capture.stdout.decode('utf-8', errors='replace')
+                        stderr = capture.stderr.decode('utf-8', errors='replace')
+                        code = capture.returncode
                         cmd_out = f"Exit code: {code}\nstdout:\n{stdout or '(empty)'}\nstderr:\n{stderr or '(empty)'}"
-
                         if len(cmd_out) > 4000:
                             cmd_out = cmd_out[:4000] + "\n...[ข้อความถูกตัดทิ้งเนื่องจากยาวเกินไป]..."
 
@@ -587,9 +645,13 @@ class GeminiPage(ctk.CTkFrame):
                     feedback_prompt = f"ผลลัพธ์จากการรัน `{cmd}`:\n```\n{cmd_out}\n```\nโปรดวิเคราะห์ผลลัพธ์นี้ต่อ"
                     full_prompt = self.build_prompt_with_history(feedback_prompt)
                     output = self.call_gemini_cli(full_prompt)
+                    if getattr(self, '_full_response_path', None):
+                        self.after(0, self.finish_response, output)
+                        return
 
                     self.history.append(("user", feedback_prompt))
                     self.history.append(("model", output))
+                    self.history = self.history[-6:]
                     has_executed = True 
                 else:
                     self.after(0, self.update_chat_ui, "System", f"❌ ผู้ใช้ยกเลิกคำสั่ง: {cmd}")
@@ -627,6 +689,8 @@ class GeminiPage(ctk.CTkFrame):
 
     def finish_response(self, output):
         self._busy = False
+        if hasattr(self, 'full_response_button'):
+            self.full_response_button.configure(state='normal' if self._full_response_path else 'disabled')
         self.chat_display.configure(state="normal")
 
         lines = self.chat_display.get("1.0", "end").split("\n")
@@ -662,6 +726,13 @@ class GeminiPage(ctk.CTkFrame):
 
     def update_chat_ui(self, sender, message):
         self.chat_display.configure(state="normal")
+        if len(message) > 128 * 1024:
+            message = message[:128 * 1024] + '\n[Display preview only; large responses are available in View Full Response.]'
+        # Keep the interactive widget bounded across a long conversation.
+        count = int(self.chat_display._textbox.count('1.0', 'end', 'chars')[0])
+        if count > 256 * 1024:
+            self.chat_display.delete('1.0', f'1.0+{count - 128 * 1024}c')
+            self.chat_display.insert('1.0', '[Older messages removed from the display to keep it responsive.]\n')
         if sender == "System":
             self.chat_display.insert("end", f"[{sender}]: {message}\n\n")
         else:

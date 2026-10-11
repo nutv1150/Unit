@@ -12,6 +12,7 @@ from pages.my_tools import MyToolsPage
 from pages.challenge import ChallengePage
 from Tools.dashboard_store import DashboardStore
 from Tools.solve_history import SolveHistoryStore
+from Tools.window_layout import fit_window
 
 ctk.set_appearance_mode("Light")
 ctk.set_default_color_theme("blue")
@@ -25,7 +26,7 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.TkdndVersion = TkinterDnD._require(self)
 
         self.title("Unified Toolkit")
-        self.geometry("1200x720")
+        fit_window(self, "1360x820")
         self.configure(fg_color="#0D0D12")
 
         self.grid_columnconfigure(1, weight=1)
