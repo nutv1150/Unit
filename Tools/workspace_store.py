@@ -7,7 +7,9 @@ import uuid
 from copy import deepcopy
 from pathlib import Path
 
-CONFIG_DIR = Path(__file__).resolve().parents[1] / 'config'
+from Tools.app_paths import writable_path
+
+CONFIG_DIR = writable_path('config')
 
 
 def load_records(path):

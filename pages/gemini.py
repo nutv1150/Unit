@@ -12,6 +12,7 @@ from Tools.window_layout import fit_window
 from Tools.stream_capture import run_capture
 from Tools.text_view import open_text_view
 from pathlib import Path
+from Tools.app_paths import external_environment
 
 MAX_PROMPT_BYTES = 4 * 1024 * 1024
 MAX_ATTACHMENT_BYTES = 1024 * 1024
@@ -29,19 +30,21 @@ class GeminiPage(ctk.CTkFrame):
         TEXT_DIM = "#8892B0"        
         
         self.configure(fg_color=BG_COLOR)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(3, weight=1)
 
         # ==========================================
         # 1. ส่วนหัวโปรแกรม (HEADER HUD)
         # ==========================================
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        header_frame.pack(pady=(20, 10), fill="x")
+        header_frame.grid(row=0, column=0, sticky='ew', padx=24, pady=(20, 12))
         
         ctk.CTkLabel(
             header_frame, 
             text=">_ GEMINI_AI :: [CTF_MODE]", 
-            font=("Consolas", 42, "bold"), 
+            font=("Consolas", 28, "bold"),
             text_color=ACCENT_CYAN
-        ).pack()
+        ).pack(anchor='w')
         
         # ==========================================
         # 2. แผงควบคุม API & Model (CONTROL PANEL)
@@ -53,7 +56,7 @@ class GeminiPage(ctk.CTkFrame):
             border_width=1, 
             corner_radius=8
         )
-        api_container.pack(pady=10, fill="x", padx=40)
+        api_container.grid(row=1, column=0, sticky='ew', padx=24, pady=(0, 8))
         
         api_inner = ctk.CTkFrame(api_container, fg_color="transparent")
         api_inner.pack(pady=15, padx=20, fill="x")
@@ -79,13 +82,16 @@ class GeminiPage(ctk.CTkFrame):
         )
         self.toggle_btn.pack(side="left", padx=5)
 
+        model_row = ctk.CTkFrame(api_container, fg_color='transparent')
+        model_row.pack(fill='x', padx=20, pady=(0, 12))
+
         ctk.CTkButton(
-            api_inner, text="[ CONNECT_CLI ]", width=120, height=35,
+            model_row, text="[ CONNECT_CLI ]", width=140, height=35,
             font=("Consolas", 12, "bold"),
             fg_color="transparent", border_width=1, border_color=ACCENT_GREEN, text_color=ACCENT_GREEN,
             hover_color="#003311",
             command=self.init_api
-        ).pack(side="left", padx=10)
+        ).pack(side="left")
 
         self.model_options = [
             "gemini-3.1-flash-lite",
@@ -95,12 +101,12 @@ class GeminiPage(ctk.CTkFrame):
         ]
         self.model_var = ctk.StringVar(value=self.model_options[0])
         ctk.CTkOptionMenu(
-            api_inner, values=self.model_options, variable=self.model_var,
-            width=160, height=35,
+            model_row, values=self.model_options, variable=self.model_var,
+            width=220, height=35,
             font=("Consolas", 12),
             fg_color="#1E1E2E", button_color="#2B2B36", button_hover_color="#3A3A4A",
             command=self.on_model_change,
-        ).pack(side="left")
+        ).pack(side="right")
 
         self.status_label = ctk.CTkLabel(
             self,
@@ -109,7 +115,7 @@ class GeminiPage(ctk.CTkFrame):
             text_color=TEXT_DIM,
             anchor="w",
         )
-        self.status_label.pack(fill="x", padx=40)
+        self.status_label.grid(row=2, column=0, sticky='ew', padx=24)
 
         # ==========================================
         # 3. กล่องแสดงประวัติแชท (CHAT DISPLAY)
@@ -123,7 +129,7 @@ class GeminiPage(ctk.CTkFrame):
             text_color="#00FF41",
             font=("Consolas", 13)
         )
-        self.chat_display.pack(pady=10, fill="both", expand=True, padx=40)
+        self.chat_display.grid(row=3, column=0, sticky='nsew', padx=24, pady=(8, 10))
         self.chat_display.configure(state="disabled")
 
         self.hashing_selection = ""
@@ -139,19 +145,24 @@ class GeminiPage(ctk.CTkFrame):
         self._captures = []
         self._full_response_path = None
         self._command_output_path = None
+        result_actions = ctk.CTkFrame(self, fg_color='transparent')
+        result_actions.grid(row=4, column=0, sticky='ew', padx=24, pady=(0, 10))
+        action_style = dict(height=32, fg_color='transparent', border_width=1,
+                            border_color=ACCENT_CYAN, text_color=ACCENT_CYAN,
+                            hover_color='#003344')
         self.full_response_button = ctk.CTkButton(
-            self, text='View Full Response', state='disabled',
+            result_actions, text='View Full Response', state='disabled', **action_style,
             command=lambda: open_text_view(self, self._full_response_path) if self._full_response_path else None)
-        self.full_response_button.pack(padx=40, anchor='e')
-        self.command_output_button = ctk.CTkButton(self, text='View Full Command Output',
+        self.full_response_button.pack(side='left', padx=(0, 8))
+        self.command_output_button = ctk.CTkButton(result_actions, text='View Full Command Output', **action_style,
             command=lambda: open_text_view(self, self._command_output_path) if self._command_output_path else None)
-        self.command_output_button.pack(padx=40, anchor='e')
+        self.command_output_button.pack(side='left')
 
         # ==========================================
         # 4. กล่องพิมพ์ข้อความ (COMMAND INPUT)
         # ==========================================
         input_container = ctk.CTkFrame(self, fg_color="transparent")
-        input_container.pack(side="bottom", fill="x", padx=40, pady=(5, 20))
+        input_container.grid(row=5, column=0, sticky='ew', padx=24, pady=(0, 20))
         
         ctk.CTkLabel(
             input_container, 
@@ -427,7 +438,7 @@ class GeminiPage(ctk.CTkFrame):
         self.update_chat_ui("System", message)
 
     def _build_env(self):
-        env = os.environ.copy()
+        env = external_environment()
         if self.api_key:
             env["GEMINI_API_KEY"] = self.api_key
             env["GOOGLE_API_KEY"] = self.api_key

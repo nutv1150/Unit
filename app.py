@@ -13,6 +13,8 @@ from pages.challenge import ChallengePage
 from Tools.dashboard_store import DashboardStore
 from Tools.solve_history import SolveHistoryStore
 from Tools.window_layout import fit_window
+from Tools.app_paths import initialize_user_data
+from Tools.mousewheel import MouseWheelRouter
 
 ctk.set_appearance_mode("Light")
 ctk.set_default_color_theme("blue")
@@ -20,7 +22,9 @@ ctk.set_default_color_theme("blue")
 # 2. เพิ่ม TkinterDnD.DnDWrapper เข้ามาสืบทอดร่วมกับ ctk.CTk
 class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
     def __init__(self):
+        initialize_user_data()
         super().__init__()
+        self.mousewheel_router = MouseWheelRouter(self)
 
         # 3. บรรทัดนี้สำคัญมาก! เป็นการสั่งเปิดใช้งานระบบ Drag & Drop ของแอปหลัก
         self.TkdndVersion = TkinterDnD._require(self)

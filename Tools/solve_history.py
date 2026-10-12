@@ -16,6 +16,7 @@ import threading
 import uuid
 from pathlib import Path
 from typing import Any, Iterable, Mapping
+from Tools.app_paths import writable_path
 
 
 CATEGORIES = ("Data Hashing", "File Inspection", "Pipeline")
@@ -27,7 +28,7 @@ MAX_FILE_TEXT = 4 * 1024
 _BYTE_SAMPLE_SIZE = MAX_TEXT
 _TRUNCATION_MARKER = " ... [truncated]"
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_DB_PATH = (_PROJECT_ROOT / "data" / "solve_history.sqlite3").resolve()
+DEFAULT_DB_PATH = writable_path('data/solve_history.sqlite3').resolve()
 
 _SENSITIVE_WORDS = frozenset(
     {

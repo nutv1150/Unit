@@ -1,0 +1,10 @@
+# Build environment only; build.py never installs these automatically.
+PyInstaller==6.16.0
+customtkinter==5.2.2
+tkinterdnd2==0.4.3
+puremagic==1.30
+darkdetect==0.8.0
+packaging==26.3
+altgraph==0.17.5
+pyinstaller-hooks-contrib==2026.8
+setuptools==84.0.0
