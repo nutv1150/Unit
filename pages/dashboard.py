@@ -258,7 +258,7 @@ class DashboardPage(ctk.CTkFrame):
         if not favorites:
             ctk.CTkLabel(
                 self.favorites_frame,
-                text="ยังไม่มีเครื่องมือที่ปักหมุด — กด + PIN TOOL เพื่อเพิ่ม",
+                text="No pinned tools. Select + PIN TOOL to add one.",
                 font=("Consolas", 12),
                 text_color=TEXT_DIM,
             ).pack(padx=15, pady=20)
@@ -381,7 +381,7 @@ class DashboardPage(ctk.CTkFrame):
         if not top_tools:
             ctk.CTkLabel(
                 self.top_tools_frame,
-                text="ยังไม่มีข้อมูลการใช้งาน",
+                text="No activity yet.",
                 font=("Consolas", 11),
                 text_color=TEXT_DIM,
             ).pack(anchor="w", pady=8)
@@ -417,7 +417,7 @@ class DashboardPage(ctk.CTkFrame):
         if not recent_files:
             ctk.CTkLabel(
                 self.recent_files_frame,
-                text="ยังไม่มีไฟล์ล่าสุด เมื่อวิเคราะห์ไฟล์แล้วรายการจะปรากฏที่นี่",
+                text="No recent files. Analyzed files will appear here.",
                 font=("Consolas", 11),
                 text_color=TEXT_DIM,
             ).pack(anchor="w", pady=8)
@@ -797,7 +797,7 @@ class DashboardPage(ctk.CTkFrame):
                     return "break"
 
         if not launched:
-            self.persistence_notice.configure(text="เปิดทางลัดไม่สำเร็จ: เป้าหมายถูกลบ หรือ Pipeline ยังทำงานอยู่", text_color=ALERT_RED)
+            self.persistence_notice.configure(text="Cannot open shortcut: target was removed or Pipeline is still running.", text_color=ALERT_RED)
         self.app_root.record_activity(
             tool=name,
             category="Dashboard",

@@ -27,6 +27,8 @@ def main():
             root.report_callback_exception = lambda *args: errors.append(str(args))
             root.withdraw()
             assert root.TkdndVersion
+            assert len(root._unit_icons) == 3
+            assert all(icon.width() > 0 for icon in root._unit_icons)
             for name in root.pages:
                 root.switch_page(name)
                 root.update()
@@ -73,7 +75,7 @@ def main():
                 root.tk.call('after', 'cancel', callback)
             root.on_close()
             root = None
-            print(json.dumps({'result':'PASS', 'checks':['8 GUI pages', 'TkDnD loaded', 'regex unicode and timeout',
+            print(json.dumps({'result':'PASS', 'checks':['8 GUI pages', 'application icon loaded', 'TkDnD loaded', 'regex unicode and timeout',
                 'codec bytes', 'inspection strings/regex', 'external pipeline', 'isolated history/export',
                 'saved pipeline persistence', 'clean close']}, ensure_ascii=False))
             return 0

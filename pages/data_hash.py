@@ -273,7 +273,7 @@ class DataHashPage(ctk.CTkFrame):
 
         self.custom_hex_panel = ctk.CTkFrame(algo_bar, fg_color="transparent")
         ctk.CTkLabel(
-            self.custom_hex_panel, text="ALPHABET → 0123456789ABCDEF | เปลี่ยนสัญลักษณ์ตามลำดับ 0–F",
+            self.custom_hex_panel, text="ALPHABET → 0123456789ABCDEF | Replace symbols in 0–F order",
             font=("Consolas", 11), text_color=TEXT_DIM,
         ).pack(anchor="w")
         self.custom_hex_entry = ctk.CTkEntry(
@@ -492,7 +492,7 @@ class DataHashPage(ctk.CTkFrame):
             if detected_key:
                 key = detected_key["key"]
             else:
-                raise ValueError("กรุณาใส่ Key หรือวางข้อมูลที่มี key เช่น $key = 0x4A")
+                raise ValueError("Enter a key or paste data containing a key, e.g. $key = 0x4A")
         if algo == "XOR Mask": result = bitwise_mask(data, key, "xor")
         elif algo == "XOR Unmask": result = bitwise_unmask(data, key)
         elif algo == "OR Mask": result = bitwise_mask(data, key, "or")

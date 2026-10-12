@@ -6,7 +6,7 @@ from PyInstaller.utils.hooks import collect_data_files, copy_metadata
 ROOT = Path(SPECPATH).parent
 datas = [
     (str(ROOT / "packaging" / "defaults"), "defaults"),
-    (str(ROOT / "packaging" / "unit.svg"), "."),
+    (str(ROOT / "packaging" / "unit.png"), "packaging"),
 ]
 for package in ("customtkinter", "tkinterdnd2", "puremagic"):
     datas.extend(collect_data_files(package))

@@ -2,7 +2,8 @@
 import os
 from pathlib import Path
 import sys
-from Tools.app_paths import RESOURCE_ROOT, data_root
+from Tools.app_paths import data_root
+from Tools.app_icon import ICON_PATH
 
 
 def value(text):
@@ -47,6 +48,6 @@ def main():
     base = Path(os.environ.get('XDG_DATA_HOME', '')).expanduser()
     if not base.is_absolute():
         base = Path.home() / '.local/share'
-    path = install(sys.executable, RESOURCE_ROOT/'unit.svg', base/'applications', data_root()/'workspace')
+    path = install(sys.executable, ICON_PATH, base/'applications', data_root()/'workspace')
     print(f'Shortcut created: {path}\nKeep the extracted UNIT folder in this location.')
     return 0

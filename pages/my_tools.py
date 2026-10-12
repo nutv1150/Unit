@@ -31,7 +31,7 @@ class MyToolsPage(ctk.CTkFrame):
                         raise ValueError('Invalid tool in config')
         except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
             self.groups = []
-            self.load_error = f'อ่าน config ไม่สำเร็จ: {exc} (ไฟล์เดิมไม่ถูกเขียนทับ)'
+            self.load_error = f'Could not read configuration: {exc} (original file preserved)'
         self._build_ui()
 
     def _build_ui(self):
@@ -116,7 +116,7 @@ class MyToolsPage(ctk.CTkFrame):
         try:
             save_records(self.path, groups)
         except (OSError, ValueError) as exc:
-            self.status.configure(text=f'บันทึกไม่สำเร็จ: {exc}')
+            self.status.configure(text=f'Could not save: {exc}')
             return False
         self.groups = groups
         self.status.configure(text='')
@@ -124,7 +124,7 @@ class MyToolsPage(ctk.CTkFrame):
         return True
 
     def _delete(self, group):
-        CTkMessagebox(self, f"ลบกลุ่ม {group['name']}?", lambda: self._commit([g for g in self.groups if g['id'] != group['id']]))
+        CTkMessagebox(self, f"Delete group {group['name']}?", lambda: self._commit([g for g in self.groups if g['id'] != group['id']]))
 
     def _open_dialog(self, group=None):
         window = dialog(self, 'Edit group' if group else 'Create a new group')
@@ -153,8 +153,8 @@ class MyToolsPage(ctk.CTkFrame):
         tools_error.pack(anchor='w', padx=20)
         def save():
             chosen = [t for t, value in choices if value.get()]
-            name_error.configure(text='' if name.get().strip() else 'กรุณากรอกชื่อกลุ่ม')
-            tools_error.configure(text='' if chosen else 'เลือกเครื่องมืออย่างน้อย 1 รายการ')
+            name_error.configure(text='' if name.get().strip() else 'Enter a group name')
+            tools_error.configure(text='' if chosen else 'Select at least one tool')
             if not name.get().strip() or not chosen:
                 return
             updated = make_group(name.get(), chosen, group['id'] if group else None)
@@ -162,7 +162,7 @@ class MyToolsPage(ctk.CTkFrame):
             if self._commit(groups):
                 window.destroy()
             else:
-                tools_error.configure(text='บันทึกไม่สำเร็จ ตรวจสิทธิ์เขียน config')
+                tools_error.configure(text='Could not save. Check configuration write permissions.')
         actions = ctk.CTkFrame(window, fg_color='transparent')
         actions.pack(fill='x', padx=20, pady=(0, 16))
         ctk.CTkButton(actions, text='Cancel', width=110, command=window.destroy).pack(side='left')
