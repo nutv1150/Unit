@@ -11,7 +11,7 @@ class ChallengePage(ctk.CTkFrame):
             self.store = ChallengeStore(storage_path)
         except (OSError, ValueError, KeyError, TypeError) as exc:
             self.store = None
-            self.load_error = f'อ่าน config ไม่สำเร็จ: {exc} (ไฟล์เดิมไม่ถูกเขียนทับ)'
+            self.load_error = f'Could not read configuration: {exc} (original file preserved)'
         self.time_labels = {}
         self.editor = None
         self._tick_id = None
@@ -46,7 +46,7 @@ class ChallengePage(ctk.CTkFrame):
         self._render_rows()
 
     def _create(self):
-        self.name_error.configure(text='' if self.name_entry.get().strip() else 'กรุณากรอกชื่อการแข่งขัน')
+        self.name_error.configure(text='' if self.name_entry.get().strip() else 'Enter a competition name')
         try:
             integer(self.total_entry.get(), 1, 'Total items')
             self.total_error.configure(text='')
@@ -58,7 +58,7 @@ class ChallengePage(ctk.CTkFrame):
         try:
             self.store.create(self.name_entry.get(), self.total_entry.get())
         except (OSError, ValueError) as exc:
-            self.status.configure(text=f'บันทึกไม่สำเร็จ: {exc}', text_color=T['error'])
+            self.status.configure(text=f'Could not save: {exc}', text_color=T['error'])
             return
         self.name_entry.delete(0, 'end')
         self.total_entry.delete(0, 'end')
@@ -106,13 +106,13 @@ class ChallengePage(ctk.CTkFrame):
             try:
                 self.store.delete(record_id)
             except OSError as exc:
-                self.status.configure(text=f'ลบไม่สำเร็จ: {exc}', text_color=T['error'])
+                self.status.configure(text=f'Could not delete: {exc}', text_color=T['error'])
                 return
             if self.editor and self.editor.winfo_exists() and self.edit_id == record_id:
                 self.editor.destroy()
             self.editor = None
             self._render_rows()
-        CTkMessagebox(self, f"ลบ {self.store.get(record_id)['name']}?", remove)
+        CTkMessagebox(self, f"Delete {self.store.get(record_id)['name']}?", remove)
 
     def _open_editor(self, record_id):
         if self.editor and self.editor.winfo_exists():

@@ -12,6 +12,7 @@ from Tools.window_layout import fit_window
 from Tools.stream_capture import run_capture
 from Tools.text_view import open_text_view
 from pathlib import Path
+from Tools.app_paths import external_environment
 
 MAX_PROMPT_BYTES = 4 * 1024 * 1024
 MAX_ATTACHMENT_BYTES = 1024 * 1024
@@ -29,19 +30,21 @@ class GeminiPage(ctk.CTkFrame):
         TEXT_DIM = "#8892B0"        
         
         self.configure(fg_color=BG_COLOR)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(3, weight=1)
 
         # ==========================================
         # 1. ส่วนหัวโปรแกรม (HEADER HUD)
         # ==========================================
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        header_frame.pack(pady=(20, 10), fill="x")
+        header_frame.grid(row=0, column=0, sticky='ew', padx=24, pady=(20, 12))
         
         ctk.CTkLabel(
             header_frame, 
             text=">_ GEMINI_AI :: [CTF_MODE]", 
-            font=("Consolas", 42, "bold"), 
+            font=("Consolas", 28, "bold"),
             text_color=ACCENT_CYAN
-        ).pack()
+        ).pack(anchor='w')
         
         # ==========================================
         # 2. แผงควบคุม API & Model (CONTROL PANEL)
@@ -53,7 +56,7 @@ class GeminiPage(ctk.CTkFrame):
             border_width=1, 
             corner_radius=8
         )
-        api_container.pack(pady=10, fill="x", padx=40)
+        api_container.grid(row=1, column=0, sticky='ew', padx=24, pady=(0, 8))
         
         api_inner = ctk.CTkFrame(api_container, fg_color="transparent")
         api_inner.pack(pady=15, padx=20, fill="x")
@@ -79,13 +82,16 @@ class GeminiPage(ctk.CTkFrame):
         )
         self.toggle_btn.pack(side="left", padx=5)
 
+        model_row = ctk.CTkFrame(api_container, fg_color='transparent')
+        model_row.pack(fill='x', padx=20, pady=(0, 12))
+
         ctk.CTkButton(
-            api_inner, text="[ CONNECT_CLI ]", width=120, height=35,
+            model_row, text="[ CONNECT_CLI ]", width=140, height=35,
             font=("Consolas", 12, "bold"),
             fg_color="transparent", border_width=1, border_color=ACCENT_GREEN, text_color=ACCENT_GREEN,
             hover_color="#003311",
             command=self.init_api
-        ).pack(side="left", padx=10)
+        ).pack(side="left")
 
         self.model_options = [
             "gemini-3.1-flash-lite",
@@ -95,12 +101,12 @@ class GeminiPage(ctk.CTkFrame):
         ]
         self.model_var = ctk.StringVar(value=self.model_options[0])
         ctk.CTkOptionMenu(
-            api_inner, values=self.model_options, variable=self.model_var,
-            width=160, height=35,
+            model_row, values=self.model_options, variable=self.model_var,
+            width=220, height=35,
             font=("Consolas", 12),
             fg_color="#1E1E2E", button_color="#2B2B36", button_hover_color="#3A3A4A",
             command=self.on_model_change,
-        ).pack(side="left")
+        ).pack(side="right")
 
         self.status_label = ctk.CTkLabel(
             self,
@@ -109,7 +115,7 @@ class GeminiPage(ctk.CTkFrame):
             text_color=TEXT_DIM,
             anchor="w",
         )
-        self.status_label.pack(fill="x", padx=40)
+        self.status_label.grid(row=2, column=0, sticky='ew', padx=24)
 
         # ==========================================
         # 3. กล่องแสดงประวัติแชท (CHAT DISPLAY)
@@ -123,7 +129,7 @@ class GeminiPage(ctk.CTkFrame):
             text_color="#00FF41",
             font=("Consolas", 13)
         )
-        self.chat_display.pack(pady=10, fill="both", expand=True, padx=40)
+        self.chat_display.grid(row=3, column=0, sticky='nsew', padx=24, pady=(8, 10))
         self.chat_display.configure(state="disabled")
 
         self.hashing_selection = ""
@@ -139,19 +145,24 @@ class GeminiPage(ctk.CTkFrame):
         self._captures = []
         self._full_response_path = None
         self._command_output_path = None
+        result_actions = ctk.CTkFrame(self, fg_color='transparent')
+        result_actions.grid(row=4, column=0, sticky='ew', padx=24, pady=(0, 10))
+        action_style = dict(height=32, fg_color='transparent', border_width=1,
+                            border_color=ACCENT_CYAN, text_color=ACCENT_CYAN,
+                            hover_color='#003344')
         self.full_response_button = ctk.CTkButton(
-            self, text='View Full Response', state='disabled',
+            result_actions, text='View Full Response', state='disabled', **action_style,
             command=lambda: open_text_view(self, self._full_response_path) if self._full_response_path else None)
-        self.full_response_button.pack(padx=40, anchor='e')
-        self.command_output_button = ctk.CTkButton(self, text='View Full Command Output',
+        self.full_response_button.pack(side='left', padx=(0, 8))
+        self.command_output_button = ctk.CTkButton(result_actions, text='View Full Command Output', **action_style,
             command=lambda: open_text_view(self, self._command_output_path) if self._command_output_path else None)
-        self.command_output_button.pack(padx=40, anchor='e')
+        self.command_output_button.pack(side='left')
 
         # ==========================================
         # 4. กล่องพิมพ์ข้อความ (COMMAND INPUT)
         # ==========================================
         input_container = ctk.CTkFrame(self, fg_color="transparent")
-        input_container.pack(side="bottom", fill="x", padx=40, pady=(5, 20))
+        input_container.grid(row=5, column=0, sticky='ew', padx=24, pady=(0, 20))
         
         ctk.CTkLabel(
             input_container, 
@@ -229,12 +240,12 @@ class GeminiPage(ctk.CTkFrame):
         self._confirm_dialog = None
 
         self.system_prompt = (
-            "คุณคือ Cybersecurity Expert และ AI Assistant สำหรับแข่ง CTF "
-            "คุณสามารถเซฟไฟล์ได้โดยใช้ [SAVE:ที่อยู่ไฟล์]...เนื้อหา...[/SAVE] "
-            "และสามารถรันคำสั่ง Terminal ในเครื่องได้ด้วยแท็ก [EXEC]คำสั่ง[/EXEC] "
-            "⚠️ กฎเหล็ก: ห้ามพิมพ์แท็ก [EXEC] หรือ [SAVE] เพื่อยกตัวอย่าง แนะนำตัว หรือทักทายเด็ดขาด! "
-            "ถ้าผู้ใช้แค่ทักทาย (เช่น พิมพ์ hello) หรือถามทฤษฎีทั่วไป ให้ตอบกลับด้วยข้อความธรรมดา ห้ามใช้แท็กใดๆ ทั้งสิ้น "
-            "ให้ใช้แท็กเหล่านี้เฉพาะตอนที่จำเป็นต้อง 'รันคำสั่งเพื่อแก้โจทย์' หรือ 'เขียนไฟล์จริงๆ' เท่านั้น"
+            "You are a Cybersecurity Expert and AI Assistant for CTF competitions. "
+            "You can save files using [SAVE:file path]...content...[/SAVE] "
+            "and run terminal commands on the machine using [EXEC]command[/EXEC]. "
+            "⚠️ Strict rule: NEVER print the [EXEC] or [SAVE] tags as examples, introductions, or greetings! "
+            "If the user is only greeting you (for example, typing hello) or asking general theory, respond with plain text and do not use any tags. "
+            "Use these tags only when it is necessary to 'run a command to solve the challenge' or 'write an actual file'."
         )
         self.history = []  
 
@@ -313,7 +324,7 @@ class GeminiPage(ctk.CTkFrame):
         detail_box.insert("1.0", detail)
         detail_box.configure(state="disabled")
         
-        ctk.CTkLabel(dialog, text="ระบบถูกระงับเพื่อความปลอดภัย ต้องการอนุญาตให้ดำเนินการนี้หรือไม่?", font=("Consolas", 12), text_color="#8892B0").pack(pady=(0, 10))
+        ctk.CTkLabel(dialog, text="Execution is paused for safety. Do you want to allow this action?", font=("Consolas", 12), text_color="#8892B0").pack(pady=(0, 10))
         
         btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
         btn_frame.pack(fill="x", padx=20, pady=(0, 20))
@@ -340,7 +351,7 @@ class GeminiPage(ctk.CTkFrame):
     # ==================================================================
     def on_model_change(self, selected_model):
         self.model_name = selected_model
-        self.update_chat_ui("System", f"🔄 เปลี่ยนไปใช้โมเดล: {selected_model}")
+        self.update_chat_ui("System", f"🔄 Switched to model: {selected_model}")
 
     def init_api(self):
         if self._busy or self._connecting:
@@ -349,18 +360,18 @@ class GeminiPage(ctk.CTkFrame):
         if resolved_path is None:
             self.update_chat_ui(
                 "System",
-                f"❌ ไม่พบคำสั่ง '{self.gemini_cmd}' ในเครื่อง (PATH ที่โปรแกรมเห็น: {os.environ.get('PATH', 'ไม่มี PATH เลย')}) "
-                f"กรุณาติดตั้ง Gemini CLI (npm install -g @google/gemini-cli) ก่อนครับ",
+                f"❌ Command '{self.gemini_cmd}' was not found (PATH visible to the app: {os.environ.get('PATH', 'no PATH set')}). "
+                f"Please install Gemini CLI (npm install -g @google/gemini-cli) first.",
             )
             return
 
-        self.update_chat_ui("System", f"🔍 เจอ gemini ที่: {resolved_path}")
+        self.update_chat_ui("System", f"🔍 Found gemini at: {resolved_path}")
 
         entered_key = self.api_entry.get().strip()
         self.api_key = entered_key if entered_key else None
 
-        self.status_label.configure(text="⏳ กำลังเชื่อมต่อ...")
-        self.update_chat_ui("System", "กำลังเชื่อมต่อกับ Gemini CLI...")
+        self.status_label.configure(text="⏳ Connecting...")
+        self.update_chat_ui("System", "Connecting to Gemini CLI...")
 
         self.cli_ready = False
         self._connecting = True
@@ -393,32 +404,32 @@ class GeminiPage(ctk.CTkFrame):
             combined = (test_res.stdout + test_res.stderr)
 
             if "UNAUTHENTICATED" in combined or "invalid authentication" in combined.lower():
-                self.after(0, self._init_api_fail, "❌ Auth ไม่ผ่าน",
-                    "❌ ยังไม่ได้ auth กับ Gemini CLI: ให้เปิด terminal แล้วรัน `gemini` เพื่อ login ผ่านเบราว์เซอร์ "
-                    "หรือใส่ API Key ในช่องด้านบนแล้วกด 'เชื่อมต่อ CLI' อีกครั้งครับ")
+                self.after(0, self._init_api_fail, "❌ Authentication failed",
+                    "❌ Gemini CLI is not authenticated: open a terminal and run `gemini` to log in through your browser, "
+                    "or enter an API key above and click 'Connect CLI' again.")
                 return
             if "trusted directory" in combined.lower():
-                self.after(0, self._init_api_fail, "❌ โฟลเดอร์ไม่ trusted",
-                    "❌ Gemini CLI บล็อกเพราะโฟลเดอร์ทำงานยังไม่ trusted ลองรันโปรแกรมนี้จาก terminal แล้ว "
-                    "`cd` ไปที่โฟลเดอร์นั้นก่อน แล้วรัน `gemini` ครั้งนึงเพื่อ trust ผ่าน interactive mode ก่อนครับ")
+                self.after(0, self._init_api_fail, "❌ Untrusted directory",
+                    "❌ Gemini CLI blocked this request because the working directory is not trusted. Run this program from a terminal, "
+                    "`cd` to that directory, and run `gemini` once in interactive mode to trust it.")
                 return
 
             if test_res.returncode != 0:
                 raise RuntimeError(combined.strip() or f"Gemini CLI exit code {test_res.returncode}")
             self.after(0, self._init_api_success, version_info)
         except subprocess.TimeoutExpired:
-            self.after(0, self._init_api_fail, "❌ หมดเวลา",
-                "❌ การเชื่อมต่อ CLI ใช้เวลานานเกินไป (timeout) ลองเช็คอินเทอร์เน็ต หรือรัน `gemini -p \"hi\"` "
-                "ตรงๆ ใน terminal ดูว่าค้างเหมือนกันไหมครับ")
+            self.after(0, self._init_api_fail, "❌ Timed out",
+                "❌ The CLI connection timed out. Check your internet connection, or run `gemini -p \"hi\"` "
+                "directly in a terminal to see whether it hangs there too.")
         except Exception as e:
-            self.after(0, self._init_api_fail, "❌ เชื่อมต่อล้มเหลว", f"❌ การเชื่อมต่อ CLI ล้มเหลว: {e}")
+            self.after(0, self._init_api_fail, "❌ Connection failed", f"❌ CLI connection failed: {e}")
 
     def _init_api_success(self, version_info):
         self._connecting = False
         self.cli_ready = True
         self.api_entry.configure(state="disabled")
         self.status_label.configure(text=f"✅ CONNECTED: {version_info or self.gemini_cmd}", text_color="#00FF41")
-        self.update_chat_ui("System", "✅ CTF Mode พร้อมลุย! (เชื่อมต่อผ่าน Gemini CLI)")
+        self.update_chat_ui("System", "✅ CTF Mode ready! (Connected through Gemini CLI)")
 
     def _init_api_fail(self, status_text, message):
         self._connecting = False
@@ -427,7 +438,7 @@ class GeminiPage(ctk.CTkFrame):
         self.update_chat_ui("System", message)
 
     def _build_env(self):
-        env = os.environ.copy()
+        env = external_environment()
         if self.api_key:
             env["GEMINI_API_KEY"] = self.api_key
             env["GOOGLE_API_KEY"] = self.api_key
@@ -451,7 +462,7 @@ class GeminiPage(ctk.CTkFrame):
                     self.current_process.kill()
             except Exception:
                 pass
-            self.update_chat_ui("System", "🛑 ผู้ใช้กดยกเลิกการทำงาน...")
+            self.update_chat_ui("System", "🛑 Operation cancelled by the user...")
             self.stop_btn.configure(state="disabled")
 
     def send_message(self):
@@ -461,7 +472,7 @@ class GeminiPage(ctk.CTkFrame):
         if not user_text:
             return
         if not self.cli_ready:
-            self.update_chat_ui("System", "⚠️ กรุณาเชื่อมต่อ Gemini CLI ก่อนครับ!")
+            self.update_chat_ui("System", "⚠️ Please connect to Gemini CLI first!")
             return
 
         self._stop_requested = False
@@ -471,7 +482,7 @@ class GeminiPage(ctk.CTkFrame):
         
         self.send_btn.configure(state="disabled")
         self.stop_btn.configure(state="normal")
-        self.update_chat_ui("System", "กำลังวิเคราะห์ (สามารถกด STOP เพื่อยกเลิกได้)...")
+        self.update_chat_ui("System", "Analyzing (press STOP to cancel)...")
 
         threading.Thread(target=self.process_request, args=(user_text,), daemon=True).start()
 
@@ -491,7 +502,7 @@ class GeminiPage(ctk.CTkFrame):
 
         for attempt in range(1, max_retries + 1):
             if self._stop_requested:
-                return "❌ [ระบบ]: ถูกยกเลิกโดยผู้ใช้"
+                return "❌ [System]: Cancelled by the user"
 
             try:
                 capture = run_capture(cmd, input_data=encoded_prompt, timeout=300, cancel_event=StopRequested(),
@@ -505,7 +516,7 @@ class GeminiPage(ctk.CTkFrame):
                 err = capture.stderr.decode('utf-8', errors='replace')
 
                 if self._stop_requested:
-                    return "❌ [ระบบ]: ถูกยกเลิกโดยผู้ใช้"
+                    return "❌ [System]: Cancelled by the user"
 
                 combined_err = (err or "").strip()
                 combined_out = (out or "").strip()
@@ -513,19 +524,19 @@ class GeminiPage(ctk.CTkFrame):
 
                 if "UNAUTHENTICATED" in combined_err or "invalid authentication" in combined_err.lower():
                     raise RuntimeError(
-                        "Auth ไม่ผ่าน: กรุณา login ผ่าน `gemini` ในเทอร์มินัล หรือใส่ API Key แล้วกด 'เชื่อมต่อ CLI' ใหม่"
+                        "Authentication failed: log in with `gemini` in a terminal, or enter an API key and click 'Connect CLI' again."
                     )
 
                 if "exhausted your daily quota" in full_text.lower() or "quotaerror" in full_text.lower():
                     raise RuntimeError(
-                        f"โควตารายวันของโมเดล '{self.model_name}' หมดแล้ว "
-                        f"ลองเปลี่ยนโมเดลจาก dropdown ด้านบน (เช่น gemini-3.1-flash-lite) แล้วลองใหม่ครับ"
+                        f"The daily quota for model '{self.model_name}' has been exhausted. "
+                        f"Try switching to another model from the dropdown above (such as gemini-3.1-flash-lite) and try again."
                     )
 
                 if "modelnotfounderror" in full_text.lower() or "no longer available to new users" in full_text.lower():
                     raise RuntimeError(
-                        f"โมเดล '{self.model_name}' ไม่พร้อมใช้งานสำหรับ API key นี้ (อาจถูกจำกัดสำหรับ key ใหม่) "
-                        f"ลองเปลี่ยนโมเดลจาก dropdown ด้านบนเป็นตัวอื่น (เช่น gemini-2.5-flash หรือ gemini-3.5-flash) ครับ"
+                        f"Model '{self.model_name}' is not available for this API key (it may be restricted for new keys). "
+                        f"Try switching to another model from the dropdown above (such as gemini-2.5-flash or gemini-3.5-flash)."
                     )
 
                 is_overloaded = (
@@ -540,13 +551,13 @@ class GeminiPage(ctk.CTkFrame):
                         0,
                         self.update_chat_ui,
                         "System",
-                        f"⏳ โมเดลกำลังโหลดสูง (503) กำลังลองใหม่ ({attempt}/{max_retries})...",
+                        f"⏳ Model is under heavy load (503); retrying ({attempt}/{max_retries})...",
                     )
                     time.sleep(3 * attempt)
                     continue
 
                 if capture.returncode != 0:
-                    raise RuntimeError(combined_err or "Gemini CLI คืนค่า error โดยไม่มีรายละเอียด")
+                    raise RuntimeError(combined_err or "Gemini CLI returned an error without details")
                 
                 response = (combined_out or combined_err).strip()
                 if self._full_response_path:
@@ -555,12 +566,12 @@ class GeminiPage(ctk.CTkFrame):
 
             except Exception as e:
                 if self._stop_requested:
-                    return "❌ [ระบบ]: ถูกยกเลิกโดยผู้ใช้"
+                    return "❌ [System]: Cancelled by the user"
                 raise RuntimeError(f"Unexpected error: {e}")
             finally:
                 self.current_process = None
 
-        raise RuntimeError(f"โมเดลโหลดสูงต่อเนื่อง (503) ลองใหม่อีกครั้งภายหลังครับ\n\n{last_error}")
+        raise RuntimeError(f"The model remains overloaded (503). Try again later.\n\n{last_error}")
 
     def build_prompt_with_history(self, new_user_text, max_history_turns=6):
         parts = [f"[SYSTEM INSTRUCTION]\n{self.system_prompt}\n"]
@@ -585,7 +596,7 @@ class GeminiPage(ctk.CTkFrame):
                             content = f.read(MAX_ATTACHMENT_BYTES + 1)
                         if len(content) > MAX_ATTACHMENT_BYTES:
                             raise ValueError('Attachment exceeds 1 MiB. Extract relevant text first; the file was not sent or truncated.')
-                        file_data += f"\n\n--- ข้อมูลไฟล์: {clean_path} ---\n{content.decode('utf-8')}\n------------------\n"
+                        file_data += f"\n\n--- File contents: {clean_path} ---\n{content.decode('utf-8')}\n------------------\n"
                         if len(file_data.encode('utf-8')) > MAX_PROMPT_BYTES:
                             raise ValueError('Attachments exceed the 4 MiB request limit; nothing was sent.')
                     except UnicodeDecodeError:
@@ -617,7 +628,7 @@ class GeminiPage(ctk.CTkFrame):
                 full_exec_tag = match.group(0)
 
                 if self.ask_action_confirm("SHELL COMMAND", f"Command to execute:\n{cmd}") and not self._stop_requested:
-                    self.after(0, self.update_chat_ui, "System", f"⚙️ AI ได้รับอนุญาตให้รันคำสั่ง: {cmd}")
+                    self.after(0, self.update_chat_ui, "System", f"⚙️ AI was authorized to run command: {cmd}")
 
                     try:
                         capture = run_capture(cmd, shell=True, timeout=30,
@@ -631,7 +642,7 @@ class GeminiPage(ctk.CTkFrame):
                         code = capture.returncode
                         cmd_out = f"Exit code: {code}\nstdout:\n{stdout or '(empty)'}\nstderr:\n{stderr or '(empty)'}"
                         if len(cmd_out) > 4000:
-                            cmd_out = cmd_out[:4000] + "\n...[ข้อความถูกตัดทิ้งเนื่องจากยาวเกินไป]..."
+                            cmd_out = cmd_out[:4000] + "\n...[output truncated because it is too long]..."
 
                     except Exception as e:
                         cmd_out = f"Error: {e}"
@@ -639,10 +650,10 @@ class GeminiPage(ctk.CTkFrame):
                         self.current_process = None
 
                     if self._stop_requested:
-                        output = "❌ [ระบบ]: ถูกยกเลิกโดยผู้ใช้"
+                        output = "❌ [System]: Cancelled by the user"
                         break
 
-                    feedback_prompt = f"ผลลัพธ์จากการรัน `{cmd}`:\n```\n{cmd_out}\n```\nโปรดวิเคราะห์ผลลัพธ์นี้ต่อ"
+                    feedback_prompt = f"Result from running `{cmd}`:\n```\n{cmd_out}\n```\nPlease continue analyzing this result."
                     full_prompt = self.build_prompt_with_history(feedback_prompt)
                     output = self.call_gemini_cli(full_prompt)
                     if getattr(self, '_full_response_path', None):
@@ -654,8 +665,8 @@ class GeminiPage(ctk.CTkFrame):
                     self.history = self.history[-6:]
                     has_executed = True 
                 else:
-                    self.after(0, self.update_chat_ui, "System", f"❌ ผู้ใช้ยกเลิกคำสั่ง: {cmd}")
-                    output = output.replace(full_exec_tag, f"\n[ระบบ]: ผู้ใช้ปฏิเสธการรันคำสั่ง `{cmd}`\n")
+                    self.after(0, self.update_chat_ui, "System", f"❌ User cancelled command: {cmd}")
+                    output = output.replace(full_exec_tag, f"\n[System]: User denied running command `{cmd}`\n")
                     break 
 
             # ==========================================
@@ -674,13 +685,13 @@ class GeminiPage(ctk.CTkFrame):
                             try:
                                 with open(file_path, "w", encoding="utf-8") as f:
                                     f.write(clean_content)
-                                output = output.replace(full_save_tag, f"\n\n💾 [ระบบ]: ทำการแก้ไขและเซฟไฟล์ทับที่ {file_path} เรียบร้อยแล้ว!\n")
+                                output = output.replace(full_save_tag, f"\n\n💾 [System]: Edited and overwrote file {file_path} successfully!\n")
                             except Exception as e:
-                                output = output.replace(full_save_tag, f"\n\n❌ [ระบบ]: เซฟไฟล์ไม่สำเร็จ: {e}\n")
+                                output = output.replace(full_save_tag, f"\n\n❌ [System]: Failed to save file: {e}\n")
                         else:
-                            output = output.replace(full_save_tag, f"\n\n❌ [ระบบ]: ผู้ใช้ยกเลิกการเซฟไฟล์ที่ {file_path}\n")
+                            output = output.replace(full_save_tag, f"\n\n❌ [System]: User cancelled saving file {file_path}\n")
                 elif has_executed and re.search(exec_pattern, output):
-                    output = re.sub(save_pattern, f"\n\n⚠️ [ระบบ]: ระงับการบันทึกไฟล์ เนื่องจากตรวจพบคำสั่งเพิ่มเติมที่ยังไม่ได้ดำเนินการ\n", output, flags=re.DOTALL)
+                    output = re.sub(save_pattern, f"\n\n⚠️ [System]: File saving suspended because additional unexecuted commands were detected.\n", output, flags=re.DOTALL)
 
         except Exception as e:
             output = f"❌ Error:\n{e}"
@@ -702,7 +713,7 @@ class GeminiPage(ctk.CTkFrame):
 
         if last_you_idx > 0:
             for i in range(last_you_idx + 1, len(lines)):
-                if "[System]: กำลัง" in lines[i] or "[System]: ⚙️ AI" in lines[i]:
+                if "[System]: Analyzing" in lines[i] or "[System]: ⚙️ AI" in lines[i]:
                     self.chat_display.delete(f"{i+1}.0", f"{i+2}.0")
 
         self.chat_display.configure(state="disabled")

@@ -8,9 +8,11 @@ import sys
 
 def find_match_spans(pattern, text, timeout=2, max_matches=10000):
     request = json.dumps({'pattern': pattern, 'text': text, 'max_matches': max_matches})
+    command = ([sys.executable, '--unit-regex-worker'] if getattr(sys, 'frozen', False)
+               else [sys.executable, '-I', str(Path(__file__).resolve())])
     try:
         result = subprocess.run(
-            [sys.executable, '-I', str(Path(__file__).resolve())],
+            command,
             input=request.encode('utf-8'), capture_output=True, timeout=timeout,
         )
     except subprocess.TimeoutExpired as error:

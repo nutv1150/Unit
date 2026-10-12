@@ -9,12 +9,13 @@ from Tools.flag_detector import find_first_flag
 from Pipeline.output_files import CommandResult, output_locations, snapshot_files, changed_files
 from Pipeline.config_store import read_json, write_json
 from Tools.stream_capture import run_capture
+from Tools.app_paths import writable_path, external_environment
 
 class PipelineEngine:
     # path ของไฟล์นี้
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     # path ของไฟล์เก็บ tool
-    CUSTOM_TOOL_FILE = os.path.join(BASE_DIR, "custom_tools.json")
+    CUSTOM_TOOL_FILE = str(writable_path('Pipeline/custom_tools.json'))
     # regex สำหรับหา flag
 
     def __init__(self):
@@ -217,6 +218,7 @@ class PipelineEngine:
             else:
                 process = subprocess.run(
                     cmd, input=input_data, capture_output=True, check=False, timeout=30,
+                    env=external_environment(),
                 )
                 result = CommandResult(process.stdout, process.stderr, process.returncode)
         except FileNotFoundError:

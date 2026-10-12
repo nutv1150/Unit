@@ -78,7 +78,7 @@ def _parse_input_bytes(raw: str) -> tuple:
     cleaned = raw.strip()
 
     if not cleaned:
-        raise ValueError("❌ Input ว่าง")
+        raise ValueError("❌ Input is empty")
 
     # =====================================================
     # 1. Variable/array assignment
@@ -198,7 +198,7 @@ def _parse_input_bytes(raw: str) -> tuple:
         return cleaned.encode("utf-8"), "raw"
 
     except Exception:
-        raise ValueError("❌ Input ไม่ถูกต้อง")
+        raise ValueError("❌ Invalid input")
 
 def detect_embedded_key(raw: str):
     """
@@ -299,7 +299,7 @@ def _parse_key_bytes(key_str: str) -> tuple:
     k = key_str.strip()
 
     if not k:
-        raise ValueError("❌ Key ว่าง")
+        raise ValueError("❌ Key is empty")
 
     # =====================================================
     # 1. HEX NUMBER
@@ -366,7 +366,7 @@ def _repeat_key(key_bytes: bytes, length: int) -> bytes:
 
     # ถ้า key ว่าง → error
     if not key_bytes:
-        raise ValueError("Key ว่าง")
+        raise ValueError("Key is empty")
 
     # ทำ key ซ้ำจนยาวพอ แล้วตัดให้เท่าขนาด data
     return (key_bytes * ((length // len(key_bytes)) + 1))[:length]
@@ -460,7 +460,7 @@ def bitwise_mask(data: str, key: str, mode: str = "xor"):
 
     # mode ไม่ถูกต้อง
     else:
-        raise ValueError("mode ผิด")
+        raise ValueError("Invalid mode")
 
     # ส่ง output
     return _format_output(result, label, data_fmt, key, key_fmt, key_bytes)

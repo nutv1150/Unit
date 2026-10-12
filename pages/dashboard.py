@@ -44,13 +44,13 @@ class DashboardPage(ctk.CTkFrame):
 
     def _build_header(self):
         from Tools.history_hooks import open_history
+        from Tools.system_check import open_window
         header = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         header.pack(fill="x", pady=(0, 12))
-        ctk.CTkButton(header, text='History', width=90,
-                      command=lambda: open_history(self.winfo_toplevel(), 'All')).pack(side='right', padx=6)
+        controls = ctk.CTkFrame(header, fg_color="transparent")
 
         title_box = ctk.CTkFrame(header, fg_color="transparent")
-        title_box.pack(side="left", fill="x", expand=True)
+        title_box.pack(fill="x")
         ctk.CTkLabel(
             title_box,
             text=">_ UNIT COMMAND DASHBOARD",
@@ -61,48 +61,14 @@ class DashboardPage(ctk.CTkFrame):
             title_box, text="", font=("Consolas", 11), text_color=ALERT_AMBER
         )
         self.persistence_notice.pack(anchor="w", pady=(4, 0))
-
-        competition_box = ctk.CTkFrame(
-            header,
-            fg_color=PANEL_COLOR,
-            border_width=1,
-            border_color=BORDER_COLOR,
-            corner_radius=6,
-        )
-        competition_box.pack(side="right", padx=(15, 0))
-        ctk.CTkLabel(
-            competition_box,
-            text="ACTIVE CTF",
-            font=("Consolas", 11, "bold"),
-            text_color=ACCENT_GREEN,
-        ).pack(side="left", padx=(12, 6), pady=10)
-
-        self.competition_menu = ctk.CTkOptionMenu(
-            competition_box,
-            values=["General"],
-            width=170,
-            height=30,
-            fg_color=INPUT_BG,
-            button_color=CARD_COLOR,
-            button_hover_color=BORDER_COLOR,
-            dropdown_fg_color=PANEL_COLOR,
-            dropdown_text_color="white",
-            text_color="white",
-            command=self.change_competition,
-        )
-        self.competition_menu.pack(side="left", pady=8)
-        ctk.CTkButton(
-            competition_box,
-            text="+",
-            width=34,
-            height=30,
-            fg_color="transparent",
-            border_width=1,
-            border_color=ACCENT_GREEN,
-            text_color=ACCENT_GREEN,
-            hover_color="#003311",
-            command=self.open_competition_popup,
-        ).pack(side="left", padx=(6, 10), pady=8)
+        controls.pack(fill='x', pady=(8, 0))
+        button_style = dict(height=32, fg_color='transparent', border_width=1,
+                            border_color=ACCENT_CYAN, text_color=ACCENT_CYAN,
+                            hover_color=CARD_COLOR)
+        ctk.CTkButton(controls, text='System Check', width=115, **button_style,
+                      command=lambda: open_window(self.winfo_toplevel())).pack(side='right')
+        ctk.CTkButton(controls, text='History', width=90, **button_style,
+                      command=lambda: open_history(self.winfo_toplevel(), 'All')).pack(side='right', padx=(0, 8))
 
         system_bar = ctk.CTkFrame(
             self.main_frame,
@@ -281,10 +247,6 @@ class DashboardPage(ctk.CTkFrame):
             text=f"{totals['success_rate']}%"
         )
 
-        competitions = snapshot["competitions"] or ["General"]
-        self.competition_menu.configure(values=competitions)
-        self.competition_menu.set(snapshot["active_competition"])
-
         self._render_favorites(snapshot["favorites"], snapshot["categories"])
         self._render_competition_stats(snapshot["competition_stats"])
         self._render_top_tools(snapshot["top_tools"])
@@ -296,7 +258,7 @@ class DashboardPage(ctk.CTkFrame):
         if not favorites:
             ctk.CTkLabel(
                 self.favorites_frame,
-                text="ยังไม่มีเครื่องมือที่ปักหมุด — กด + PIN TOOL เพื่อเพิ่ม",
+                text="No pinned tools. Select + PIN TOOL to add one.",
                 font=("Consolas", 12),
                 text_color=TEXT_DIM,
             ).pack(padx=15, pady=20)
@@ -419,7 +381,7 @@ class DashboardPage(ctk.CTkFrame):
         if not top_tools:
             ctk.CTkLabel(
                 self.top_tools_frame,
-                text="ยังไม่มีข้อมูลการใช้งาน",
+                text="No activity yet.",
                 font=("Consolas", 11),
                 text_color=TEXT_DIM,
             ).pack(anchor="w", pady=8)
@@ -455,7 +417,7 @@ class DashboardPage(ctk.CTkFrame):
         if not recent_files:
             ctk.CTkLabel(
                 self.recent_files_frame,
-                text="ยังไม่มีไฟล์ล่าสุด เมื่อวิเคราะห์ไฟล์แล้วรายการจะปรากฏที่นี่",
+                text="No recent files. Analyzed files will appear here.",
                 font=("Consolas", 11),
                 text_color=TEXT_DIM,
             ).pack(anchor="w", pady=8)
@@ -835,7 +797,7 @@ class DashboardPage(ctk.CTkFrame):
                     return "break"
 
         if not launched:
-            self.persistence_notice.configure(text="เปิดทางลัดไม่สำเร็จ: เป้าหมายถูกลบ หรือ Pipeline ยังทำงานอยู่", text_color=ALERT_RED)
+            self.persistence_notice.configure(text="Cannot open shortcut: target was removed or Pipeline is still running.", text_color=ALERT_RED)
         self.app_root.record_activity(
             tool=name,
             category="Dashboard",

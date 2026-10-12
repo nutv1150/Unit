@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+from Tools.app_paths import external_environment
 
 PREVIEW_BYTES = 128 * 1024
 MAX_CAPTURE_BYTES = 512 * 1024 * 1024
@@ -51,6 +52,7 @@ def run_capture(command, input_data=None, cancel_event=None, timeout=30, on_proc
     The private temporary directory is outside the command's working directory.
     """
     owner = tempfile.TemporaryDirectory(prefix='unit-stream-')
+    kwargs['env'] = external_environment(kwargs.get('env'))
     folder = Path(owner.name)
     try:
         with (folder / 'stdout').open('w+b') as out, (folder / 'stderr').open('w+b') as err:

@@ -1,0 +1,416 @@
+{
+  "File Analysis": [
+    {
+      "name": "xxd",
+      "command": "xxd",
+      "mode": "file",
+      "description": "Create hex dump of files",
+      "options": [
+        {
+          "flag": "-r",
+          "type": "checkbox",
+          "description": "Reverse hex dump"
+        },
+        {
+          "flag": "-p",
+          "type": "checkbox",
+          "description": "Plain hex format"
+        }
+      ]
+    },
+    {
+      "name": "hexdump",
+      "command": "hexdump",
+      "mode": "file",
+      "description": "Display file contents in hexadecimal",
+      "options": [
+        {
+          "flag": "-C",
+          "type": "checkbox",
+          "description": "Canonical hex+ASCII display"
+        }
+      ]
+    }
+  ],
+  "Archive Extraction": [
+    {
+      "name": "7zip_extract",
+      "command": "7z",
+      "params": ["x"],
+      "mode": "file",
+      "description": "Extract archive files",
+      "options": [
+        {
+          "flag": "-y",
+          "type": "checkbox",
+          "description": "Assume yes (may overwrite files)"
+        }
+      ]
+    },
+    {
+      "name": "unzip",
+      "command": "unzip",
+      "mode": "file",
+      "description": "Extract ZIP archive",
+      "options": []
+    },
+    {
+      "name": "tar_extract",
+      "command": "tar",
+      "params": ["-x"],
+      "input_mode": "flag",
+      "input_flag": "-f",
+      "mode": "file",
+      "description": "Extract tar archives",
+      "options": [
+        {
+          "flag": "-v",
+          "type": "checkbox",
+          "description": "Verbose output"
+        },
+        {
+          "flag": "-C",
+          "type": "file",
+          "description": "Destination directory"
+        }
+      ]
+    }
+  ],
+  "Steganography": [
+    {
+      "name": "zsteg",
+      "command": "zsteg",
+      "mode": "file",
+      "description": "Detect hidden data in PNG and BMP",
+      "options": []
+    },
+    {
+      "name": "zbarimg",
+      "command": "zbarimg",
+      "mode": "file",
+      "description": "Scan barcodes or QR codes in images",
+      "options": []
+    },
+    {
+      "name": "steghide",
+      "command": "steghide",
+      "mode": "file",
+      "description": "Extract hidden data from stego files",
+      "options": []
+    },
+    {
+      "name": "binwalk_extract",
+      "command": "binwalk",
+      "mode": "file",
+      "description": "Extract embedded files",
+      "options": [
+        {
+          "flag": "-e",
+          "type": "checkbox",
+          "description": "Extract embedded files"
+        }
+      ]
+    }
+  ],
+  "Forensics": [
+    {
+      "name": "binwalk",
+      "command": "binwalk",
+      "mode": "file",
+      "description": "Analyze binary files for embedded data",
+      "options": []
+    },
+    {
+      "name": "foremost",
+      "command": "foremost",
+      "mode": "file",
+      "description": "Recover files using headers",
+      "options": [
+        {
+          "flag": "-i",
+          "type": "file",
+          "description": "Input file"
+        }
+      ]
+    },
+    {
+      "name": "exiftool",
+      "command": "exiftool",
+      "mode": "file",
+      "description": "Read metadata from files",
+      "options": []
+    },
+    {
+      "name": "tshark",
+      "command": "tshark",
+      "input_mode": "flag",
+      "input_flag": "-r",
+      "mode": "file",
+      "description": "Analyze packet capture files",
+      "options": [
+      ]
+    },
+    {
+  "name": "dd",
+  "command": "dd",
+  "mode": "file",
+  "description": "Extract byte range from a file",
+  "params": [],
+  "input_mode": "keyvalue",
+  "input_flag": "if",
+  "options": [
+    
+  ]
+}
+  ],
+  "Cryptography": [
+    {
+      "name": "base64_decode",
+      "command": "base64",
+      "params": ["-d"],
+      "mode": "text",
+      "description": "Decode Base64 data",
+      "options": [
+        {
+          "flag": "-i",
+          "type": "checkbox",
+          "description": "Ignore invalid characters"
+        }
+      ]
+    },
+    {
+      "name": "base32_decode",
+      "command": "base32",
+      "params": ["-d"],
+      "mode": "text",
+      "description": "Decode Base32 data",
+      "options": [
+        {
+          "flag": "-i",
+          "type": "checkbox",
+          "description": "Ignore invalid characters"
+        }
+      ]
+    },
+    {
+      "name": "rot13",
+      "command": "tr",
+      "mode": "text",
+      "description": "ROT13 transformation",
+      "params": [
+        "A-Za-z",
+        "N-ZA-Mn-za-m"
+      ],
+      "options": []
+    },
+    {
+      "name": "hex_decode",
+      "command": "xxd",
+      "params": ["-r", "-p"],
+      "mode": "text",
+      "description": "Decode hex to binary",
+      "options": []
+    },
+    {
+      "name": "gzip_decompress",
+      "command": "gzip",
+      "mode": "file",
+      "description": "Decompress gzip file",
+      "options": [
+        {
+          "flag": "-d",
+          "type": "checkbox",
+          "description": "Decompress"
+        }
+      ]
+    },
+    {
+      "name": "url_decode",
+      "command": "python3",
+      "params": ["-I", "-c", "import sys, urllib.parse; sys.stdout.buffer.write(urllib.parse.unquote_to_bytes(sys.stdin.buffer.read()))"],
+      "mode": "text",
+      "description": "Decode URL encoded text",
+      "options": []
+    },
+    {
+      "name": "reverse",
+      "command": "rev",
+      "mode": "text",
+      "description": "Reverse text lines",
+      "options": []
+    },
+    {
+      "name": "openssl enc",
+      "command": "openssl",
+      "input_mode": "flag",
+      "input_flag": "-in",
+      "mode": "file",
+      "description": "Encrypt or decrypt file using OpenSSL (AES, DES, etc.)",
+      "params": ["enc"],
+      "options": []
+    }
+  ],
+  "Pwnable": [
+    {
+      "name": "checksec",
+      "command": "checksec",
+      "mode": "file",
+      "description": "Check binary security protections",
+      "options": []
+    },
+    {
+      "name": "file",
+      "command": "file",
+      "mode": "file",
+      "description": "Determine file type",
+      "options": []
+    },
+    {
+      "name": "md5sum",
+      "command": "md5sum",
+      "mode": "file",
+      "description": "Generate MD5 hash",
+      "options": []
+    }
+  ],
+  "Mobile Security": [
+    {
+      "name": "apktool",
+      "command": "apktool",
+      "mode": "file",
+      "description": "Reverse engineer Android APK",
+      "options": [
+        {
+          "flag": "d",
+          "type": "checkbox",
+          "description": "Decode APK"
+        }
+      ]
+    },
+    {
+      "name": "jadx",
+      "command": "jadx",
+      "mode": "file",
+      "description": "Decompile Android APK",
+      "options": []
+    },
+    {
+      "name": "dex_strings",
+      "command": "strings",
+      "mode": "file",
+      "description": "Extract strings from DEX file",
+      "options": []
+    }
+  ],
+  "Programming": [
+    {
+      "name": "grep",
+      "command": "grep",
+      "mode": "text",
+      "description": "Search text using patterns",
+      "options": [
+        {
+          "flag": "-n",
+          "type": "checkbox",
+          "description": "Show line numbers"
+        },
+        {
+          "flag": "-v",
+          "type": "checkbox",
+          "description": "Invert match"
+        },
+        {
+          "flag": "",
+          "type": "text",
+          "placeholder": "Search pattern"
+        }
+      ]
+    },
+    {
+      "name": "cut",
+      "command": "cut",
+      "mode": "text",
+      "description": "Extract sections of lines",
+      "options": [
+        {
+          "flag": "-d",
+          "type": "text",
+          "placeholder": "Delimiter"
+        },
+        {
+          "flag": "-f",
+          "type": "text",
+          "placeholder": "Field number"
+        }
+      ]
+    },
+    {
+      "name": "sort",
+      "command": "sort",
+      "mode": "text",
+      "description": "Sort lines of text",
+      "options": []
+    },
+    {
+      "name": "uniq",
+      "command": "uniq",
+      "mode": "text",
+      "description": "Report or filter duplicate lines",
+      "options": []
+    },
+    {
+      "name": "awk",
+      "command": "awk",
+      "mode": "text",
+      "description": "Pattern scanning and processing language",
+      "options": [
+        {
+          "flag": "",
+          "type": "text",
+          "placeholder": "awk script"
+        }
+      ]
+    }
+  ],
+  "Reverse Engineering": [
+    {
+      "name": "strings",
+      "command": "strings",
+      "mode": "file",
+      "description": "Extract printable strings from binaries",
+      "options": [
+        {
+          "flag": "-n",
+          "type": "text",
+          "placeholder": "Minimum string length"
+        }
+      ]
+    },
+    {
+      "name": "objdump",
+      "command": "objdump",
+      "mode": "file",
+      "description": "Display information about object files",
+      "options": [
+        {
+          "flag": "-d",
+          "type": "checkbox",
+          "description": "Disassemble executable"
+        }
+      ]
+    }
+  ],
+  "Network": [
+    {
+      "name": "tcpdump",
+      "command": "tcpdump",
+      "input_mode": "flag",
+      "input_flag": "-r",
+      "mode": "file",
+      "description": "Analyze packet capture files",
+      "options": []
+    }
+  ]
+}
+
+

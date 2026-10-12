@@ -1,4 +1,5 @@
 import json
+from Tools.app_paths import writable_path
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import filedialog
@@ -1806,7 +1807,7 @@ class PipelinePage(ctk.CTkFrame):
     #โหลด tool จาก JSON
     def load_tools_from_json(self):
         self.config_error = self.engine.load_error
-        tools_path = os.path.join(os.path.dirname(__file__), "..", "Pipeline", "custom_tools.json")
+        tools_path = str(writable_path('Pipeline/custom_tools.json'))
         tools_path = os.path.abspath(tools_path)
         main_data = {}
         try:
@@ -1816,7 +1817,7 @@ class PipelinePage(ctk.CTkFrame):
             main_data = {}
             self.config_error = str(error)
 
-        saved_path = os.path.join(os.path.dirname(__file__), "..", "Pipeline", "saved_pipelines.json")
+        saved_path = str(writable_path('Pipeline/saved_pipelines.json'))
         saved_path = os.path.abspath(saved_path)
         saved_list = []
         if os.path.exists(saved_path):
@@ -1949,7 +1950,7 @@ class PipelinePage(ctk.CTkFrame):
 
     #โหลด saved pipeline จากไฟล์
     def load_saved_pipelines(self):
-        save_path = os.path.join(os.path.dirname(__file__), "..", "Pipeline", "saved_pipelines.json")
+        save_path = str(writable_path('Pipeline/saved_pipelines.json'))
         save_path = os.path.abspath(save_path)
 
         if os.path.exists(save_path):
@@ -2197,7 +2198,7 @@ class PipelinePage(ctk.CTkFrame):
     def finalize_wizard_pipeline(self, pipeline_data, pipeline_name):
         if self.canvas_busy():
             return
-        save_path = os.path.join(os.path.dirname(__file__), "..", "Pipeline", "saved_pipelines.json")
+        save_path = str(writable_path('Pipeline/saved_pipelines.json'))
         save_path = os.path.abspath(save_path)
 
         try:
@@ -2232,12 +2233,7 @@ class PipelinePage(ctk.CTkFrame):
     def load_saved_pipeline_to_canvas(self, pipeline_name):
         if self.canvas_busy():
             return
-        save_path = os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "Pipeline",
-            "saved_pipelines.json"
-        )
+        save_path = str(writable_path('Pipeline/saved_pipelines.json'))
         save_path = os.path.abspath(save_path)
 
         if not os.path.exists(save_path):

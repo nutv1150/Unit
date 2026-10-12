@@ -16,9 +16,9 @@ CUSTOM_HEX_ALPHABET = "AJIHGFEDCBjihgfe"
 def custom_hex_to_hex(text, alphabet=CUSTOM_HEX_ALPHABET):
     """แทนสัญลักษณ์ตามลำดับ 0–F โดยรักษาตัวพิมพ์ใหญ่เล็ก"""
     if len(alphabet) != 16 or len(set(alphabet)) != 16:
-        raise ValueError("Hex alphabet ต้องมี 16 ตัวที่ไม่ซ้ำกัน")
+        raise ValueError("Hex alphabet must contain 16 unique symbols")
     if any(c.isspace() for c in alphabet):
-        raise ValueError("Hex alphabet ต้องไม่มีช่องว่าง")
+        raise ValueError("Hex alphabet must not contain whitespace")
     cleaned = "".join(text.split())
     # Hex ปกติรับ a–f ได้ด้วย แต่ตารางกำหนดเองต้องรักษาตัวพิมพ์
     if alphabet == STANDARD_HEX_ALPHABET:
@@ -26,9 +26,9 @@ def custom_hex_to_hex(text, alphabet=CUSTOM_HEX_ALPHABET):
     mapping = dict(zip(alphabet, STANDARD_HEX_ALPHABET))
     unknown = next((c for c in cleaned if c not in mapping), None)
     if unknown is not None:
-        raise ValueError(f"พบสัญลักษณ์ที่ไม่มีใน Hex alphabet: {unknown!r}")
+        raise ValueError(f"Symbols not found in Hex alphabet: {unknown!r}")
     if len(cleaned) % 2:
-        raise ValueError("Hex ต้องมีจำนวนสัญลักษณ์เป็นเลขคู่ (2 ตัวต่อ 1 byte)")
+        raise ValueError("Hex must contain an even number of symbols (2 per byte)")
     return "".join(mapping[c] for c in cleaned)
 
 

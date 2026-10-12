@@ -7,7 +7,9 @@ import uuid
 from copy import deepcopy
 from pathlib import Path
 
-CONFIG_DIR = Path(__file__).resolve().parents[1] / 'config'
+from Tools.app_paths import writable_path
+
+CONFIG_DIR = writable_path('config')
 
 
 def load_records(path):
@@ -34,19 +36,19 @@ def save_records(path, rows):
 def make_group(name, tools, group_id=None):
     name = name.strip()
     if not name:
-        raise ValueError('กรุณากรอกชื่อกลุ่ม')
+        raise ValueError('Enter a group name')
     if not tools:
-        raise ValueError('เลือกเครื่องมืออย่างน้อย 1 รายการ')
+        raise ValueError('Select at least one tool')
     return dict(id=group_id or uuid.uuid4().hex, name=name,
                 category_color=tools[0].get('color', 'purple'), tools=deepcopy(tools))
 
 
 def integer(value, minimum, label):
     if isinstance(value, bool) or not str(value).isascii() or not str(value).isdigit():
-        raise ValueError(f'{label} ต้องเป็นจำนวนเต็มตั้งแต่ {minimum}')
+        raise ValueError(f'{label} must be an integer of at least {minimum}')
     number = int(value)
     if number < minimum:
-        raise ValueError(f'{label} ต้องเป็นจำนวนเต็มตั้งแต่ {minimum}')
+        raise ValueError(f'{label} must be an integer of at least {minimum}')
     return number
 
 
@@ -91,7 +93,7 @@ class ChallengeStore:
 
     def create(self, name, total):
         if not name.strip():
-            raise ValueError('กรุณากรอกชื่อการแข่งขัน')
+            raise ValueError('Enter a competition name')
         record = dict(id=uuid.uuid4().hex, name=name.strip(), total_items=integer(total, 1, 'Total items'),
                       solved_items=0, elapsed_seconds=0, resume_timestamp=None, is_running=False)
         self.commit(self.rows + [record])
@@ -105,7 +107,7 @@ class ChallengeStore:
         row = next(r for r in rows if r['id'] == record_id)
         solved = integer(solved, 0, 'Solved')
         if solved > row['total_items']:
-            raise ValueError('Solved ต้องไม่เกิน Total items')
+            raise ValueError('Solved must not exceed Total items')
         now = self.clock()
         row.update(elapsed_seconds=elapsed(row, now), resume_timestamp=now if running else None,
                    is_running=bool(running), solved_items=solved)

@@ -3,6 +3,7 @@ import subprocess
 import os
 import shutil
 import json
+from Tools.app_paths import writable_path, external_environment
 import glob
 import tempfile
 from pathlib import Path
@@ -38,7 +39,7 @@ class AppPortalPage(ctk.CTkFrame):
         ]
 
         # Persistence is anchored to the repository, not the process cwd.
-        self.custom_tools_file = str(Path(__file__).resolve().parent.parent / "custom_tools.json")
+        self.custom_tools_file = str(writable_path('custom_tools.json'))
         self.custom_tools_read_only = False
         self.custom_tools_error = None
         self.custom_tools = self.load_custom_tools()
@@ -231,7 +232,7 @@ class AppPortalPage(ctk.CTkFrame):
         self.update_idletasks()
         
         try:
-            process = subprocess.Popen(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            process = subprocess.Popen(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=external_environment())
             self.status_label.configure(text=f"[SYSTEM]: {name.upper()} STARTED; VERIFYING...", text_color="#FFB800")
             self._record_activity(name, "started", "Process spawned; awaiting health check")
             if hasattr(self, "after"):

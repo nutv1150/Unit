@@ -7,6 +7,7 @@ from collections import Counter
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
+from Tools.app_paths import writable_path
 
 
 class DashboardStore:
@@ -18,11 +19,7 @@ class DashboardStore:
     DEFAULT_CATEGORY = "Core"
 
     def __init__(self, state_path=None):
-        default_path = (
-            Path(__file__).resolve().parent.parent
-            / "data"
-            / "dashboard_state.json"
-        )
+        default_path = writable_path('data/dashboard_state.json')
         self.state_path = Path(state_path or default_path)
         self._lock = threading.RLock()
         self.persistence_error = None

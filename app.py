@@ -13,6 +13,9 @@ from pages.challenge import ChallengePage
 from Tools.dashboard_store import DashboardStore
 from Tools.solve_history import SolveHistoryStore
 from Tools.window_layout import fit_window
+from Tools.app_paths import initialize_user_data
+from Tools.mousewheel import MouseWheelRouter
+from Tools.app_icon import set_app_icon
 
 ctk.set_appearance_mode("Light")
 ctk.set_default_color_theme("blue")
@@ -20,7 +23,10 @@ ctk.set_default_color_theme("blue")
 # 2. เพิ่ม TkinterDnD.DnDWrapper เข้ามาสืบทอดร่วมกับ ctk.CTk
 class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
     def __init__(self):
+        initialize_user_data()
         super().__init__()
+        set_app_icon(self)
+        self.mousewheel_router = MouseWheelRouter(self)
 
         # 3. บรรทัดนี้สำคัญมาก! เป็นการสั่งเปิดใช้งานระบบ Drag & Drop ของแอปหลัก
         self.TkdndVersion = TkinterDnD._require(self)
@@ -72,7 +78,7 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
     #  แก้ไขฟังก์ชันนี้ใหม่ทั้งหมด
     def switch_page(self, name):
         # 1. ปริ้นท์เช็คเลยว่า Sidebar ส่งคำว่าอะไรมา (ดูใน Terminal สีดำตอนรันโปรแกรม)
-        print(f"[DEBUG] ปุ่มที่กดส่งค่ามาคือ: '{name}'")
+        print(f"[DEBUG] Requested page: '{name}'")
 
         # 2. สั่งซ่อนทุกหน้าที่มี
         for page_name, page_frame in self.pages.items():
@@ -97,10 +103,10 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
             if hasattr(self, "sidebar"):
                 self.sidebar.update_button_styles(target_page_key)
                 
-            print(f"[DEBUG] เปลี่ยนหน้าสำเร็จ -> '{target_page_key}'")
+            print(f"[DEBUG] Switched page -> '{target_page_key}'")
         else:
             # ถ้ายังพังอีก มันจะปริ้นท์บอกชัดเจนเลยว่าหาไม่เจอ
-            print(f"[ERROR] ❌ เปลี่ยนหน้าไม่ได้! ไม่พบ '{name}' ในระบบเลย")
+            print(f"[ERROR] Cannot switch page: '{name}' was not found")
 
     def navigate_to(self, name, sub=None):
         """เปิดหน้าพร้อมเครื่องมือย่อย โดยไม่ launch โปรแกรมภายนอกทันที"""
@@ -122,7 +128,7 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
             self.pages["Challenge"].save_before_close()
         except (OSError, ValueError) as error:
             self.switch_page("Challenge")
-            self.pages["Challenge"].status.configure(text=f"บันทึกเวลาก่อนปิดไม่สำเร็จ: {error}")
+            self.pages["Challenge"].status.configure(text=f"Could not save timer before closing: {error}")
             return
         pipeline = self.pages.get("Pipeline")
         if pipeline is not None:
@@ -164,7 +170,7 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         try:
             return self.dashboard_store.record_event(**event)
         except Exception as error:
-            print(f"[DASHBOARD] บันทึกกิจกรรมไม่สำเร็จ: {error}")
+            print(f"[DASHBOARD] Could not record activity: {error}")
             return None
 
 if __name__ == "__main__":

@@ -494,11 +494,6 @@ class FileInspectionPage(ctk.CTkFrame):
             box = ResultBox(self.results_scroll, filename, self.app_root)
             self.result_boxes[path] = box
 
-        for btn in self.nav_buttons.values():
-            btn.bind("<Button-4>", lambda e: self.file_nav_panel._parent_canvas.yview_scroll(-1, "units"))
-            btn.bind("<Button-5>", lambda e: self.file_nav_panel._parent_canvas.yview_scroll(1, "units"))
-            btn.bind("<MouseWheel>", lambda e: self.file_nav_panel._parent_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
-
         self.switch_view("ALL")
 
     def switch_view(self, target_id):
