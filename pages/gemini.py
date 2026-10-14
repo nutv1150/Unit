@@ -85,13 +85,15 @@ class GeminiPage(ctk.CTkFrame):
         model_row = ctk.CTkFrame(api_container, fg_color='transparent')
         model_row.pack(fill='x', padx=20, pady=(0, 12))
 
-        ctk.CTkButton(
+        # ⭐ แก้ไข: เก็บปุ่มไว้ในตัวแปร self.connect_btn เพื่อให้แก้ไขข้อความได้
+        self.connect_btn = ctk.CTkButton(
             model_row, text="[ CONNECT_CLI ]", width=140, height=35,
             font=("Consolas", 12, "bold"),
             fg_color="transparent", border_width=1, border_color=ACCENT_GREEN, text_color=ACCENT_GREEN,
             hover_color="#003311",
             command=self.init_api
-        ).pack(side="left")
+        )
+        self.connect_btn.pack(side="left")
 
         self.model_options = [
             "gemini-3.1-flash-lite",
@@ -239,19 +241,19 @@ class GeminiPage(ctk.CTkFrame):
         self._connecting = False
         self._confirm_dialog = None
 
+        # ⭐ ปรับปรุง System Prompt ให้โมเดลทำงานกับแท็กได้ดีขึ้น
         self.system_prompt = (
-            "You are a Cybersecurity Expert and AI Assistant for CTF competitions. "
-            "You can save files using [SAVE:file path]...content...[/SAVE] "
-            "and run terminal commands on the machine using [EXEC]command[/EXEC]. "
-            "⚠️ Strict rule: NEVER print the [EXEC] or [SAVE] tags as examples, introductions, or greetings! "
-            "If the user is only greeting you (for example, typing hello) or asking general theory, respond with plain text and do not use any tags. "
-            "Use these tags only when it is necessary to 'run a command to solve the challenge' or 'write an actual file'."
+            "You are an AI Cybersecurity Assistant for CTF competitions. You have the ability to execute commands and save files directly on the user's system.\n"
+            "CRITICAL INSTRUCTIONS FOR ACTIONS:\n"
+            "1. To run a terminal command, you MUST wrap it EXACTLY like this: [EXEC]command here[/EXEC]\n"
+            "2. To save or overwrite a file, you MUST wrap it EXACTLY like this: [SAVE:/path/to/file.txt]file content here[/SAVE]\n"
+            "3. DO NOT use these tags for examples, greetings, or theoretical explanations. Only use them when you ACTUALLY want the system to execute the action.\n"
+            "4. Provide a brief explanation before executing an action."
         )
         self.history = []  
 
     # --- ฟังก์ชันเสริม UI ---
     def show_context_menu(self, event):
-        # Snapshot before the menu changes focus; never forward the entire chat.
         try:
             self.hashing_selection = self.chat_display.get("sel.first", "sel.last")
         except TclError:
@@ -424,18 +426,52 @@ class GeminiPage(ctk.CTkFrame):
         except Exception as e:
             self.after(0, self._init_api_fail, "❌ Connection failed", f"❌ CLI connection failed: {e}")
 
+    # ⭐ แก้ไข: ฟังก์ชันสำเร็จให้เปลี่ยนปุ่มเป็น [ EDIT_KEY ]
     def _init_api_success(self, version_info):
         self._connecting = False
         self.cli_ready = True
         self.api_entry.configure(state="disabled")
+        
+        self.connect_btn.configure(
+            text="[ EDIT_KEY ]", 
+            command=self.edit_api_key, 
+            border_color="#FFB800", 
+            text_color="#FFB800"
+        )
+        
         self.status_label.configure(text=f"✅ CONNECTED: {version_info or self.gemini_cmd}", text_color="#00FF41")
         self.update_chat_ui("System", "✅ CTF Mode ready! (Connected through Gemini CLI)")
 
+    # ⭐ แก้ไข: ฟังก์ชันล้มเหลวให้ปุ่มกลับมาเป็น [ CONNECT_CLI ]
     def _init_api_fail(self, status_text, message):
         self._connecting = False
         self.cli_ready = False
+        self.api_entry.configure(state="normal")
+        
+        self.connect_btn.configure(
+            text="[ CONNECT_CLI ]", 
+            command=self.init_api, 
+            border_color="#00FF41", 
+            text_color="#00FF41"
+        )
+        
         self.status_label.configure(text=status_text, text_color="#FF3366")
         self.update_chat_ui("System", message)
+
+    # ⭐ เพิ่ม: ฟังก์ชันปลดล็อกเพื่อแก้ไข API Key กลางอากาศ
+    def edit_api_key(self):
+        self.api_entry.configure(state="normal")
+        self.api_entry.focus()
+        
+        self.connect_btn.configure(
+            text="[ UPDATE_KEY ]", 
+            command=self.init_api, 
+            border_color="#00FFFF", 
+            text_color="#00FFFF"
+        )
+        
+        self.status_label.configure(text="[!] WAITING FOR NEW API KEY...", text_color="#8892B0")
+        self.update_chat_ui("System", "🔑 API Key input unlocked. Enter new key and click [ UPDATE_KEY ] to resume.")
 
     def _build_env(self):
         env = external_environment()
@@ -445,7 +481,6 @@ class GeminiPage(ctk.CTkFrame):
         env["GEMINI_CLI_TRUST_WORKSPACE"] = "true"
         return env
 
-    # ⭐ ฟังก์ชันสำหรับกดยกเลิกกลางคัน
     def request_stop(self):
         self._stop_requested = True
         dialog = self._confirm_dialog
@@ -486,13 +521,11 @@ class GeminiPage(ctk.CTkFrame):
 
         threading.Thread(target=self.process_request, args=(user_text,), daemon=True).start()
 
-    # ⭐ แก้ไขให้ใช้ Popen แทนการกำหนด timeout ตายตัว
     def call_gemini_cli(self, prompt_text, max_retries=3):
         encoded_prompt = prompt_text.encode('utf-8')
         if len(encoded_prompt) > MAX_PROMPT_BYTES:
             raise ValueError('Prompt and history exceed 4 MiB. Reduce the input or start a new conversation; nothing was sent.')
-        # Installed Gemini CLI appends -p to stdin in headless mode. Keep argv
-        # short instead of putting file contents into an OS command argument.
+        
         cmd = [self.gemini_cmd, "-m", self.model_name, "-p", 'Respond to the request above.']
         self._full_response_path = None
         class StopRequested:
@@ -617,7 +650,7 @@ class GeminiPage(ctk.CTkFrame):
             # ==========================================
             # 1. จัดการ Execution (EXEC)
             # ==========================================
-            exec_pattern = r"\[EXEC\](.*?)\[/EXEC\]"
+            exec_pattern = r"[EXEC](.*?)\[/EXEC\]"
             loop_count = 0
             has_executed = False 
 
@@ -720,7 +753,6 @@ class GeminiPage(ctk.CTkFrame):
 
         self.update_chat_ui("Gemini (CTF)", output.strip())
         
-        # รีเซ็ตสถานะปุ่มกลับเป็นปกติ
         self.send_btn.configure(state="normal")
         self.stop_btn.configure(state="disabled")
         self.current_process = None
@@ -739,7 +771,6 @@ class GeminiPage(ctk.CTkFrame):
         self.chat_display.configure(state="normal")
         if len(message) > 128 * 1024:
             message = message[:128 * 1024] + '\n[Display preview only; large responses are available in View Full Response.]'
-        # Keep the interactive widget bounded across a long conversation.
         count = int(self.chat_display._textbox.count('1.0', 'end', 'chars')[0])
         if count > 256 * 1024:
             self.chat_display.delete('1.0', f'1.0+{count - 128 * 1024}c')

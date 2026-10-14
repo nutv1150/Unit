@@ -724,6 +724,7 @@ class FileInspectionPage(ctk.CTkFrame):
                 elif choice == "Strings": self.extract_all_strings(path, state)
                 elif choice == "zsteg Analysis": self.run_zsteg_analysis(path)
                 elif choice == "Exiftool": self.run_exiftool_analysis(path)
+                elif choice == "steghide Analysis": self.run_steghide_analysis(path)
             except Exception as error:
                 self._worker_context.failed = True
                 try:
