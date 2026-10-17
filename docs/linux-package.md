@@ -13,6 +13,16 @@
 
 ## เครื่องมือภายนอกและ offline
 
+### ตัวติดตั้ง dependencies
+
+ดับเบิลคลิก `Install UNIT Dependencies.desktop` ในโฟลเดอร์ที่แตกแล้ว และอนุญาต Launch/Execute เมื่อระบบถาม หรือเปิด Terminal แล้วรัน `bash install_dependencies.sh` ตัวติดตั้งแสดงรายการและถามยืนยันก่อนใช้ sudo เฉพาะ APT ไม่ต้องเปิดตัวติดตั้งหรือ UNIT ด้วย root
+
+ค่าเริ่มต้นครอบคลุมเครื่องมือมาตรฐานของ Pipeline/File Inspection และ App Portal (อาจใช้พื้นที่หลาย GB) ใช้ `bash install_dependencies.sh --core-only` เพื่อตัด App Portal ขนาดใหญ่ออก ส่วน zsteg และ Gemini CLI ถามแยก ติดตั้งแบบผู้ใช้ผ่าน RubyGems/npm ต้องใช้อินเทอร์เน็ต ไม่ได้ติดตั้ง custom tools ที่ผู้ใช้เพิ่มเองหรือทุก dependency ของทุกโหมดภายในโปรแกรมภายนอก เช่น binwalk extraction plugins
+
+`--plan` แสดงรายการโดยไม่ติดตั้ง และ `--check` ตรวจ executable แบบอ่านอย่างเดียว ถ้าติดตั้งล้มเหลวหรือยังขาด/ข้ามบางตัวจะคืนสถานะไม่สำเร็จพร้อมรายการท้ายหน้าจอ สามารถรันซ้ำได้ ตัวติดตั้งไม่ถอนแพ็กเกจที่ติดตั้งไปแล้วและไม่อ้างว่า FOUND คือทดสอบการใช้งานครบแล้ว
+
+แพ็ก UNIT รวม Python libraries แล้ว ไม่ต้องติดตั้ง pip เพิ่ม หากใช้สคริปต์จาก source checkout จะมีตัวเลือกติดตั้ง `Requirements.txt` ลง `.venv` โดยไม่ใช้ sudo pip หลังติดตั้ง CLI แบบผู้ใช้ให้ตรวจว่า `~/.local/bin` อยู่ใน PATH แล้วออก/เข้า session และเปิด UNIT ใหม่ Gemini ต้องยืนยันตัวตนด้วยตัวเองตาม [คู่มือติดตั้ง Gemini CLI](https://geminicli.com/docs/get-started/installation/)
+
 Dashboard → **System Check** หรือ `./UNIT --check-tools` แสดงรายการ executable ที่พบ/ขาด โดยไม่เรียกใช้หรือติดตั้ง ไม่ได้ยืนยันเวอร์ชัน ความสามารถ หรือการ login
 
 เครื่องมือเช่น `strings`, `xxd`, `openssl`, `7z`, `exiftool`, `zsteg`, `python3` (URL decode Pipeline), Gemini CLI/Node.js และ App Portal ต้องติดตั้งแยกตามงานที่ใช้ Missing ไม่ได้หมายถึงทุกหมวดใช้ไม่ได้ Data Hashing และการตรวจไฟล์ภายในทำ offline ได้ ส่วน Gemini ต้องมี CLI/credential/network ของผู้ใช้เอง ไม่มีการทดสอบ AI ที่เสียค่าใช้จ่ายระหว่าง build

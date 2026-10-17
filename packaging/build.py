@@ -79,6 +79,10 @@ def build(output_root: Path, version: str | None = None, archive: bool = True) -
     shutil.copy2(ROOT / 'packaging/install-user.sh', target / 'install-user.sh')
     (target / 'install-user.sh').chmod(0o755)
     shutil.copy2(ROOT / 'docs/linux-package.md', target / 'README.md')
+    for name in ('install_dependencies.sh', 'Install UNIT Dependencies.desktop'):
+        shutil.copy2(ROOT / name, target / name)
+        (target / name).chmod(0o755)
+    shutil.copy2(ROOT / 'packaging/install_dependencies.py', target / 'install_dependencies.py')
     if archive:
         archive_path = output_root / f"UNIT-{version}-linux-x86_64.tar.gz"
         if archive_path.exists():

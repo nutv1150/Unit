@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Install UNIT Dependencies
+Comment=Install optional UNIT tools on Kali Linux with confirmation
+Terminal=true
+Icon=system-software-install
+Exec=python3 -c "import os,sys,pathlib,urllib.parse; s=sys.argv[1]; p=urllib.parse.unquote(urllib.parse.urlparse(s).path) if s.startswith('file:') else s; os.execv('/bin/bash',['bash',str(pathlib.Path(p).resolve().parent/'install_dependencies.sh')])" %k
+Categories=Utility;

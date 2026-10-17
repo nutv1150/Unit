@@ -20,6 +20,11 @@ def main():
         folder = next(path for path in work.iterdir() if path.is_dir())
         executable = folder/'UNIT'
         assert executable.is_file() and (folder/'_internal').is_dir()
+        for name in ('install_dependencies.sh', 'install_dependencies.py', 'Install UNIT Dependencies.desktop'):
+            assert (folder/name).is_file(), f'Missing installer: {name}'
+        subprocess.run(['bash', '-n', str(folder/'install_dependencies.sh')], check=True)
+        subprocess.run(['bash', str(folder/'install_dependencies.sh'), '--plan'], cwd=work,
+                       check=True, capture_output=True, text=True, timeout=10)
         defaults = folder/'_internal/defaults'
         assert json.loads((defaults/'Pipeline/saved_pipelines.json').read_text()) == {'saved_pipelines':[]}
         assert json.loads((defaults/'custom_tools.json').read_text()) == []
