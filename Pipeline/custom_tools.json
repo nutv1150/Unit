@@ -36,14 +36,13 @@
     {
       "name": "7zip_extract",
       "command": "7z",
-      "params": ["x"],
       "mode": "file",
       "description": "Extract archive files",
       "options": [
         {
-          "flag": "-y",
+          "flag": "x",
           "type": "checkbox",
-          "description": "Assume yes (may overwrite files)"
+          "description": "7zip_extract"
         }
       ]
     },
@@ -57,16 +56,15 @@
     {
       "name": "tar_extract",
       "command": "tar",
-      "params": ["-x"],
       "input_mode": "flag",
       "input_flag": "-f",
       "mode": "file",
       "description": "Extract tar archives",
       "options": [
         {
-          "flag": "-v",
+          "flag": "-x",
           "type": "checkbox",
-          "description": "Verbose output"
+          "description": "tar_extract"
         },
         {
           "flag": "-C",
@@ -155,7 +153,6 @@
   "command": "dd",
   "mode": "file",
   "description": "Extract byte range from a file",
-  "params": [],
   "input_mode": "keyvalue",
   "input_flag": "if",
   "options": [
@@ -167,10 +164,14 @@
     {
       "name": "base64_decode",
       "command": "base64",
-      "params": ["-d"],
       "mode": "text",
       "description": "Decode Base64 data",
       "options": [
+        {
+          "flag": "-d",
+          "type": "checkbox",
+          "description": "Decode Base64"
+        },
         {
           "flag": "-i",
           "type": "checkbox",
@@ -181,10 +182,14 @@
     {
       "name": "base32_decode",
       "command": "base32",
-      "params": ["-d"],
       "mode": "text",
       "description": "Decode Base32 data",
       "options": [
+        {
+          "flag": "-d",
+          "type": "checkbox",
+          "description": "Decode Base64"
+        },
         {
           "flag": "-i",
           "type": "checkbox",
@@ -206,10 +211,20 @@
     {
       "name": "hex_decode",
       "command": "xxd",
-      "params": ["-r", "-p"],
       "mode": "text",
       "description": "Decode hex to binary",
-      "options": []
+      "options": [
+        {
+          "flag": "-r",
+          "type": "checkbox",
+          "description": ""
+        },
+        {
+          "flag": "-p",
+          "type": "checkbox",
+          "description": ""
+        }
+      ]
     },
     {
       "name": "gzip_decompress",
@@ -227,7 +242,6 @@
     {
       "name": "url_decode",
       "command": "python3",
-      "params": ["-I", "-c", "import sys, urllib.parse; sys.stdout.buffer.write(urllib.parse.unquote_to_bytes(sys.stdin.buffer.read()))"],
       "mode": "text",
       "description": "Decode URL encoded text",
       "options": []
@@ -246,8 +260,13 @@
       "input_flag": "-in",
       "mode": "file",
       "description": "Encrypt or decrypt file using OpenSSL (AES, DES, etc.)",
-      "params": ["enc"],
-      "options": []
+      "options": [
+        {
+          "flag": "enc",
+          "type": "checkbox",
+          "description": ""
+        }
+      ]
     }
   ],
   "Pwnable": [
