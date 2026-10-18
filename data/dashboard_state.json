@@ -2689,6 +2689,188 @@
       "file_path": null,
       "flags": [],
       "details": "Response length: 5 characters"
+    },
+    {
+      "id": "4b40744216674d0c81501046e45f671b",
+      "timestamp": "2026-10-18T16:21:56.594938+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-3.1-flash-lite",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "failed",
+      "file_path": null,
+      "flags": [],
+      "details": "Response length: 33 characters"
+    },
+    {
+      "id": "86ae843a66ad4c36b3e2fc8213e8340a",
+      "timestamp": "2026-10-18T16:23:28.682011+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-3.1-flash-lite",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "success",
+      "file_path": null,
+      "flags": [
+        "picoCTF{more_than_m33ts_the_3y3a63b5b27}"
+      ],
+      "details": "Response length: 124 characters"
+    },
+    {
+      "id": "af3a004fed074c488326f87b24a42920",
+      "timestamp": "2026-10-18T16:24:57.148274+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-3.1-flash-lite",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Response length: 334 characters"
+    },
+    {
+      "id": "88aa888200ad462b9716b6fc8e22ff93",
+      "timestamp": "2026-10-18T16:25:17.927628+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 91 characters"
+    },
+    {
+      "id": "acc1c3153468406889534965361da3d1",
+      "timestamp": "2026-10-18T16:25:24.077191+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 92 characters"
+    },
+    {
+      "id": "37d6fca53a4b4685b12467dcdbe77d0e",
+      "timestamp": "2026-10-18T16:25:25.054715+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 91 characters"
+    },
+    {
+      "id": "821c671004f54664aa6b7c1f0651af16",
+      "timestamp": "2026-10-18T16:25:25.348515+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 92 characters"
+    },
+    {
+      "id": "03a417bc5e13438fbb9837429148553c",
+      "timestamp": "2026-10-18T16:25:25.465125+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 92 characters"
+    },
+    {
+      "id": "7e7a20c4808646b38b6723626242302d",
+      "timestamp": "2026-10-18T18:02:56.114057+00:00",
+      "competition": "General",
+      "tool": "Gemini CLI: gemini-3.1-flash-lite",
+      "category": "Gemini CLI",
+      "action": "AI Request",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Response length: 434 characters"
+    },
+    {
+      "id": "ad162101134a41798444bb4ae08990ce",
+      "timestamp": "2026-10-18T18:03:38.822539+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/garden.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "2c49ec7fda2a48349303535e2d7579b2",
+      "timestamp": "2026-10-18T18:03:40.923835+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/garden.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "970153ecb34c4783aa6e9d4a17cb6b42",
+      "timestamp": "2026-10-18T18:03:53.264722+00:00",
+      "competition": "General",
+      "tool": "Decode: Auto Detect",
+      "category": "Data Hashing",
+      "action": "Decode",
+      "status": "success",
+      "file_path": null,
+      "flags": [],
+      "details": "Input length: 32 characters"
+    },
+    {
+      "id": "30a84a8a6d1845daa012e7ff001ed0f7",
+      "timestamp": "2026-10-18T18:04:18.960987+00:00",
+      "competition": "General",
+      "tool": "Exiftool",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/garden.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "918af8590fee41dca178d8a143174535",
+      "timestamp": "2026-10-18T18:04:37.995646+00:00",
+      "competition": "General",
+      "tool": "'file' Command",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/garden.jpg",
+      "flags": [],
+      "details": ""
+    },
+    {
+      "id": "d6893668f24f47f29830303a2c097b22",
+      "timestamp": "2026-10-18T18:04:41.338208+00:00",
+      "competition": "General",
+      "tool": "Strings",
+      "category": "File Inspection",
+      "action": "Analyze File",
+      "status": "success",
+      "file_path": "/home/nutvv/Documents/present/garden.jpg",
+      "flags": [],
+      "details": ""
     }
   ]
 }
