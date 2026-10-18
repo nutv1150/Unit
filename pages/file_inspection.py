@@ -69,7 +69,7 @@ class ResultBox(ctk.CTkFrame):
         
         self.app_root = app_root
         self.full_output_path = None
-        self.preview_bytes = 128 * 1024
+        self.preview_bytes = 10 * 1024 * 1024  # ขยายขนาด Preview รองรับไฟล์ขนาดใหญ่
         self._preview_bytes_used = 0
         self.save_button = ctk.CTkButton(
             self.header, text="SAVE FULL OUTPUT", width=135, height=25,
@@ -125,7 +125,6 @@ class ResultBox(ctk.CTkFrame):
         encoded = text.encode("utf-8", errors="replace")
         if len(encoded) > remaining:
             text = encoded[:remaining].decode("utf-8", errors="ignore")
-            text += "\n[⚠️] PREVIEW TRUNCATED — USE SAVE FULL OUTPUT FOR COMPLETE RESULTS.\n"
         self._preview_bytes_used += len(text.encode("utf-8", errors="replace"))
         self.textbox.insert("end", text, tag)
         self.textbox.see("end")
@@ -369,7 +368,6 @@ class FileInspectionPage(ctk.CTkFrame):
         action_frame = ctk.CTkFrame(self, fg_color=PANEL_COLOR, corner_radius=4, border_width=1, border_color="#333344")
         action_frame.grid(row=3, column=0, sticky="ew", padx=30, pady=10)
 
-        # เพิ่ม steghide Analysis เข้าไปใน options 
         self.tool_menu = ctk.CTkOptionMenu(
             action_frame, values=["'file' Command", "Header Check", "Executable Check", "Strings", "zsteg Analysis", "steghide Analysis", "Exiftool"], 
             width=180, height=35, font=("Consolas", 12),
@@ -656,7 +654,7 @@ class FileInspectionPage(ctk.CTkFrame):
         if not self.selected_files: return
         try:
             limit = int(self.max_display_entry.get())
-            if not 1 <= limit <= 100000:
+            if not 1 <= limit <= 100000000:
                 raise ValueError("Display limit must be 1..100000")
             pattern = self.regex_var.get()
             re.compile(pattern)
@@ -826,7 +824,6 @@ class FileInspectionPage(ctk.CTkFrame):
             return
         self._external_analysis(['zsteg', path], path, 30)
 
-    # 🌟 ฟังก์ชัน Steghide Analysis พร้อม UI Popup 🌟
     def run_steghide_analysis(self, path):
         ext = os.path.splitext(path)[1].lower()
         if ext not in [".jpg", ".jpeg", ".bmp", ".wav", ".au"]:
@@ -866,9 +863,6 @@ class FileInspectionPage(ctk.CTkFrame):
                             self.safe_log(f"[+] POTENTIAL PASSPHRASE FOUND: '{w}'", "found", target_file=path)
                             self.safe_log(res.stdout.strip() + "\n" + res.stderr.strip(), target_file=path)
                             found_count += 1
-                            
-                            # เราเอาคำสั่ง break ออก เพื่อให้มันหาต่อ!
-                            # แต่ตั้งเงื่อนไขว่าถ้าเจอ "ผลลวง" เกิน 5 อัน ให้หยุด ป้องกันแอปค้างนานเกินไป
                             if found_count >= 5:
                                 self.safe_log(f"[!] REACHED LIMIT OF 5 POTENTIAL PASSPHRASES. STOPPING.", "error", target_file=path)
                                 break
@@ -923,37 +917,49 @@ class FileInspectionPage(ctk.CTkFrame):
     def run_exiftool_analysis(self, path):
         self._external_analysis(['exiftool', path], path, 10)
 
+    # --- ⭐ ปรับปรุงฟังก์ชัน Strings กลับมาใช้อัลกอริทึมเดิมแบบเต็มรูปแบบ ---
     def extract_all_strings(self, path, state):
-        from Tools.inspection_stream import extract_strings
         from Tools.regex_runner import find_match_spans
         job = self._worker_context.job
         if path not in job['boxes']:
             return
         box = job['boxes'][path]
         destination = Path(job['outputs'][path])
-        extract_strings(Path(path), destination,
-                        lambda: job['generation'] != self._analysis_generation)
-        # Preview only: full extraction remains on disk, including long lines.
-        with destination.open('r', encoding='utf-8', newline='') as stream:
-            sample = stream.read(128 * 1024 + 1)
-        truncated = len(sample) > 128 * 1024
-        lines = sample[:128 * 1024].splitlines()
-        line_limited = len(lines) > state['max_display']
-        display = '\n'.join(lines[:state['max_display']])
-        state['display_count'] += min(len(lines), state['max_display'])
-        state['warned'] = truncated or line_limited
-        # Highlighting is scoped to the displayed portion, as before.
+
+        try:
+            with open(path, 'rb') as f:
+                content = f.read()
+            
+            # ใช้อัลกอริทึมดั้งเดิม กวาดหาตัวอักษรพิมพ์ได้ [ -~] อย่างน้อย 4 ตัวขึ้นไป
+            found_strings = re.findall(rb"[ -~]{4,}", content)
+            raw_text = b"\n".join(found_strings).decode('utf-8', errors='replace')
+        except Exception as e:
+            raw_text = f"[!] STRINGS EXTRACTION ERROR: {str(e)}"
+
+        try:
+            with destination.open('w', encoding='utf-8', errors='replace') as out_f:
+                out_f.write(raw_text)
+        except OSError:
+            pass
+
+        lines = raw_text.splitlines()
+        display = '\n'.join(lines)  # แสดงผลทั้งหมดแบบเต็มๆ ไม่ตัดทอน
+        state['display_count'] += len(lines)
+
         matches = find_match_spans(job['pattern'], display) if job['pattern'] else []
         state['match_count'] += len(matches)
         job['flags'][path] = find_flags(display)
-        warning = ('\n[Preview only — use VIEW FULL OUTPUT / SAVE FULL OUTPUT for all results. Regex highlights apply to this preview.]'
-                   if state['warned'] else '')
+
         def render():
             box.reset_output()
             box.insert_preview(display)
             for start, end in matches:
                 box.textbox.tag_add('found', f'1.0+{start}c', f'1.0+{end}c')
-            box.textbox.insert('end', warning)
+            
+            # เปิดใช้งานปุ่ม Save / View Full Output ตามปกติ
+            box.save_button.configure(state='normal')
+            box.view_button.configure(state='normal')
+
         self._post_ui(render)
 
     def run_file_command(self, path):
