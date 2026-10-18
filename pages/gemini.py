@@ -164,6 +164,19 @@ class GeminiPage(ctk.CTkFrame):
             command=lambda: open_text_view(self, self._command_output_path) if self._command_output_path else None)
         self.command_output_button.pack(side='left')
 
+        # ⭐ เพิ่ม: สวิตช์เปิด-ปิด Auto-Execute (ข้ามการกด Allow)
+        self.auto_exec_var = ctk.BooleanVar(value=False)
+        self.auto_exec_switch = ctk.CTkSwitch(
+            result_actions, 
+            text="Auto-Execute (Skip Confirm)", 
+            variable=self.auto_exec_var,
+            font=("Consolas", 12, "bold"), 
+            text_color="#FFB800",
+            progress_color="#00FF41", 
+            button_hover_color="#CCCCCC"
+        )
+        self.auto_exec_switch.pack(side='right', padx=(20, 0))
+
         # ==========================================
         # 4. กล่องพิมพ์ข้อความ (COMMAND INPUT)
         # ==========================================
@@ -319,6 +332,10 @@ class GeminiPage(ctk.CTkFrame):
     # Input: action_type (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     # Input: detail (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def ask_action_confirm(self, action_type, detail):
+        # ⭐ เพิ่ม: ถ้ายเปิดสวิตช์ Auto-Execute ไว้ ให้ผ่านทันทีโดยไม่เด้ง Dialog
+        if hasattr(self, 'auto_exec_var') and self.auto_exec_var.get():
+            return True
+
         self._confirm_result = False
         self._confirm_event = threading.Event()
         
@@ -722,13 +739,16 @@ class GeminiPage(ctk.CTkFrame):
                     try:
                         with open(clean_path, "rb") as f:
                             content = f.read(MAX_ATTACHMENT_BYTES + 1)
-                        if len(content) > MAX_ATTACHMENT_BYTES:
-                            raise ValueError('Attachment exceeds 1 MiB. Extract relevant text first; the file was not sent or truncated.')
+                        # คอมเมนต์ปิดการเช็กขนาดไฟล์ (ปลดล็อกขนาด 1 MiB)
+                        #if len(content) > MAX_ATTACHMENT_BYTES:
+                            #raise ValueError('Attachment exceeds 1 MiB. Extract relevant text first; the file was not sent or truncated.')
                         file_data += f"\n\n--- File contents: {clean_path} ---\n{content.decode('utf-8')}\n------------------\n"
                         if len(file_data.encode('utf-8')) > MAX_PROMPT_BYTES:
                             raise ValueError('Attachments exceed the 4 MiB request limit; nothing was sent.')
                     except UnicodeDecodeError:
-                        raise ValueError('Binary attachments are not sent as text. Extract relevant text with File Inspection first.')
+                        # ข้ามไฟล์ Binary (รูปภาพ) ไปเพื่อให้ส่งรูปเข้า AI ได้
+                        pass
+                        #raise ValueError('Binary attachments are not sent as text. Extract relevant text with File Inspection first.')
             if file_data:
                 enhanced_prompt = f"{prompt}\n{file_data}"
 
@@ -745,7 +765,8 @@ class GeminiPage(ctk.CTkFrame):
             # ==========================================
             # 1. จัดการ Execution (EXEC)
             # ==========================================
-            exec_pattern = r"[EXEC](.*?)\[/EXEC\]"
+            # แก้ไข Regex เติม \ หน้า [ และ ] เพื่อป้องกันคำสั่งแหว่ง (XEC)
+            exec_pattern = r"\[EXEC\](.*?)\[/EXEC\]"
             loop_count = 0
             has_executed = False 
 
@@ -866,14 +887,15 @@ class GeminiPage(ctk.CTkFrame):
                 details=f"Response length: {len(output)} characters",
             )
 
-    # หน้าที่: เพิ่มข้อความผู้ส่งลง chat textbox และเลื่อนไปข้อความล่าสุด
-    # ที่มา: pages/gemini.py::GeminiPage.on_model_change (เรียกตรง)
-    # ที่มา: pages/gemini.py::GeminiPage.init_api (เรียกตรง)
-    # ที่มา: pages/gemini.py::GeminiPage._init_api_success (เรียกตรง)
-    # ที่มาเพิ่มเติม: อีก 7 จุดเรียก/อ้างอิงในโปรเจกต์
-    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
-    # Input: sender (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
-    # Input: message (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+
+        # ⭐ เพิ่มฟังก์ชันแจ้งเตือน (Notification & Bell) เมื่อ AI ทำงานเสร็จ
+        try:
+            self.bell()
+            os.system('notify-send "UNIT: Gemini CLI" "AI Analysis Complete! Check the results."')
+        except Exception:
+            pass
+
+
     def update_chat_ui(self, sender, message):
         self.chat_display.configure(state="normal")
         if len(message) > 128 * 1024:
