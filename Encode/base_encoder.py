@@ -9,6 +9,10 @@ BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 BASE45 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:"
 
 
+# หน้าที่: แปลงข้อความเป็น encoding หรือ text transform ตามชื่ออัลกอริทึม
+# ที่มา: pages/data_hash.py::DataHashPage._compute_snapshot (เรียกตรง)
+# Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: algo (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def encode_data(text, algo="Base64"):
     raw = text.encode()
 
@@ -66,6 +70,10 @@ def encode_data(text, algo="Base64"):
     return text
 
 
+# หน้าที่: แปลง bytes เป็นเลขฐานตาม alphabet โดยรักษา zero bytes ด้านหน้า
+# ที่มา: Encode/base_encoder.py::encode_data (เรียกตรง)
+# Input: data (bytes | bytearray) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: alphabet (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def encode_base_n(data, alphabet):
     if not isinstance(data, (bytes, bytearray)):
         raise TypeError("data must be bytes")
@@ -91,6 +99,9 @@ def encode_base_n(data, alphabet):
 # =========================
 # Base45 Encoder
 # =========================
+# หน้าที่: แบ่ง bytes เป็นคู่แล้วคำนวณสัญลักษณ์ Base45 สำหรับแต่ละกลุ่ม
+# ที่มา: Encode/base_encoder.py::encode_data (เรียกตรง)
+# Input: data (bytes) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def encode_base45(data: bytes) -> str:
     result = ""
     i = 0

@@ -5,6 +5,13 @@ import tempfile
 from pathlib import Path
 
 
+# หน้าที่: อ่าน JSON เป็นโครงสร้าง Python หรือใช้ค่าเริ่มต้นเมื่อยังไม่มีไฟล์
+# ที่มา: Pipeline/config_store.py::saved_pipelines (เรียกตรง)
+# ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.save_custom_tool (เรียกตรง)
+# ที่มา: pages/my_tools.py::available_tool_options (เรียกตรง)
+# ที่มาเพิ่มเติม: อีก 1 จุดเรียก/อ้างอิงในโปรเจกต์
+# Input: path (str | PathLike[str]) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
+# Input: default (Any (ค่าเริ่มต้นเมื่อไฟล์ยังไม่มี)) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def read_json(path, default):
     path = Path(path)
     if not path.exists():
@@ -13,6 +20,12 @@ def read_json(path, default):
         return json.load(stream)
 
 
+# หน้าที่: เขียน JSON ผ่านไฟล์ชั่วคราวแล้วแทนที่ปลายทางเมื่อเขียนสำเร็จ
+# ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.save_custom_tool (เรียกตรง)
+# ที่มา: Tools/package_smoke.py::main (เรียกตรง)
+# ที่มา: pages/pipeline.py::PipelinePage.finalize_wizard_pipeline (เรียกตรง)
+# Input: path (str | PathLike[str]) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
+# Input: data (Any (ค่าที่ json.dump serialize ได้)) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def write_json(path, data):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -28,11 +41,21 @@ def write_json(path, data):
             os.unlink(temporary)
 
 
+# หน้าที่: อ่านไฟล์ Saved Pipelines และตรวจ schema ก่อนคืนข้อมูล
+# ที่มา: Tools/package_smoke.py::main (เรียกตรง)
+# ที่มา: pages/pipeline.py::PipelinePage.finalize_wizard_pipeline (เรียกตรง)
+# ที่มา: pages/pipeline.py::PipelinePage.load_saved_pipeline_to_canvas (เรียกตรง)
+# ที่มาเพิ่มเติม: อีก 2 จุดเรียก/อ้างอิงในโปรเจกต์
+# Input: path (str | PathLike[str]) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
 def saved_pipelines(path):
     data = read_json(path, {"saved_pipelines": []})
     return validate_saved_pipelines(data)
 
 
+# หน้าที่: ตรวจชื่อ pipeline รายการขั้นตอน และ options ตาม schema ที่แอปรองรับ
+# ที่มา: Pipeline/config_store.py::saved_pipelines (เรียกตรง)
+# ที่มา: pages/pipeline.py::PipelinePage.finalize_wizard_pipeline (เรียกตรง)
+# Input: data (Any (ค่าจาก JSON; validator ตรวจ schema dict[str, list[dict]])) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def validate_saved_pipelines(data):
     if not isinstance(data, dict) or not isinstance(data.get("saved_pipelines"), list):
         raise ValueError("Invalid saved pipeline config")

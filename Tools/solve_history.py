@@ -57,6 +57,9 @@ _ARGV_SECRET_RE = re.compile(
 )
 
 
+# หน้าที่: ตรวจชื่อ key หรือ flag ว่าเข้าข่ายข้อมูลลับที่ต้องปิดบังหรือไม่
+# ที่มา: Tools/solve_history.py::_redact_structure (เรียกตรง)
+# Input: value (Any) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _is_sensitive_name(value: Any) -> bool:
     if str(value) in ('-k', '-K', '-p'):
         return True
@@ -67,6 +70,11 @@ def _is_sensitive_name(value: Any) -> bool:
     )
 
 
+# หน้าที่: ปิดบังรูปแบบ key/password/token ที่รู้จักในข้อความแบบ best-effort
+# ที่มา: Tools/solve_history.py::_redact_structure (เรียกตรง)
+# ที่มา: Tools/solve_history.py::_serialize_text (เรียกตรง)
+# ที่มา: Tools/solve_history.py::_serialize_bytes (เรียกตรง)
+# Input: value (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _redact_text(value: str) -> str:
     """Best-effort masking of common ``key=value`` and JSON-like values."""
 
@@ -76,6 +84,9 @@ def _redact_text(value: str) -> str:
     return re.sub(r"(?<!\w)(-[kKp]\s+)(\"[^\"]*\"|'[^']*'|[^\s,;&]+)", r"\1[REDACTED]", value)
 
 
+# หน้าที่: เดิน mapping/list เพื่อปิดบังค่า secret ก่อน serialize
+# ที่มา: Tools/solve_history.py::_serialize_text (เรียกตรง)
+# Input: value (Any) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _redact_structure(value: Any) -> Any:
     """Redact sensitive mapping values and values following argv flags."""
 
@@ -105,18 +116,30 @@ def _redact_structure(value: Any) -> Any:
     return value
 
 
+# หน้าที่: จำกัดความยาวข้อความ History และเติมเครื่องหมายตัดทอน
+# ที่มา: Tools/solve_history.py::_serialize_text (เรียกตรง)
+# ที่มา: Tools/solve_history.py::_serialize_bytes (เรียกตรง)
+# ที่มา: Tools/solve_history.py::SolveHistoryStore._optional_id (เรียกตรง)
+# Input: value (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _limit_text(value: str) -> str:
     if len(value) <= MAX_TEXT:
         return value
     return value[: MAX_TEXT - len(_TRUNCATION_MARKER)] + _TRUNCATION_MARKER
 
 
+# หน้าที่: จำกัดความยาวข้อความไฟล์แต่ละรายการใน History
+# ที่มา: Tools/solve_history.py::_serialize_files (เรียกตรง)
+# Input: value (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _limit_file_text(value: str) -> str:
     if len(value) <= MAX_FILE_TEXT:
         return value
     return value[: MAX_FILE_TEXT - len(_TRUNCATION_MARKER)] + _TRUNCATION_MARKER
 
 
+# หน้าที่: แปลงข้อมูลหลายชนิดเป็นข้อความที่ปิดบัง secret และจำกัดความยาวแล้ว
+# ที่มา: Tools/solve_history.py::SolveHistoryStore.finish (เรียกตรง)
+# ที่มา: Tools/solve_history.py::SolveHistoryStore.begin (เรียกตรง)
+# Input: value (Any) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _serialize_text(value: Any) -> str:
     """Turn caller data into bounded, readable text without opening paths."""
 
@@ -135,6 +158,11 @@ def _serialize_text(value: Any) -> str:
     return _limit_text(text)
 
 
+# หน้าที่: ทำตัวอย่าง bytes เป็น UTF-8 หรือ Hex โดยไม่แสดงเกินเพดาน
+# ที่มา: Tools/solve_history.py::_redact_structure (เรียกตรง)
+# ที่มา: Tools/solve_history.py::_serialize_text (เรียกตรง)
+# ที่มา: Tools/solve_history.py::_serialize_files (เรียกตรง)
+# Input: value (bytes | bytearray | memoryview) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _serialize_bytes(value: bytes | bytearray | memoryview) -> str:
     """Render a bounded byte sample as readable UTF-8 or bounded hex.
 
@@ -165,6 +193,10 @@ def _serialize_bytes(value: bytes | bytearray | memoryview) -> str:
     return _limit_text(text)
 
 
+# หน้าที่: แปลงรายการอ้างอิงไฟล์เป็น JSON ภายใต้เพดานจำนวนและขนาด
+# ที่มา: Tools/solve_history.py::SolveHistoryStore.begin (เรียกตรง)
+# ที่มา: Tools/solve_history.py::SolveHistoryStore.finish (เรียกตรง)
+# Input: files (Any) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _serialize_files(files: Any) -> str:
     if files is None:
         values = []
@@ -201,6 +233,12 @@ def _serialize_files(files: Any) -> str:
     return serialized
 
 
+# หน้าที่: ตรวจชื่อหมวด History หรือ filter All
+# ที่มา: Tools/solve_history.py::SolveHistoryStore.begin (เรียกตรง)
+# ที่มา: Tools/solve_history.py::SolveHistoryStore.count_events (เรียกตรง)
+# ที่มา: Tools/solve_history.py::SolveHistoryStore.iter_events (เรียกตรง)
+# ที่มาเพิ่มเติม: อีก 2 จุดเรียก/อ้างอิงในโปรเจกต์
+# Input: category (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _validate_category(category: str) -> str:
     if category == "All":
         return category
@@ -209,6 +247,9 @@ def _validate_category(category: str) -> str:
     return category
 
 
+# หน้าที่: ตรวจสถานะ operation กับค่าที่ History รองรับ
+# ที่มา: Tools/solve_history.py::SolveHistoryStore.finish (เรียกตรง)
+# Input: status (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _validate_status(status: str) -> str:
     if status not in STATUSES:
         raise ValueError(f"Unknown history status: {status!r}")
@@ -218,6 +259,10 @@ def _validate_status(status: str) -> str:
 class SolveHistoryStore:
     """SQLite-backed history with stable begin-order sequence numbers."""
 
+    # หน้าที่: เปิดฐานข้อมูล SQLite พร้อม lock และเตรียม schema ของ History
+    # ที่มา: app.py::UNITApp.__init__ (เรียกตรง)
+    # Input: self (SolveHistoryStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: path (str | os.PathLike[str] | None) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
     def __init__(self, path: str | os.PathLike[str] | None = None):
         self.path = ":memory:" if path == ":memory:" else Path(path or DEFAULT_DB_PATH).expanduser().resolve()
         self._lock = threading.RLock()
@@ -247,6 +292,9 @@ class SolveHistoryStore:
             self._closed = True
             raise
 
+    # หน้าที่: ตั้งค่า SQLite และสร้างตารางกับดัชนีที่จำเป็น
+    # ที่มา: Tools/solve_history.py::SolveHistoryStore.__init__ (เรียกตรง)
+    # Input: self (SolveHistoryStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _initialize_database(self) -> None:
         self._connection.execute("PRAGMA busy_timeout = 5000")
         self._connection.execute("PRAGMA foreign_keys = ON")
@@ -280,6 +328,10 @@ class SolveHistoryStore:
         )
         self._make_new_database_files_private()
 
+    # หน้าที่: จำกัดสิทธิ์เฉพาะไฟล์ฐานข้อมูลที่ store นี้สร้างใหม่
+    # ที่มา: Tools/solve_history.py::SolveHistoryStore._initialize_database (เรียกตรง)
+    # ที่มา: Tools/solve_history.py::SolveHistoryStore.begin (เรียกตรง)
+    # Input: self (SolveHistoryStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _make_new_database_files_private(self) -> None:
         """Protect files created by this store without changing user files."""
 
@@ -297,17 +349,37 @@ class SolveHistoryStore:
             except OSError:
                 pass
 
+    # หน้าที่: คืน connection หรือแจ้งข้อผิดพลาดเมื่อ store ถูกปิดแล้ว
+    # ที่มา: Tools/solve_history.py::SolveHistoryStore.begin (เรียกตรง)
+    # ที่มา: Tools/solve_history.py::SolveHistoryStore.finish (เรียกตรง)
+    # ที่มา: Tools/solve_history.py::SolveHistoryStore.list_events (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 5 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (SolveHistoryStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _ensure_open(self) -> sqlite3.Connection:
         if self._closed:
             raise RuntimeError("SolveHistoryStore is closed")
         return self._connection
 
+    # หน้าที่: แปลง ID ที่มีค่าเป็นข้อความจำกัดความยาวและคง None เมื่อไม่มีค่า
+    # ที่มา: Tools/solve_history.py::SolveHistoryStore.begin (เรียกตรง)
+    # Input: value (Any) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     @staticmethod
     def _optional_id(value: Any) -> str | None:
         if value is None:
             return None
         return _limit_text(str(value))
 
+    # หน้าที่: สร้าง event สถานะ Running และจัดลำดับประวัติภายใน transaction
+    # ที่มา: Tools/history_hooks.py::begin (เรียกตรง)
+    # ที่มา: Tools/package_smoke.py::main (เรียกตรง)
+    # Input: self (SolveHistoryStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: category (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: tool (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: input_data (Any) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: options (Any) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: group_id (Any) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: parent_id (Any) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: files (Any) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def begin(
         self,
         category: str,
@@ -357,6 +429,16 @@ class SolveHistoryStore:
                 raise
         return event_id
 
+    # หน้าที่: อัปเดตสถานะ output/error และรายการไฟล์ของ event ภายใน transaction
+    # ที่มา: Tools/history_hooks.py::finish (เรียกตรง)
+    # ที่มา: Tools/history_hooks.py::attach_file (เรียกตรง)
+    # ที่มา: Tools/package_smoke.py::main (เรียกตรง)
+    # Input: self (SolveHistoryStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: event_id (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: status (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: output_data (Any) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: error (Any) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: files (Any) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def finish(
         self,
         event_id: str,
@@ -389,6 +471,11 @@ class SolveHistoryStore:
                 connection.rollback()
                 raise
 
+    # หน้าที่: แปลง row จาก SQLite เป็น dictionary สำหรับ UI และ export
+    # ที่มา: Tools/solve_history.py::SolveHistoryStore.list_events (เรียกตรง)
+    # ที่มา: Tools/solve_history.py::SolveHistoryStore.get_event (เรียกตรง)
+    # ที่มา: Tools/solve_history.py::SolveHistoryStore.iter_events (เรียกตรง)
+    # Input: row (tuple[Any, ...]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     @staticmethod
     def _row_to_event(row: tuple[Any, ...]) -> dict[str, Any]:
         try:
@@ -412,6 +499,11 @@ class SolveHistoryStore:
             "parent_id": row[11],
         }
 
+    # หน้าที่: นับจำนวน events ทั้งหมดหรือตามหมวดที่เลือก
+    # ที่มา: pages/solve_history.py::HistoryWindow.refresh (เรียกตรง)
+    # ที่มา: pages/solve_history.py::HistoryWindow.export (เรียกตรง)
+    # Input: self (SolveHistoryStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: category (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def count_events(self, category='All'):
         _validate_category(category)
         with self._lock:
@@ -419,6 +511,13 @@ class SolveHistoryStore:
                 'SELECT COUNT(*) FROM solve_history_events' + (' WHERE category = ?' if category != 'All' else ''),
                 (category,) if category != 'All' else ()).fetchone()[0]
 
+    # หน้าที่: อ่าน events เป็น batch ด้วย keyset pagination เพื่อส่งออกโดยไม่โหลดทั้งหมด
+    # ที่มา: Tools/package_smoke.py::main (เรียกตรง)
+    # ที่มา: pages/solve_history.py::HistoryWindow.export_all (เรียกตรง)
+    # ที่มา: pages/solve_history.py::HistoryWindow.export.write (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 1 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (SolveHistoryStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: category (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def iter_events(self, category='All'):
         """Keyset batches: export without loading the whole history into RAM."""
         _validate_category(category)
@@ -439,6 +538,13 @@ class SolveHistoryStore:
                 yield self._row_to_event(row)
             cursor = rows[-1][1]
 
+    # หน้าที่: อ่านหน้ารายการ History ตามหมวด offset และ limit
+    # ที่มา: pages/solve_history.py::HistoryWindow.refresh (เรียกตรง)
+    # Input: self (SolveHistoryStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: category (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: limit (int | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: offset (int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: summaries (bool) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def list_events(self, category: str = "All", limit=None, offset=0, summaries=False) -> list[dict[str, Any]]:
         _validate_category(category)
         connection = self._ensure_open()
@@ -457,6 +563,12 @@ class SolveHistoryStore:
             rows = connection.execute(query, params).fetchall()
         return [self._row_to_event(row) for row in rows]
 
+    # หน้าที่: ค้นหารายละเอียด event หนึ่งรายการตาม ID
+    # ที่มา: Tools/history_hooks.py::attach_file (เรียกตรง)
+    # ที่มา: pages/solve_history.py::HistoryWindow.show_details (เรียกตรง)
+    # ที่มา: pages/solve_history.py::HistoryWindow.clear_history (เรียกตรง)
+    # Input: self (SolveHistoryStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: event_id (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def get_event(self, event_id: str) -> dict[str, Any] | None:
         connection = self._ensure_open()
         with self._lock:
@@ -466,6 +578,10 @@ class SolveHistoryStore:
             ).fetchone()
         return self._row_to_event(row) if row else None
 
+    # หน้าที่: ล้าง History ตามหมวดและจัดการเลขลำดับเมื่อฐานข้อมูลว่าง
+    # ที่มา: pages/solve_history.py::HistoryWindow.clear_history (เรียกตรง)
+    # Input: self (SolveHistoryStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: category (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def clear(self, category: str = "All") -> int:
         _validate_category(category)
         connection = self._ensure_open()
@@ -490,20 +606,37 @@ class SolveHistoryStore:
                 raise
         return count
 
+    # หน้าที่: ปิด SQLite connection โดยป้องกันการปิดซ้ำ
+    # ที่มา: Tools/solve_history.py::SolveHistoryStore.__exit__ (เรียกตรง)
+    # ที่มา: app.py::UNITApp.on_close (เรียกตรง)
+    # Input: self (SolveHistoryStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def close(self) -> None:
         with self._lock:
             if not self._closed:
                 self._connection.close()
                 self._closed = True
 
+    # หน้าที่: คืน store สำหรับใช้ใน with block
+    # ที่มา: Python เรียกผ่านวงจรชีวิตของ object หรือ protocol ของคลาส
+    # Input: self (SolveHistoryStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def __enter__(self) -> "SolveHistoryStore":
         self._ensure_open()
         return self
 
+    # หน้าที่: ปิด store เมื่อออกจาก with block
+    # ที่มา: Python เรียกผ่านวงจรชีวิตของ object หรือ protocol ของคลาส
+    # Input: self (SolveHistoryStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: exc_type (Any) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: exc_value (Any) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: traceback (Any) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         self.close()
 
 
+# หน้าที่: อ่านฟิลด์ของ event และเตรียมข้อความสำหรับรายงาน HTML
+# ที่มา: Tools/solve_history.py::export_html (เรียกตรง)
+# Input: event (Mapping[str, Any]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: key (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _event_text(event: Mapping[str, Any], key: str) -> str:
     value = event.get(key, "")
     if isinstance(value, (list, tuple, dict)):
@@ -511,6 +644,11 @@ def _event_text(event: Mapping[str, Any], key: str) -> str:
     return "" if value is None else str(value)
 
 
+# หน้าที่: เขียนรายงาน HTML แบบ streaming และ atomic พร้อม escape ข้อความ
+# ที่มา: Tools/package_smoke.py::main (เรียกตรง)
+# ที่มา: pages/solve_history.py::HistoryWindow.export.write (เรียกตรง)
+# Input: path (str | os.PathLike[str]) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
+# Input: events (Iterable[Mapping[str, Any]]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def export_html(path: str | os.PathLike[str], events: Iterable[Mapping[str, Any]]) -> None:
     """Atomically stream an escaped report; memory is bounded to one record."""
     import shutil

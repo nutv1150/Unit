@@ -13,6 +13,11 @@ STANDARD_HEX_ALPHABET = "0123456789ABCDEF"
 CUSTOM_HEX_ALPHABET = "AJIHGFEDCBjihgfe"
 
 
+# หน้าที่: ตรวจ alphabet 16 สัญลักษณ์และแปลง custom Hex เป็นเลขฐานสิบหกมาตรฐาน
+# ที่มา: Decode/base_decoder.py::decode_to_bytes (เรียกตรง)
+# ที่มา: pages/data_hash.py::DataHashPage.process_data (เรียกตรง)
+# Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: alphabet (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def custom_hex_to_hex(text, alphabet=CUSTOM_HEX_ALPHABET):
     """แทนสัญลักษณ์ตามลำดับ 0–F โดยรักษาตัวพิมพ์ใหญ่เล็ก"""
     if len(alphabet) != 16 or len(set(alphabet)) != 16:
@@ -32,9 +37,16 @@ def custom_hex_to_hex(text, alphabet=CUSTOM_HEX_ALPHABET):
     return "".join(mapping[c] for c in cleaned)
 
 
+# หน้าที่: ตรวจว่าทุกตัวอักษรเป็น ASCII ที่แสดงผลได้หรือเป็น newline/tab
+# ที่มา: Decode/base_decoder.py::auto_detect_decode (เรียกตรง)
+# Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def is_printable(text):
     return all(32 <= ord(c) <= 126 or c in "\n\r\t" for c in text)
 
+# หน้าที่: ลอง codec และ ROT ตามลำดับ แล้วเลือกผลที่พบ flag หรือข้อความที่อ่านได้
+# ที่มา: Decode/base_decoder.py::decode_data (เรียกตรง)
+# ที่มา: pages/data_hash.py::DataHashPage._compute_snapshot (เรียกตรง)
+# Input: data (bytes) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def auto_detect_decode(data):
     # This heuristic works on text; never discard invalid source bytes to
     # manufacture a plausible match. Binary callers must choose a codec.
@@ -67,6 +79,10 @@ def auto_detect_decode(data):
     # Keep ROT candidates lazy: each candidate can be as large as the source
     # itself, so constructing all 118 strings up front multiplied peak memory
     # and made Auto Detect noticeably stall on large inputs.
+    # หน้าที่: สร้างผล ROT ทีละค่าแบบ generator เพื่อลดการเก็บข้อความหลายชุดในหน่วยความจำ
+    # ที่มา: Decode/base_decoder.py::auto_detect_decode (เรียกตรง)
+    # Input: ไม่มีพารามิเตอร์ที่ส่งเข้ามาโดยตรง
+    # Closure: text (Any; ค่าที่คำนวณใน scope แม่) — รับจาก scope auto_detect_decode
     def iter_rot_candidates():
         for mode, limit in (("alpha", 25), ("ascii", 93)):
             for n in range(1, limit + 1):
@@ -93,6 +109,11 @@ def auto_detect_decode(data):
         return fallback
     return "Unknown", text # ถ้าหาไม่เจอจริงๆ ให้คืนค่าข้อความเดิมกลับไป
 
+# หน้าที่: ถอดข้อมูลเป็นข้อความ UTF-8 หรือแสดง Hex เมื่อผลลัพธ์เป็นไบนารี
+# ที่มา: API/helper ของโมดูลนี้; ผู้เรียกส่ง arguments หรือเรียกผ่าน callback/interface
+# Input: text (str | bytes) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: algo (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: alphabet (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def decode_data(text, algo="Base64", alphabet=None):
     if algo == "Auto Detect":
         return auto_detect_decode(text if isinstance(text, bytes) else str(text).encode())[1]
@@ -106,6 +127,11 @@ def decode_data(text, algo="Base64", alphabet=None):
         return decoded.hex()
 
 
+# หน้าที่: ถอดเลขฐานตาม alphabet และรักษา zero bytes ที่นำหน้า
+# ที่มา: Decode/base_decoder.py::auto_detect_decode (เรียกตรง)
+# ที่มา: Decode/base_decoder.py::decode_to_bytes (เรียกตรง)
+# Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: alphabet (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def decode_base_n(text, alphabet):
     text = "".join(str(text).split())
     if not alphabet:
@@ -120,6 +146,10 @@ def decode_base_n(text, alphabet):
     size = (num.bit_length() + 7) // 8
     return (b"\0" * zero_count) + (num.to_bytes(size, "big") if size else b"")
 
+# หน้าที่: ถอด Base45 ครั้งละสองหรือสามสัญลักษณ์เป็น bytes
+# ที่มา: Decode/base_decoder.py::auto_detect_decode (เรียกตรง)
+# ที่มา: Decode/base_decoder.py::decode_to_bytes (เรียกตรง)
+# Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def decode_base45(text):
     # Space is a valid Base45 digit, not ignorable formatting.
     text = str(text)
@@ -164,6 +194,10 @@ MAGIC_SIGNATURES = [
 ]
 
 
+# หน้าที่: เทียบลายเซ็นต้น bytes เพื่อระบุชนิดและนามสกุลไฟล์ที่รู้จัก
+# ที่มา: Decode/base_decoder.py::describe_decoded_data (เรียกตรง)
+# ที่มา: Tools/artifact_bridge.py::create_temp_artifact (เรียกตรง)
+# Input: data (bytes) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def detect_magic_bytes(data: bytes):
     """
     ตรวจ magic bytes จาก binary output
@@ -192,6 +226,11 @@ def detect_magic_bytes(data: bytes):
     return None
 
 
+# หน้าที่: ตรวจ UTF-8 และสัดส่วนตัวอักษรที่แสดงผลได้เพื่อเลือกวิธี preview
+# ที่มา: Decode/base_decoder.py::describe_decoded_data (เรียกตรง)
+# ที่มา: Tools/artifact_bridge.py::resolve_file_input (เรียกตรง)
+# ที่มา: pages/data_hash.py::DataHashPage._compute_snapshot (เรียกตรง)
+# Input: data (bytes) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def is_probably_text(data: bytes) -> bool:
     """
     ใช้แค่ตัดสินว่าควร preview เป็น text หรือ binary
@@ -220,6 +259,12 @@ def is_probably_text(data: bytes) -> bool:
     return ratio >= 0.90
 
 
+# หน้าที่: ถอดข้อมูลด้วย codec ที่เลือกและคืน bytes โดยไม่ทิ้งข้อมูลไบนารี
+# ที่มา: Decode/base_decoder.py::decode_data (เรียกตรง)
+# ที่มา: pages/data_hash.py::DataHashPage._compute_snapshot (เรียกตรง)
+# Input: text (str | bytes) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: algo (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: alphabet (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def decode_to_bytes(text, algo="Base64", alphabet=None) -> bytes:
     """
     Binary-safe decoder
@@ -317,6 +362,9 @@ def decode_to_bytes(text, algo="Base64", alphabet=None) -> bytes:
         return result.encode("utf-8")
 
     raise ValueError(f"Unsupported binary-safe decoder: {algo}")
+# หน้าที่: สร้างข้อมูลขนาด ชนิด และตัวอย่างข้อความหรือ Hex สำหรับแสดงผล
+# ที่มา: API/helper ของโมดูลนี้; ผู้เรียกส่ง arguments หรือเรียกผ่าน callback/interface
+# Input: data (bytes) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def describe_decoded_data(data: bytes) -> dict:
     """
     สร้างข้อมูลสำหรับ GUI / Pipeline

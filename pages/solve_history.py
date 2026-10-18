@@ -13,6 +13,11 @@ CATEGORIES = ['All', 'Data Hashing', 'File Inspection', 'Pipeline']
 class HistoryWindow(ctk.CTkToplevel):
     PAGE_SIZE = 100
 
+    # หน้าที่: สร้างหน้าต่าง History เชื่อม store และเตรียมตัวกรอง ตาราง รายละเอียด และ timer
+    # ที่มา: Tools/history_hooks.py::open_history (เรียกตรง)
+    # Input: self (HistoryWindow) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: root (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
+    # Input: category (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def __init__(self, root, category='All'):
         super().__init__(root)
         self.app_root = root
@@ -72,36 +77,68 @@ class HistoryWindow(ctk.CTkToplevel):
         self.set_category(category)
         self._refresh_id = self.after(1000, self.tick)
 
+    # หน้าที่: ยกเลิก timer แล้วทำลายหน้าต่าง History
+    # ที่มา: Tk/หน้าต่างหลักเรียกเมื่อทำลาย widget
+    # Input: self (HistoryWindow) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def destroy(self):
         if getattr(self, '_refresh_id', None):
             self.after_cancel(self._refresh_id)
         super().destroy()
 
+    # หน้าที่: รีเฟรช History ตามรอบ timer เพื่อแสดงสถานะงานล่าสุด
+    # ที่มา: pages/solve_history.py::HistoryWindow.__init__ (อ้างอิง/callback)
+    # Input: self (HistoryWindow) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def tick(self):
         self.refresh()
         self._refresh_id = self.after(1000, self.tick)
 
+    # หน้าที่: ตั้งหมวดตัวกรองและกลับไปแสดงหน้าแรกของ History
+    # ที่มา: Tools/history_hooks.py::open_history (เรียกตรง)
+    # ที่มา: pages/solve_history.py::HistoryWindow.__init__ (เรียกตรง)
+    # ที่มา: pages/solve_history.py::HistoryWindow.__init__ (อ้างอิง/callback)
+    # Input: self (HistoryWindow) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: category (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def set_category(self, category):
         self.capture_selection()
         self.filter.set(category if category in CATEGORIES else 'All')
         self.page_index = 0
         self.refresh()
 
+    # หน้าที่: รวม selection ของหน้าที่เห็นเข้ากับชุด IDs ที่เลือกข้ามหน้า
+    # ที่มา: pages/solve_history.py::HistoryWindow.set_category (เรียกตรง)
+    # ที่มา: pages/solve_history.py::HistoryWindow.selection_changed (เรียกตรง)
+    # ที่มา: pages/solve_history.py::HistoryWindow.refresh (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 1 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (HistoryWindow) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def capture_selection(self):
         visible = set(self.table.get_children())
         self.selected_ids.difference_update(visible)
         self.selected_ids.update(self.table.selection())
 
+    # หน้าที่: เก็บ selection ใหม่และอัปเดตรายละเอียด/ข้อความสถานะ
+    # ที่มา: pages/solve_history.py::HistoryWindow.__init__ (อ้างอิง/callback)
+    # Input: self (HistoryWindow) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: event (tkinter.Event | None) — Tk/TkDND ส่งมาจาก event binding; บางจุดเรียกตรงโดยไม่ส่ง event
     def selection_changed(self, event=None):
         self.capture_selection()
         self.show_details()
         self.update_notice()
 
+    # หน้าที่: แสดง error ของ History หรือจำนวน records/หน้าปัจจุบัน/จำนวนที่เลือก
+    # ที่มา: pages/solve_history.py::HistoryWindow.selection_changed (เรียกตรง)
+    # ที่มา: pages/solve_history.py::HistoryWindow.refresh (เรียกตรง)
+    # Input: self (HistoryWindow) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def update_notice(self):
         error = getattr(self.app_root, 'history_error', '')
         if not self._exporting:
             self.notice.configure(text=error or f'{self.total_events} records · Page {self.page_index + 1} · {len(self.selected_ids)} selected · Ctrl/Shift to select')
 
+    # หน้าที่: อ่าน records ตามหมวดและเลขหน้าแล้วอัปเดตตารางเมื่อข้อมูลเปลี่ยน
+    # ที่มา: pages/solve_history.py::HistoryWindow.tick (เรียกตรง)
+    # ที่มา: pages/solve_history.py::HistoryWindow.set_category (เรียกตรง)
+    # ที่มา: pages/solve_history.py::HistoryWindow.turn_page (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 3 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (HistoryWindow) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def refresh(self):
         if self.store is None:
             self.notice.configure(text=getattr(self.app_root, 'history_error', '') or 'History unavailable')
@@ -130,15 +167,29 @@ class HistoryWindow(ctk.CTkToplevel):
             self.show_details()
         self.update_notice()
 
+    # หน้าที่: แปลงสถานะ Running ที่ไม่อยู่ในงาน active เป็น Unfinished สำหรับแสดงผล
+    # ที่มา: pages/solve_history.py::HistoryWindow.show_details (เรียกตรง)
+    # ที่มา: pages/solve_history.py::HistoryWindow.refresh (เรียกตรง)
+    # Input: self (HistoryWindow) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: event (dict[str, Any]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def status_text(self, event):
         if event['status'] == 'Running' and event['id'] not in getattr(self.app_root, 'history_active', set()):
             return 'Unfinished'
         return event['status']
 
+    # หน้าที่: เลื่อนเลขหน้าตาม offset แล้วโหลดรายการใหม่
+    # ที่มา: pages/solve_history.py::HistoryWindow.__init__ (เรียกตรง)
+    # Input: self (HistoryWindow) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: offset (int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def turn_page(self, offset):
         self.page_index = max(0, self.page_index + offset)
         self.refresh()
 
+    # หน้าที่: อ่านรายละเอียดของ record ที่เลือกพร้อมข้อมูล source/run group มาแสดง
+    # ที่มา: pages/solve_history.py::HistoryWindow.selection_changed (เรียกตรง)
+    # ที่มา: pages/solve_history.py::HistoryWindow.refresh (เรียกตรง)
+    # Input: self (HistoryWindow) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: event (tkinter.Event | None) — Tk/TkDND ส่งมาจาก event binding; บางจุดเรียกตรงโดยไม่ส่ง event
     def show_details(self, event=None):
         selected = set(self.table.selection())
         records = [e for e in self.events if e['id'] in selected]
@@ -165,6 +216,9 @@ class HistoryWindow(ctk.CTkToplevel):
         self.details.insert('1.0', '\n'.join(parts))
         self.details.configure(state='disabled')
 
+    # หน้าที่: อ่าน records ที่มี ID ในชุด selection แล้วส่งออกเป็นรายงาน
+    # ที่มา: pages/solve_history.py::HistoryWindow.__init__ (อ้างอิง/callback)
+    # Input: self (HistoryWindow) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def export_selected(self):
         self.capture_selection()
         try:
@@ -173,10 +227,19 @@ class HistoryWindow(ctk.CTkToplevel):
         except Exception as error:
             messagebox.showerror('Export History', str(error), parent=self)
 
+    # หน้าที่: ส่ง iterator ของทุก record ในหมวดที่เลือกไปสร้างรายงาน
+    # ที่มา: pages/solve_history.py::HistoryWindow.__init__ (อ้างอิง/callback)
+    # Input: self (HistoryWindow) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def export_all(self):
         self.refresh()
         self.export(self.store.iter_events(self.filter.get()), self.total_events)
 
+    # หน้าที่: เลือก destination และเริ่มเขียน HTML report เบื้องหลังโดยแสดงจำนวน records
+    # ที่มา: pages/solve_history.py::HistoryWindow.export_all (เรียกตรง)
+    # ที่มา: pages/solve_history.py::HistoryWindow.export_selected (เรียกตรง)
+    # Input: self (HistoryWindow) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: records (Iterable[Mapping[str, Any]]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: count (int | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def export(self, records, count=None):
         if self._exporting:
             return
@@ -193,11 +256,23 @@ class HistoryWindow(ctk.CTkToplevel):
             if target.suffix.lower() not in ('.html', '.htm'):
                 raise ValueError('Choose an .html or .htm report file.')
             # Exports must not replace any referenced evidence file.
+            # หน้าที่: เรียก export_html ด้วย destination และ records ที่ closure จับไว้
+            # ที่มา: pages/solve_history.py::HistoryWindow.export (อ้างอิง/callback)
+            # ที่มา: pages/solve_history.py::HistoryWindow.export (เรียกตรง)
+            # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+            # Closure: records (Iterable[Mapping[str, Any]]) — รับจาก scope HistoryWindow.export
+            # Closure: self (HistoryWindow) — รับจาก scope HistoryWindow.export
+            # Closure: target (Path) — รับจาก scope HistoryWindow.export
             def write():
                 for event in self.store.iter_events():
                     if any(Path(p).resolve() == target for p in event.get('files', [])):
                         raise ValueError('Choose a new report path, not a source or result file.')
                 export_html(target, records)
+            # หน้าที่: รับผลส่งออกจาก worker แล้วคืนปุ่มและแจ้งสำเร็จหรือ error
+            # ที่มา: pages/solve_history.py::HistoryWindow.export (อ้างอิง/callback)
+            # Input: _ (None (ผลของงานเขียนรายงาน; callback ไม่ใช้ค่านี้)) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+            # Input: error (Exception | None) — ผลหรือสถานะจากงานเบื้องหลังที่ผู้เรียกส่งต่อมา
+            # Closure: self (HistoryWindow) — รับจาก scope HistoryWindow.export
             def finished(_, error):
                 self._exporting = False
                 if error:
@@ -214,6 +289,9 @@ class HistoryWindow(ctk.CTkToplevel):
         except Exception as error:
             messagebox.showerror('Export History', str(error), parent=self)
 
+    # หน้าที่: ขอยืนยันก่อนล้าง History ในหมวดปัจจุบันแล้วรีเฟรชตาราง
+    # ที่มา: pages/solve_history.py::HistoryWindow.__init__ (อ้างอิง/callback)
+    # Input: self (HistoryWindow) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def clear_history(self):
         if self.store is None:
             return

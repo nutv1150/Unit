@@ -21,6 +21,7 @@ from Tools import history_hooks
 from Tools.window_layout import fit_window
 from Tools.stream_capture import run_capture
 from Tools.text_view import save_async, open_text_view
+from Tools.tool_catalog import FILE_INSPECTION_TOOLS
 
 # ==========================================
 # ธีมสีหลัก (Cyberpunk / Terminal)
@@ -35,17 +36,36 @@ ALERT_RED = "#FF3366"
 
 class _OutputDirectory:
     """Shared lifetime for a worker, its result panels and open full viewers."""
+    # หน้าที่: สร้าง temporary directory เพื่อเก็บ output เต็มของงานตรวจไฟล์
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.start_analysis_thread (เรียกตรง)
+    # Input: self (_OutputDirectory) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: prefix (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def __init__(self, prefix):
         self.name = tempfile.mkdtemp(prefix=prefix)
 
+    # หน้าที่: ลบ temporary directory ของผลตรวจและรองรับการเรียกเก็บกวาดซ้ำ
+    # ที่มา: Tools/stream_capture.py::Capture.close (เรียกตรง)
+    # ที่มา: Tools/stream_capture.py::run_capture (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::_OutputDirectory.__del__ (เรียกตรง)
+    # Input: self (_OutputDirectory) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def cleanup(self):
         shutil.rmtree(self.name, ignore_errors=True)
 
+    # หน้าที่: คืนทรัพยากร temporary directory เมื่อ object หมดอายุ
+    # ที่มา: Python เรียกผ่านวงจรชีวิตหรือ protocol ของ object
+    # Input: self (_OutputDirectory) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def __del__(self):
         self.cleanup()
 
 # --- ⭐ 1. คลาสสำหรับการสร้าง "กรอบ" ผลลัพธ์ ---
 class ResultBox(ctk.CTkFrame):
+    # หน้าที่: สร้างกล่องผลของหนึ่งไฟล์พร้อม textbox ค้นหา บันทึก และส่งข้อความไปหน้าอื่น
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.populate_file_nav (เรียกตรง)
+    # Input: self (ResultBox) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: master (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
+    # Input: filename (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: app_root (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
+    # Input: **kwargs (dict[str, Any]) — keyword options ของ widget ที่ผู้เรียกส่งเพิ่มมา
     def __init__(self, master, filename, app_root, **kwargs):
         super().__init__(master, border_width=1, border_color="#333344", corner_radius=6, fg_color="#0A0A0F", **kwargs)
         
@@ -91,16 +111,26 @@ class ResultBox(ctk.CTkFrame):
         self.context_menu.add_command(label="🚀 FORWARD TO GEMINI MODULE", command=self.send_selection_to_gemini)
         self.textbox.bind("<Button-3>", self.show_context_menu)
 
+    # หน้าที่: กำหนด path ผลเต็มและรีเซ็ตสถานะ preview/ปุ่มของ ResultBox
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.start_analysis_thread (เรียกตรง)
+    # Input: self (ResultBox) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
     def set_full_output_path(self, path):
         self.full_output_path = path
         self._preview_bytes_used = 0
         self.save_button.configure(state='disabled')
         self.view_button.configure(state='disabled')
 
+    # หน้าที่: ล้าง textbox และตัวนับขนาด preview ของ ResultBox
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.extract_all_strings.render (เรียกตรง)
+    # Input: self (ResultBox) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def reset_output(self):
         self._preview_bytes_used = 0
         self.textbox.delete("1.0", "end")
 
+    # หน้าที่: เปิด Save dialog แล้วบันทึกไฟล์ผลตรวจฉบับเต็ม
+    # ที่มา: pages/file_inspection.py::ResultBox.__init__ (อ้างอิง/callback)
+    # Input: self (ResultBox) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def save_full_output(self):
         if not self.full_output_path or not os.path.isfile(self.full_output_path):
             return
@@ -114,10 +144,19 @@ class ResultBox(ctk.CTkFrame):
                        lambda: history_hooks.attach_file(self.app_root, event_id, destination),
                        owner=getattr(self, '_output_owner', None))
 
+    # หน้าที่: เปิด viewer ของไฟล์ผลตรวจเต็มโดยรักษาเจ้าของไฟล์ชั่วคราวไว้
+    # ที่มา: pages/file_inspection.py::ResultBox.__init__ (อ้างอิง/callback)
+    # Input: self (ResultBox) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def view_full_output(self):
         if self.full_output_path and os.path.isfile(self.full_output_path):
             open_text_view(self, self.full_output_path, owner=getattr(self, '_output_owner', None))
 
+    # หน้าที่: เพิ่มข้อความลง textbox ภายใต้เพดานจำนวน bytes และเลื่อนไปท้ายผล
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.log (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.extract_all_strings.render (เรียกตรง)
+    # Input: self (ResultBox) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: tag (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def insert_preview(self, text, tag=None):
         if not text or self._preview_bytes_used >= self.preview_bytes:
             return
@@ -130,6 +169,10 @@ class ResultBox(ctk.CTkFrame):
         self.textbox.insert("end", text, tag)
         self.textbox.see("end")
 
+    # หน้าที่: ส่งข้อความที่เลือกจากผลตรวจไป Data Hashing
+    # ที่มา: pages/file_inspection.py::ResultBox.__init__ (อ้างอิง/callback)
+    # Input: self (ResultBox) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # อ่านภายใน: self.textbox ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def send_selection(self):
         try:
             sel = self.textbox.get("sel.first", "sel.last").strip()
@@ -141,6 +184,11 @@ class ResultBox(ctk.CTkFrame):
                     self.app_root.send_to_hashing(sel)
         except: pass
         
+    # หน้าที่: แสดงเมนูคลิกขวาของข้อความที่เลือกใน ResultBox
+    # ที่มา: pages/file_inspection.py::ResultBox.__init__ (อ้างอิง/callback)
+    # Input: self (ResultBox) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: e (tkinter.Event) — Tk/TkDND ส่งมาจาก event binding; บางจุดเรียกตรงโดยไม่ส่ง event
+    # อ่านภายใน: self.textbox ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def show_context_menu(self, e):
         try:
             self.gemini_selection = self.textbox.get("sel.first", "sel.last")
@@ -153,10 +201,17 @@ class ResultBox(ctk.CTkFrame):
                 self.context_menu.grab_release()
         return "break"
 
+    # หน้าที่: ส่งข้อความผลตรวจที่เลือกไปหน้า Gemini
+    # ที่มา: pages/file_inspection.py::ResultBox.__init__ (อ้างอิง/callback)
+    # Input: self (ResultBox) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def send_selection_to_gemini(self):
         if self.gemini_selection.strip():
             self.app_root.send_to_gemini(self.gemini_selection)
 
+    # หน้าที่: ไฮไลต์คำค้นใน textbox ผลตรวจ
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.trigger_in_app_search (เรียกตรง)
+    # Input: self (ResultBox) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: keyword (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def search_keyword(self, keyword):
         self.textbox.tag_remove("highlight", "1.0", "end")
         if not keyword:
@@ -183,6 +238,12 @@ class ResultBox(ctk.CTkFrame):
 
 # --- ⭐ 2. หน้าต่าง Popup สำหรับเลือก Regex ---
 class RegexSelectionPopup(ctk.CTkToplevel):
+    # หน้าที่: สร้าง popup เลือก regex และตัวอย่างรูปแบบ พร้อม callback รับผล
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.open_regex_popup (เรียกตรง)
+    # Input: self (RegexSelectionPopup) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: parent (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
+    # Input: current_regex (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: callback (Callable[[str], None]) — callable ที่ผู้เรียกลงทะเบียนไว้ให้เรียกต่อ
     def __init__(self, parent, current_regex, callback):
         super().__init__(parent)
         self.withdraw()
@@ -241,6 +302,11 @@ class RegexSelectionPopup(ctk.CTkToplevel):
         self.lift()             
         self.focus_force()      
 
+    # หน้าที่: สร้างตัวเลือก regex พร้อม event แสดงตัวอย่างเมื่อเลื่อนเมาส์ผ่าน
+    # ที่มา: pages/file_inspection.py::RegexSelectionPopup.__init__ (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::RegexSelectionPopup.add_custom_regex (เรียกตรง)
+    # Input: self (RegexSelectionPopup) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: p (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def create_preview_radio(self, p):
         n = self.smart_db.get(p, p)
         rb = ctk.CTkRadioButton(
@@ -252,6 +318,10 @@ class RegexSelectionPopup(ctk.CTkToplevel):
         rb.bind("<Leave>", lambda e: self.hide_preview())
         self.regex_radios.append(rb)
 
+    # หน้าที่: ตรวจ regex ที่กรอกแล้วเพิ่มเป็นตัวเลือกใน popup
+    # ที่มา: pages/file_inspection.py::RegexSelectionPopup.__init__ (อ้างอิง/callback)
+    # Input: self (RegexSelectionPopup) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # อ่านภายใน: self.custom_regex_entry, self.custom_name_entry, self.custom_desc_entry ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def add_custom_regex(self):
         p = self.custom_regex_entry.get().strip()
         name = self.custom_name_entry.get().strip()
@@ -273,17 +343,31 @@ class RegexSelectionPopup(ctk.CTkToplevel):
                 self.custom_desc_entry.delete(0, "end")
             except Exception as e: pass
 
+    # หน้าที่: ล้างตัวเลือก regex ปัจจุบันใน popup
+    # ที่มา: pages/file_inspection.py::RegexSelectionPopup.__init__ (อ้างอิง/callback)
+    # Input: self (RegexSelectionPopup) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def clear_selection(self):
         self.regex_var.set("")
         for rb in self.regex_radios: rb.deselect()
 
+    # หน้าที่: แสดงคำอธิบาย/ตัวอย่างของ regex ที่ชี้อยู่
+    # ที่มา: pages/file_inspection.py::RegexSelectionPopup.create_preview_radio (เรียกตรง)
+    # Input: self (RegexSelectionPopup) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: p (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def show_preview(self, p):
         txt = self.regex_previews.get(p, f"Custom: {p}")
         self.hover_label.configure(text=txt, text_color=ACCENT_GREEN)
 
+    # หน้าที่: ซ่อนกล่องตัวอย่าง regex เมื่อเมาส์ออกจากตัวเลือก
+    # ที่มา: pages/file_inspection.py::RegexSelectionPopup.create_preview_radio (เรียกตรง)
+    # Input: self (RegexSelectionPopup) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def hide_preview(self):
         self.hover_label.configure(text="[!] HOVER OVER AN OPTION TO VIEW DETAILS", text_color=TEXT_DIM)
 
+    # หน้าที่: คืน regex ที่เลือกผ่าน callback แล้วปิด popup
+    # ที่มา: pages/file_inspection.py::RegexSelectionPopup.__init__ (อ้างอิง/callback)
+    # Input: self (RegexSelectionPopup) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # อ่านภายใน: self.regex_var ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def confirm(self):
         self.callback(self.regex_var.get())
         self.destroy()
@@ -291,6 +375,10 @@ class RegexSelectionPopup(ctk.CTkToplevel):
 
 # --- ⭐ 3. หน้าหลัก File Inspection ---
 class FileInspectionPage(ctk.CTkFrame):
+    # หน้าที่: สร้างหน้า File Inspection พร้อมตัวเลือกเครื่องมือ รายการไฟล์ และคิวผล UI
+    # ที่มา: app.py::UNITApp.__init__ (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: master (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
     def __init__(self, master):
         super().__init__(master)
         self._ui_queue = queue.Queue()
@@ -369,9 +457,8 @@ class FileInspectionPage(ctk.CTkFrame):
         action_frame = ctk.CTkFrame(self, fg_color=PANEL_COLOR, corner_radius=4, border_width=1, border_color="#333344")
         action_frame.grid(row=3, column=0, sticky="ew", padx=30, pady=10)
 
-        # เพิ่ม steghide Analysis เข้าไปใน options 
         self.tool_menu = ctk.CTkOptionMenu(
-            action_frame, values=["'file' Command", "Header Check", "Executable Check", "Strings", "zsteg Analysis", "steghide Analysis", "Exiftool"], 
+            action_frame, values=list(FILE_INSPECTION_TOOLS),
             width=180, height=35, font=("Consolas", 12),
             fg_color="#1E1E2E", button_color="#2B2B36", button_hover_color="#3A3A4A",
             state="disabled", command=self.on_tool_change
@@ -453,6 +540,11 @@ class FileInspectionPage(ctk.CTkFrame):
         self.nav_buttons = {}   
         self.current_view_id = "ALL"
 
+    # หน้าที่: อ่านคำค้นหลักแล้วส่งไปค้นหาใน ResultBox แต่ละไฟล์
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.__init__ (อ้างอิง/callback)
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.__init__ (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # อ่านภายใน: self.search_entry ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def trigger_in_app_search(self):
         keyword = self.search_entry.get().strip()
         total_found = 0
@@ -463,6 +555,9 @@ class FileInspectionPage(ctk.CTkFrame):
         if keyword:
             self.warning_label.configure(text=f"STATUS: FOUND {total_found} MATCHES", text_color=ACCENT_GREEN)
 
+    # หน้าที่: สร้างแถบนำทางผลรวมและผลของแต่ละไฟล์
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.start_analysis_thread (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def populate_file_nav(self):
         for widget in self.file_nav_panel.winfo_children():
             if isinstance(widget, ctk.CTkButton): widget.destroy()
@@ -496,6 +591,10 @@ class FileInspectionPage(ctk.CTkFrame):
 
         self.switch_view("ALL")
 
+    # หน้าที่: แสดง ResultBox ทั้งหมดหรือเฉพาะไฟล์ตาม target ที่เลือก
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.populate_file_nav (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: target_id (str (path หรือ ALL)) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def switch_view(self, target_id):
         self.current_view_id = target_id
         
@@ -516,17 +615,42 @@ class FileInspectionPage(ctk.CTkFrame):
         except:
             pass
 
+    # หน้าที่: ส่งข้อความไปแสดงใน ResultBox ของไฟล์ที่ระบุ
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.safe_log (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._log_capture (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._run_analysis_logic (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: msg (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: tag (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: newline (bool) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: target_file (str | PathLike[str] | None) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
     def log(self, msg, tag=None, newline=True, target_file=None):
         txt = msg + ("\n" if newline else "")
         if target_file and target_file in self.result_boxes:
             self.result_boxes[target_file].insert_preview(txt, tag)
 
+    # หน้าที่: เขียนผลเต็มและเข้าคิวข้อความเพื่ออัปเดต Tk บน UI thread
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.check_if_executable (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.inspect_file_header (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._log_capture (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 5 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: msg (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: tag (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: newline (bool) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: target_file (str | PathLike[str] | None) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
     def safe_log(self, msg, tag=None, newline=True, target_file=None):
         if tag == "error":
             self._worker_context.failed = True
         self._write_full_output(target_file, msg + ("\n" if newline else ""))
         self._post_ui(lambda: self.log(msg, tag, newline, target_file))
 
+    # หน้าที่: เขียนข้อความผลตรวจลงไฟล์ผลเต็มของงาน
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.safe_log (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._log_capture (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: target_file (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
+    # Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _write_full_output(self, target_file, text):
         job = getattr(self._worker_context, "job", None)
         if not job or target_file not in job.get("boxes", {}):
@@ -537,10 +661,20 @@ class FileInspectionPage(ctk.CTkFrame):
         with open(path, "a", encoding="utf-8", errors="replace") as stream:
             stream.write(text)
 
+    # หน้าที่: เข้าคิว callable พร้อม generation สำหรับเรียกบน UI thread
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.safe_log (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._run_analysis_logic (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.extract_all_strings (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 1 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: callback (Callable[[], None]) — callable ที่ผู้เรียกลงทะเบียนไว้ให้เรียกต่อ
     def _post_ui(self, callback):
         generation = getattr(self._worker_context, "generation", self._analysis_generation)
         self._ui_queue.put(("analysis", generation, callback))
 
+    # หน้าที่: ดึง callback จากคิวและข้ามผลของงานเก่าที่ generation ไม่ตรงกัน
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.__init__ (อ้างอิง/callback)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _drain_ui(self):
         for _ in range(100):
             try:
@@ -552,18 +686,35 @@ class FileInspectionPage(ctk.CTkFrame):
                 callback()
         self.after(40, self._drain_ui)
 
+    # หน้าที่: ล้างช่องผลรวมและ ResultBox ของไฟล์ที่โหลดไว้
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.__init__ (อ้างอิง/callback)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def clear_terminal(self):
         for box in self.result_boxes.values():
             box.textbox.delete("1.0", "end")
 
+    # หน้าที่: แยก paths จาก TkDND event แล้วส่งไปโหลดไฟล์
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.__init__ (อ้างอิง/callback)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: event (tkinter.Event) — Tk/TkDND ส่งมาจาก event binding; บางจุดเรียกตรงโดยไม่ส่ง event
     def on_drop(self, event):
         raw_paths = self.tk.splitlist(event.data)
         self.load_files(raw_paths)
 
+    # หน้าที่: เปิด dialog เลือกหลายไฟล์แล้วส่งรายการ path ไปโหลด
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.__init__ (อ้างอิง/callback)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def browse_file(self):
         paths = filedialog.askopenfilenames()
         if paths: self.load_files(paths)
 
+    # หน้าที่: กรอง path ที่เป็นไฟล์จริง สร้างพื้นที่ผล และเริ่มตรวจด้วย tool ปัจจุบัน
+    # ที่มา: Tools/package_smoke.py::main (เรียกตรง)
+    # ที่มา: pages/dashboard.py::DashboardPage.open_recent_file (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.on_drop (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 1 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: paths (list[str]) — รายการจาก file dialog หรือ TkDND ที่แยก Tcl list แล้ว
     def load_files(self, paths):
         valid_paths = [p for p in paths if os.path.isfile(p)]
         if not valid_paths: return
@@ -585,11 +736,18 @@ class FileInspectionPage(ctk.CTkFrame):
         self.update_metadata_card()
         self.start_analysis_thread()
 
+    # หน้าที่: แปลงขนาด bytes เป็นข้อความหน่วยอ่านง่าย
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.update_metadata_card (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: size_bytes (int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def format_size(self, size_bytes):
         if size_bytes < 1024: return f"{size_bytes} B"
         elif size_bytes < 1024**2: return f"{size_bytes/1024:.2f} KB"
         else: return f"{size_bytes/(1024**2):.2f} MB"
 
+    # หน้าที่: แสดงขนาด/นามสกุลและเริ่มคำนวณ MD5 ของไฟล์เบื้องหลัง
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.load_files (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def update_metadata_card(self):
         self._metadata_generation += 1
         self.meta_frame.grid() 
@@ -606,6 +764,13 @@ class FileInspectionPage(ctk.CTkFrame):
             self.meta_ext.configure(text=f"[MODE]: BATCH_PROCESSING")
             self.meta_md5.configure(text=f"[MD5]: N/A (MULTIPLE FILES)")
 
+    # หน้าที่: อ่านไฟล์เพื่อคำนวณ MD5 แล้วส่งผลพร้อม generation กลับ UI
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.update_metadata_card (อ้างอิง/callback)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
+    # Input: size_str (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: ext (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: generation (int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _calc_md5(self, path, size_str, ext, generation):
         md5 = hashlib.md5()
         try:
@@ -615,16 +780,32 @@ class FileInspectionPage(ctk.CTkFrame):
         except: result = "Error"
         self._ui_queue.put(("metadata", generation, lambda: self._update_meta_ui(size_str, ext, result)))
         
+    # หน้าที่: แสดงขนาด นามสกุล และ MD5 ที่คำนวณแล้วบนการ์ด
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._calc_md5 (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: size_str (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: ext (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: md5_str (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _update_meta_ui(self, size_str, ext, md5_str):
         self.meta_size.configure(text=f"[SIZE]: {size_str}")
         self.meta_ext.configure(text=f"[EXT]: {ext}")
         self.meta_md5.configure(text=f"[MD5]: {md5_str}")
 
+    # หน้าที่: ปรับ controls ตาม tool ที่เลือกและเริ่มตรวจใหม่เมื่อมีไฟล์
+    # ที่มา: app.py::UNITApp.navigate_to (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.__init__ (อ้างอิง/callback)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: choice (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def on_tool_change(self, choice):
         self.toggle_regex_button(choice)
         if self.selected_files:
             self.start_analysis_thread()
 
+    # หน้าที่: เปิด regex controls เฉพาะเมื่อเลือกโหมด Strings
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.load_files (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.on_tool_change (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: mode (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def toggle_regex_button(self, mode):
         if mode == "Strings": 
             self.btn_regex_popup.configure(state="normal")
@@ -633,9 +814,17 @@ class FileInspectionPage(ctk.CTkFrame):
             self.btn_regex_popup.configure(state="disabled")
             self.btn_clear_regex.configure(state="disabled")
 
+    # หน้าที่: เปิด popup เลือก regex พร้อม callback รับ pattern
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.__init__ (อ้างอิง/callback)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # อ่านภายใน: self.regex_var ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def open_regex_popup(self):
         RegexSelectionPopup(self, self.regex_var.get(), self.update_selected_regex)
 
+    # หน้าที่: ตั้ง pattern หลักและข้อความสถานะแล้วเริ่มตรวจใหม่ถ้ามีไฟล์
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.open_regex_popup (อ้างอิง/callback)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: new_regex (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def update_selected_regex(self, new_regex):
         self.regex_var.set(new_regex)
         name = self.smart_db.get(new_regex, new_regex if new_regex else "None")
@@ -646,12 +835,22 @@ class FileInspectionPage(ctk.CTkFrame):
         if self.selected_files:
             self.start_analysis_thread()
 
+    # หน้าที่: ล้าง pattern หลักและเริ่มตรวจใหม่เมื่อมี input
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.__init__ (อ้างอิง/callback)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def clear_main_regex(self):
         self.regex_var.set("")
         self.regex_status_label.configure(text=" 🔍 REGEX: NONE ", fg_color="#0A0A0F", text_color=TEXT_DIM)
         if self.selected_files:
             self.start_analysis_thread()
 
+    # หน้าที่: ตรวจ options สร้าง job snapshot/History และเริ่ม worker ตรวจไฟล์
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.load_files (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.__init__ (อ้างอิง/callback)
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.on_tool_change (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 2 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # อ่านภายใน: self.max_display_entry, self.regex_var ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def start_analysis_thread(self):
         if not self.selected_files: return
         try:
@@ -704,6 +903,11 @@ class FileInspectionPage(ctk.CTkFrame):
                 job['boxes'][path].history_id = event_id
         threading.Thread(target=self._run_analysis_logic, args=(choice, job), daemon=True).start()
 
+    # หน้าที่: วนไฟล์ใน job แล้ว dispatch ไปยังตัวตรวจตามชื่อเครื่องมือ
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.start_analysis_thread (อ้างอิง/callback)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: choice (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: job (dict[str, Any]) — snapshot จาก start_analysis_thread รวม generation, paths, options และ History ของงาน
     def _run_analysis_logic(self, choice, job):
         self._worker_context.generation = job["generation"]
         self._worker_context.job = job
@@ -741,6 +945,13 @@ class FileInspectionPage(ctk.CTkFrame):
 
         self._post_ui(lambda: self.finish_analysis(choice, state['match_count'], state.get('failed', False)))
 
+    # หน้าที่: สรุปผลตรวจหนึ่งไฟล์ลง History พร้อมตัวอย่าง output และ error
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._run_analysis_logic (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: job (dict[str, Any]) — snapshot จาก start_analysis_thread รวม generation, paths, options และ History ของงาน
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
+    # Input: status (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # อ่านภายใน: box.textbox ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def _finish_history(self, job, path, status):
         box = job['boxes'].get(path)
         output = ''
@@ -759,6 +970,10 @@ class FileInspectionPage(ctk.CTkFrame):
                              'Success' if status == 'success' else 'Failed', output_data=output)
         self._history_pending.discard(job.get('history', {}).get(path))
 
+    # หน้าที่: อ่าน bytes ต้นไฟล์และตรวจ prefix ELF/MZ
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._run_analysis_logic (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
     def check_if_executable(self, path):
         try:
             with open(path, 'rb') as f: h = f.read(4)
@@ -769,6 +984,10 @@ class FileInspectionPage(ctk.CTkFrame):
         except Exception as e:
             self.safe_log(f"[!] EXECUTABLE CHECK ERROR: {str(e)}", "error", target_file=path)
 
+    # หน้าที่: ตรวจ signatures, puremagic และ UTF-8 เพื่อรายงานชนิดไฟล์
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._run_analysis_logic (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
     def inspect_file_header(self, path):
         try:
             with open(path, 'rb') as f:
@@ -789,6 +1008,13 @@ class FileInspectionPage(ctk.CTkFrame):
         except Exception as e:
             self.safe_log(f"[!] ERROR: {str(e)}", "error", target_file=path)
 
+    # หน้าที่: แสดง preview ของ stdout/stderr และเก็บเนื้อหา stream เต็ม
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._external_analysis (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
+    # Input: capture (Capture) — ผลหรือสถานะจากงานเบื้องหลังที่ผู้เรียกส่งต่อมา
+    # Input: channel (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: tag (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _log_capture(self, path, capture, channel='stdout', tag=None):
         preview = getattr(capture, channel).decode('utf-8', errors='replace')
         full_path = getattr(capture, channel + '_file')
@@ -800,9 +1026,22 @@ class FileInspectionPage(ctk.CTkFrame):
         else:
             self.safe_log(preview, tag, target_file=path)
 
+    # หน้าที่: เรียกคำสั่งตรวจไฟล์โดยมี timeout และยกเลิกเมื่อ generation เปลี่ยน
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.run_zsteg_analysis (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.run_exiftool_analysis (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::FileInspectionPage.run_file_command (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: command (list[str]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
+    # Input: timeout (float | int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _external_analysis(self, command, path, timeout):
         generation = self._worker_context.job['generation']
         class Superseded:
+            # หน้าที่: ตรวจว่างานถูกแทนที่ด้วย generation ใหม่หรือไม่ เพื่อยกเลิก subprocess
+            # ที่มา: Tools/stream_capture.py::run_capture เรียกผ่าน cancel_event.is_set()
+            # Input: _ (object (instance ของตัวตรวจยกเลิก)) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+            # Closure: generation (int) — รับจาก scope FileInspectionPage._external_analysis
+            # Closure: self (FileInspectionPage) — รับจาก scope FileInspectionPage._external_analysis
             def is_set(_):
                 return generation != self._analysis_generation
         capture = run_capture(command, timeout=timeout, cancel_event=Superseded())
@@ -820,6 +1059,10 @@ class FileInspectionPage(ctk.CTkFrame):
         finally:
             capture.close()
 
+    # หน้าที่: ตรวจนามสกุล PNG/BMP แล้วเรียก zsteg
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._run_analysis_logic (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
     def run_zsteg_analysis(self, path):
         if os.path.splitext(path)[1].lower() not in ('.png', '.bmp'):
             self.safe_log('[!] ZSTEG ERROR: TARGET MUST BE PNG OR BMP', 'error', target_file=path)
@@ -827,11 +1070,21 @@ class FileInspectionPage(ctk.CTkFrame):
         self._external_analysis(['zsteg', path], path, 30)
 
     # 🌟 ฟังก์ชัน Steghide Analysis พร้อม UI Popup 🌟
+    # หน้าที่: เตรียม popup ให้เลือก passphrase หรือ wordlist สำหรับ steghide
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._run_analysis_logic (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
     def run_steghide_analysis(self, path):
         ext = os.path.splitext(path)[1].lower()
         if ext not in [".jpg", ".jpeg", ".bmp", ".wav", ".au"]:
             self.safe_log(f"[!] STEGHIDE ERROR: '{ext}' MAY NOT BE SUPPORTED. (SUPPORTED: JPG, BMP, WAV, AU)", "error", target_file=path)
 
+        # หน้าที่: เรียก steghide extract ด้วย passphrase หรือวนคำใน wordlist แล้วรายงานผล
+        # ที่มา: pages/file_inspection.py::FileInspectionPage.run_steghide_analysis.show_steghide_prompt.execute (อ้างอิง/callback)
+        # Input: mode (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+        # Input: secret_val (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+        # Closure: path (str | PathLike[str]) — รับจาก scope FileInspectionPage.run_steghide_analysis
+        # Closure: self (FileInspectionPage) — รับจาก scope FileInspectionPage.run_steghide_analysis
         def process_steghide(mode, secret_val):
             if mode == "passphrase":
                 self.safe_log(f"[*] RUNNING STEGHIDE EXTRACT WITH PASSPHRASE: '{secret_val}'...", "highlight", target_file=path)
@@ -880,6 +1133,10 @@ class FileInspectionPage(ctk.CTkFrame):
                 except Exception as e:
                     self.safe_log(f"[!] WORDLIST ERROR: {str(e)}", "error", target_file=path)
 
+        # หน้าที่: สร้างฟอร์มเลือกโหมดและค่าความลับสำหรับ steghide
+        # ที่มา: pages/file_inspection.py::FileInspectionPage.run_steghide_analysis (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: self (FileInspectionPage) — รับจาก scope FileInspectionPage.run_steghide_analysis
         def show_steghide_prompt():
             popup = ctk.CTkToplevel(self)
             popup.title("STEGHIDE :: EXTRACTION CONFIG")
@@ -901,6 +1158,11 @@ class FileInspectionPage(ctk.CTkFrame):
             wl_entry = ctk.CTkEntry(wl_frame, placeholder_text="Path to wordlist.txt...", width=300, fg_color="#0A0A0F", border_color="#333344", text_color="#00FFFF")
             wl_entry.pack(side="left", padx=(0, 10))
             
+            # หน้าที่: เลือก wordlist แล้วเติม path ลงช่องกรอก
+            # ที่มา: pages/file_inspection.py::FileInspectionPage.run_steghide_analysis.show_steghide_prompt (อ้างอิง/callback)
+            # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+            # Closure: radio_var (ctk.StringVar) — รับจาก scope FileInspectionPage.run_steghide_analysis.show_steghide_prompt
+            # Closure: wl_entry (ctk.CTkEntry) — รับจาก scope FileInspectionPage.run_steghide_analysis.show_steghide_prompt
             def browse_wordlist():
                 p = filedialog.askopenfilename(filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")])
                 if p:
@@ -910,6 +1172,14 @@ class FileInspectionPage(ctk.CTkFrame):
                     
             ctk.CTkButton(wl_frame, text="BROWSE", width=90, font=("Consolas", 10, "bold"), fg_color="#1E1E2E", command=browse_wordlist).pack(side="left")
 
+            # หน้าที่: อ่านโหมดและค่าจาก popup แล้วเริ่ม steghide worker
+            # ที่มา: pages/file_inspection.py::FileInspectionPage.run_steghide_analysis.show_steghide_prompt (อ้างอิง/callback)
+            # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+            # Closure: pass_entry (ctk.CTkEntry) — รับจาก scope FileInspectionPage.run_steghide_analysis.show_steghide_prompt
+            # Closure: popup (ctk.CTkToplevel) — รับจาก scope FileInspectionPage.run_steghide_analysis.show_steghide_prompt
+            # Closure: radio_var (ctk.StringVar) — รับจาก scope FileInspectionPage.run_steghide_analysis.show_steghide_prompt
+            # Closure: wl_entry (ctk.CTkEntry) — รับจาก scope FileInspectionPage.run_steghide_analysis.show_steghide_prompt
+            # อ่านภายใน: radio_var, pass_entry, wl_entry ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
             def execute():
                 mode = radio_var.get()
                 secret = pass_entry.get() if mode == "passphrase" else wl_entry.get()
@@ -920,9 +1190,18 @@ class FileInspectionPage(ctk.CTkFrame):
 
         self.after(0, show_steghide_prompt)
 
+    # หน้าที่: เรียก exiftool เพื่ออ่าน metadata ของไฟล์
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._run_analysis_logic (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
     def run_exiftool_analysis(self, path):
         self._external_analysis(['exiftool', path], path, 10)
 
+    # หน้าที่: ดึง strings ลงผลเต็มและเตรียม preview/regex matches
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._run_analysis_logic (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
+    # Input: state (dict[str, Any]) — dictionary ตัวนับ/สถานะ matches ที่ _run_analysis_logic สร้างให้ worker ใช้ร่วมกัน
     def extract_all_strings(self, path, state):
         from Tools.inspection_stream import extract_strings
         from Tools.regex_runner import find_match_spans
@@ -948,6 +1227,13 @@ class FileInspectionPage(ctk.CTkFrame):
         job['flags'][path] = find_flags(display)
         warning = ('\n[Preview only — use VIEW FULL OUTPUT / SAVE FULL OUTPUT for all results. Regex highlights apply to this preview.]'
                    if state['warned'] else '')
+        # หน้าที่: แสดง strings preview และไฮไลต์ matches บน UI
+        # ที่มา: pages/file_inspection.py::FileInspectionPage.extract_all_strings (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: box (ResultBox) — รับจาก scope FileInspectionPage.extract_all_strings
+        # Closure: display (str) — รับจาก scope FileInspectionPage.extract_all_strings
+        # Closure: matches (list[list[int]]) — รับจาก scope FileInspectionPage.extract_all_strings
+        # Closure: warning (str) — รับจาก scope FileInspectionPage.extract_all_strings
         def render():
             box.reset_output()
             box.insert_preview(display)
@@ -956,9 +1242,21 @@ class FileInspectionPage(ctk.CTkFrame):
             box.textbox.insert('end', warning)
         self._post_ui(render)
 
+    # หน้าที่: เรียกคำสั่ง file เพื่อตรวจชนิดไฟล์
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._run_analysis_logic (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
     def run_file_command(self, path):
         self._external_analysis(['file', path], path, 5)
 
+    # หน้าที่: บันทึกกิจกรรมตรวจไฟล์และ flags ไปยัง Dashboard
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._run_analysis_logic (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: tool (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
+    # Input: flags (list[str] | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: status (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: details (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _record_activity(self, tool, path, flags=None, status="success", details=""):
         if not hasattr(self.app_root, "record_activity"):
             return
@@ -972,6 +1270,13 @@ class FileInspectionPage(ctk.CTkFrame):
             details=details,
         )
 
+    # หน้าที่: จบสถานะกำลังตรวจ คืนปุ่ม และแสดงจำนวน matches หรือ error
+    # ที่มา: pages/file_inspection.py::FileInspectionPage._run_analysis_logic (เรียกตรง)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: choice (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: total_matches (int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: failed (bool) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # อ่านภายใน: self.regex_var ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def finish_analysis(self, choice, total_matches, failed=False):
         self.progress_bar.stop()
         self.progress_bar.pack_forget()
@@ -985,6 +1290,9 @@ class FileInspectionPage(ctk.CTkFrame):
         else:
             self.warning_label.configure(text="STATUS: COMPLETE", text_color=ACCENT_GREEN)
 
+    # หน้าที่: แสดงคำอธิบาย regex ที่เลือกอยู่
+    # ที่มา: pages/file_inspection.py::RegexSelectionPopup.__init__ (อ้างอิง/callback)
+    # Input: self (FileInspectionPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def show_regex_info(self):
         info_window = ctk.CTkToplevel(self)
         info_window.withdraw()

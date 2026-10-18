@@ -1,5 +1,10 @@
 import hashlib
 
+# หน้าที่: คำนวณ digest ของข้อความ UTF-8 ด้วย hashlib; SHAKE ใช้ความยาวที่กำหนด
+# ที่มา: pages/data_hash.py::DataHashPage._compute_snapshot (เรียกตรง)
+# Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: algo (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: length (int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def hash_data(text, algo="sha256", length=32):
     raw = text.encode()
 

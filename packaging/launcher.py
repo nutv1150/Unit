@@ -9,12 +9,20 @@ import sys
 from pathlib import Path
 
 
+# หน้าที่: ค้นหาราก resources ของ source หรือ PyInstaller bundle
+# ที่มา: packaging/launcher.py::main (เรียกตรง)
+# Input: ไม่มีพารามิเตอร์ที่ส่งเข้ามาโดยตรง
+# อ่านภายใน: __file__ (str), sys.frozen (bool), sys._MEIPASS (str เมื่อแพ็กด้วย PyInstaller)
 def _project_root() -> Path:
     if getattr(sys, "frozen", False):
         return Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
     return Path(__file__).resolve().parents[1]
 
 
+# หน้าที่: แยก internal CLI commands หรือเตรียม workspace แล้วเริ่ม UNIT GUI
+# ที่มา: packaging/launcher.py::<module> (เรียกตรง)
+# Input: argv (list[str] | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# อ่านภายใน: sys.argv (list[str]) จาก command line และ paths/environment ของ runtime
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     root = _project_root()

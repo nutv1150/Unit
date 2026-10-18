@@ -1,6 +1,13 @@
 """Initial window sizes that leave room for desktop panels and decorations."""
 
 
+# หน้าที่: ปรับขนาดหน้าต่างตามค่าที่ขอโดยไม่ให้ใหญ่เกินพื้นที่หน้าจอ
+# ที่มา: Tools/system_check.py::open_window (เรียกตรง)
+# ที่มา: Tools/text_view.py::open_text_view (เรียกตรง)
+# ที่มา: app.py::UNITApp.__init__ (เรียกตรง)
+# ที่มาเพิ่มเติม: อีก 15 จุดเรียก/อ้างอิงในโปรเจกต์
+# Input: window (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
+# Input: geometry (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def fit_window(window, geometry):
     """Set a preferred logical size, capped to the screen; keep manual resizing."""
     width, height = (int(value) for value in geometry.split('x'))

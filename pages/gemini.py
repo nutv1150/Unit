@@ -18,6 +18,10 @@ MAX_PROMPT_BYTES = 4 * 1024 * 1024
 MAX_ATTACHMENT_BYTES = 1024 * 1024
 
 class GeminiPage(ctk.CTkFrame):
+    # หน้าที่: สร้างหน้า Gemini พร้อมช่อง key/model, prompt, chat และสถานะคำขอ
+    # ที่มา: app.py::UNITApp.__init__ (เรียกตรง)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: master (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
     def __init__(self, master):
         super().__init__(master)
         self.app_root = master.master
@@ -253,6 +257,10 @@ class GeminiPage(ctk.CTkFrame):
         self.history = []  
 
     # --- ฟังก์ชันเสริม UI ---
+    # หน้าที่: แสดงเมนูข้อความที่เลือกใน chat สำหรับส่งไป Data Hashing
+    # ที่มา: pages/gemini.py::GeminiPage.__init__ (อ้างอิง/callback)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: event (tkinter.Event) — Tk/TkDND ส่งมาจาก event binding; บางจุดเรียกตรงโดยไม่ส่ง event
     def show_context_menu(self, event):
         try:
             self.hashing_selection = self.chat_display.get("sel.first", "sel.last")
@@ -267,10 +275,16 @@ class GeminiPage(ctk.CTkFrame):
             self.context_menu.grab_release()
         return "break"
 
+    # หน้าที่: ส่งข้อความ chat ที่เลือกไป Data Hashing
+    # ที่มา: pages/gemini.py::GeminiPage.__init__ (อ้างอิง/callback)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def send_selection_to_hashing(self):
         if self.hashing_selection.strip():
             self.app_root.send_to_hashing(self.hashing_selection)
 
+    # หน้าที่: สลับการแสดง/ซ่อนอักขระ API key ใน Entry
+    # ที่มา: pages/gemini.py::GeminiPage.__init__ (อ้างอิง/callback)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def toggle_api_visibility(self):
         if self.api_entry.cget("show") == "*":
             self.api_entry.configure(show="")
@@ -279,6 +293,10 @@ class GeminiPage(ctk.CTkFrame):
             self.api_entry.configure(show="*")
             self.toggle_btn.configure(text="👁")
 
+    # หน้าที่: เลือก path แล้วแทรกลง prompt สำหรับแนบข้อมูลไฟล์ในคำขอ
+    # ที่มา: pages/gemini.py::GeminiPage.__init__ (อ้างอิง/callback)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # อ่านภายใน: self.input_field ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def browse_file(self):
         file_path = filedialog.askopenfilename(
             parent=self.winfo_toplevel(),
@@ -295,6 +313,11 @@ class GeminiPage(ctk.CTkFrame):
     # ==================================================================
     # ระบบยืนยันคำสั่ง (Confirmation System)
     # ==================================================================
+    # หน้าที่: ส่งคำขอให้ UI ยืนยัน action แล้วรอผล Allow/Deny หรือการยกเลิก
+    # ที่มา: pages/gemini.py::GeminiPage.process_request (เรียกตรง)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: action_type (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: detail (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def ask_action_confirm(self, action_type, detail):
         self._confirm_result = False
         self._confirm_event = threading.Event()
@@ -305,6 +328,11 @@ class GeminiPage(ctk.CTkFrame):
                 return False
         return self._confirm_result
 
+    # หน้าที่: แสดงรายละเอียด action พร้อมปุ่ม Allow/Deny
+    # ที่มา: pages/gemini.py::GeminiPage.ask_action_confirm (อ้างอิง/callback)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: action_type (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: detail (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _show_confirm_dialog(self, action_type, detail):
         if self._stop_requested:
             self._confirm_event.set()
@@ -331,12 +359,22 @@ class GeminiPage(ctk.CTkFrame):
         btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
         btn_frame.pack(fill="x", padx=20, pady=(0, 20))
         
+        # หน้าที่: ตั้งผลอนุมัติและปลุก worker ที่รอ dialog
+        # ที่มา: pages/gemini.py::GeminiPage._show_confirm_dialog (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: dialog (ctk.CTkToplevel) — รับจาก scope GeminiPage._show_confirm_dialog
+        # Closure: self (GeminiPage) — รับจาก scope GeminiPage._show_confirm_dialog
         def on_allow():
             self._confirm_result = True
             self._confirm_event.set()
             dialog.grab_release()
             dialog.destroy()
             
+        # หน้าที่: ตั้งผลปฏิเสธและปลุก worker ที่รอ dialog
+        # ที่มา: pages/gemini.py::GeminiPage._show_confirm_dialog (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: dialog (ctk.CTkToplevel) — รับจาก scope GeminiPage._show_confirm_dialog
+        # Closure: self (GeminiPage) — รับจาก scope GeminiPage._show_confirm_dialog
         def on_deny():
             self._confirm_result = False
             self._confirm_event.set()
@@ -351,10 +389,20 @@ class GeminiPage(ctk.CTkFrame):
     # ==================================================================
     # LOGIC การทำงาน API
     # ==================================================================
+    # หน้าที่: บันทึก model ที่เลือกและแสดงข้อความระบบใน chat
+    # ที่มา: pages/gemini.py::GeminiPage.__init__ (อ้างอิง/callback)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: selected_model (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def on_model_change(self, selected_model):
         self.model_name = selected_model
         self.update_chat_ui("System", f"🔄 Switched to model: {selected_model}")
 
+    # หน้าที่: ตรวจ executable อ่าน key และเริ่ม worker เชื่อมต่อ Gemini CLI
+    # ที่มา: pages/gemini.py::GeminiPage.__init__ (อ้างอิง/callback)
+    # ที่มา: pages/gemini.py::GeminiPage._init_api_fail (อ้างอิง/callback)
+    # ที่มา: pages/gemini.py::GeminiPage.edit_api_key (อ้างอิง/callback)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # อ่านภายใน: self.api_entry ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def init_api(self):
         if self._busy or self._connecting:
             return
@@ -379,6 +427,9 @@ class GeminiPage(ctk.CTkFrame):
         self._connecting = True
         threading.Thread(target=self._init_api_worker, daemon=True).start()
 
+    # หน้าที่: ตรวจเวอร์ชัน CLI และทดลอง prompt เพื่อตรวจ credential/model
+    # ที่มา: pages/gemini.py::GeminiPage.init_api (อ้างอิง/callback)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _init_api_worker(self):
         try:
             res = subprocess.run(
@@ -427,6 +478,10 @@ class GeminiPage(ctk.CTkFrame):
             self.after(0, self._init_api_fail, "❌ Connection failed", f"❌ CLI connection failed: {e}")
 
     # ⭐ แก้ไข: ฟังก์ชันสำเร็จให้เปลี่ยนปุ่มเป็น [ EDIT_KEY ]
+    # หน้าที่: อัปเดต UI หลังเชื่อมต่อสำเร็จและตั้งสถานะพร้อมใช้งาน
+    # ที่มา: pages/gemini.py::GeminiPage._init_api_worker (อ้างอิง/callback)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: version_info (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _init_api_success(self, version_info):
         self._connecting = False
         self.cli_ready = True
@@ -443,6 +498,11 @@ class GeminiPage(ctk.CTkFrame):
         self.update_chat_ui("System", "✅ CTF Mode ready! (Connected through Gemini CLI)")
 
     # ⭐ แก้ไข: ฟังก์ชันล้มเหลวให้ปุ่มกลับมาเป็น [ CONNECT_CLI ]
+    # หน้าที่: แสดงสถานะและรายละเอียดเมื่อเชื่อมต่อไม่สำเร็จ
+    # ที่มา: pages/gemini.py::GeminiPage._init_api_worker (อ้างอิง/callback)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: status_text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: message (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _init_api_fail(self, status_text, message):
         self._connecting = False
         self.cli_ready = False
@@ -459,6 +519,9 @@ class GeminiPage(ctk.CTkFrame):
         self.update_chat_ui("System", message)
 
     # ⭐ เพิ่ม: ฟังก์ชันปลดล็อกเพื่อแก้ไข API Key กลางอากาศ
+    # หน้าที่: ปลดล็อกช่อง key เพื่อแก้การเชื่อมต่อและอัปเดตปุ่มที่เกี่ยวข้อง
+    # ที่มา: pages/gemini.py::GeminiPage._init_api_success (อ้างอิง/callback)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def edit_api_key(self):
         self.api_entry.configure(state="normal")
         self.api_entry.focus()
@@ -473,6 +536,10 @@ class GeminiPage(ctk.CTkFrame):
         self.status_label.configure(text="[!] WAITING FOR NEW API KEY...", text_color="#8892B0")
         self.update_chat_ui("System", "🔑 API Key input unlocked. Enter new key and click [ UPDATE_KEY ] to resume.")
 
+    # หน้าที่: เตรียม environment สำหรับ Gemini CLI รวม key ที่ผู้ใช้กรอกโดยไม่แก้ global environment
+    # ที่มา: pages/gemini.py::GeminiPage._init_api_worker (เรียกตรง)
+    # ที่มา: pages/gemini.py::GeminiPage.call_gemini_cli (เรียกตรง)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _build_env(self):
         env = external_environment()
         if self.api_key:
@@ -481,6 +548,10 @@ class GeminiPage(ctk.CTkFrame):
         env["GEMINI_CLI_TRUST_WORKSPACE"] = "true"
         return env
 
+    # หน้าที่: ตั้งสถานะยกเลิกคำขอและหยุด process Gemini ที่กำลังทำงาน
+    # ที่มา: app.py::UNITApp.on_close (เรียกตรง)
+    # ที่มา: pages/gemini.py::GeminiPage.__init__ (อ้างอิง/callback)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def request_stop(self):
         self._stop_requested = True
         dialog = self._confirm_dialog
@@ -500,6 +571,12 @@ class GeminiPage(ctk.CTkFrame):
             self.update_chat_ui("System", "🛑 Operation cancelled by the user...")
             self.stop_btn.configure(state="disabled")
 
+    # หน้าที่: อ่านข้อความ prompt ตรวจสถานะ แล้วเริ่ม worker ประมวลผลคำขอ
+    # ที่มา: app.py::UNITApp.send_to_gemini (เรียกตรง)
+    # ที่มา: pages/gemini.py::GeminiPage.__init__ (อ้างอิง/callback)
+    # ที่มา: pages/gemini.py::GeminiPage.__init__ (เรียกตรง)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # อ่านภายใน: self.input_field ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def send_message(self):
         if self._busy or self._connecting:
             return
@@ -521,6 +598,11 @@ class GeminiPage(ctk.CTkFrame):
 
         threading.Thread(target=self.process_request, args=(user_text,), daemon=True).start()
 
+    # หน้าที่: เรียก Gemini CLI พร้อม prompt/model, timeout, retry และการยกเลิก
+    # ที่มา: pages/gemini.py::GeminiPage.process_request (เรียกตรง)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: prompt_text (str) — prompt รวมประวัติที่ process_request หรือขั้นตรวจการเชื่อมต่อเตรียมให้ CLI
+    # Input: max_retries (int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def call_gemini_cli(self, prompt_text, max_retries=3):
         encoded_prompt = prompt_text.encode('utf-8')
         if len(encoded_prompt) > MAX_PROMPT_BYTES:
@@ -529,6 +611,10 @@ class GeminiPage(ctk.CTkFrame):
         cmd = [self.gemini_cmd, "-m", self.model_name, "-p", 'Respond to the request above.']
         self._full_response_path = None
         class StopRequested:
+            # หน้าที่: คืนสถานะ stop_requested ให้ stream capture ใช้ยกเลิก subprocess
+            # ที่มา: Tools/stream_capture.py::run_capture เรียกผ่าน cancel_event.is_set()
+            # Input: _ (object (instance ของตัวตรวจยกเลิก)) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+            # Closure: self (GeminiPage) — รับจาก scope GeminiPage.call_gemini_cli
             def is_set(_):
                 return self._stop_requested
         last_error = None
@@ -606,6 +692,11 @@ class GeminiPage(ctk.CTkFrame):
 
         raise RuntimeError(f"The model remains overloaded (503). Try again later.\n\n{last_error}")
 
+    # หน้าที่: ประกอบประวัติสนทนาตามจำนวน turn ที่จำกัดเข้ากับข้อความใหม่
+    # ที่มา: pages/gemini.py::GeminiPage.process_request (เรียกตรง)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: new_user_text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: max_history_turns (int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def build_prompt_with_history(self, new_user_text, max_history_turns=6):
         parts = [f"[SYSTEM INSTRUCTION]\n{self.system_prompt}\n"]
         recent_history = self.history[-max_history_turns:]
@@ -615,6 +706,10 @@ class GeminiPage(ctk.CTkFrame):
         parts.append(f"[USER]\n{new_user_text}\n[MODEL]\n")
         return "\n".join(parts)
 
+    # หน้าที่: เตรียม prompt/ไฟล์แนบ เรียก Gemini และจัดการคำขอ action ก่อนส่งผลกลับ UI
+    # ที่มา: pages/gemini.py::GeminiPage.send_message (อ้างอิง/callback)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: prompt (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def process_request(self, prompt):
         try:
             enhanced_prompt = prompt
@@ -731,6 +826,10 @@ class GeminiPage(ctk.CTkFrame):
 
         self.after(0, self.finish_response, output)
 
+    # หน้าที่: แสดงคำตอบ อัปเดตประวัติ/สถานะ และคืน controls หลังคำขอจบ
+    # ที่มา: pages/gemini.py::GeminiPage.process_request (อ้างอิง/callback)
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: output (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def finish_response(self, output):
         self._busy = False
         if hasattr(self, 'full_response_button'):
@@ -767,6 +866,14 @@ class GeminiPage(ctk.CTkFrame):
                 details=f"Response length: {len(output)} characters",
             )
 
+    # หน้าที่: เพิ่มข้อความผู้ส่งลง chat textbox และเลื่อนไปข้อความล่าสุด
+    # ที่มา: pages/gemini.py::GeminiPage.on_model_change (เรียกตรง)
+    # ที่มา: pages/gemini.py::GeminiPage.init_api (เรียกตรง)
+    # ที่มา: pages/gemini.py::GeminiPage._init_api_success (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 7 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (GeminiPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: sender (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: message (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def update_chat_ui(self, sender, message):
         self.chat_display.configure(state="normal")
         if len(message) > 128 * 1024:

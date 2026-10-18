@@ -22,6 +22,12 @@ ctk.set_default_color_theme("blue")
 
 # 2. เพิ่ม TkinterDnD.DnDWrapper เข้ามาสืบทอดร่วมกับ ctk.CTk
 class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
+    # หน้าที่: สร้างหน้าต่างหลัก ระบบข้อมูล sidebar และหน้าเครื่องมือทั้งหมด
+    # ที่มา: Tools/package_smoke.py::main (เรียกตรง)
+    # ที่มา: app.py::<module> (เรียกตรง)
+    # ที่มา: packaging/launcher.py::main (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 2 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (UNITApp) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def __init__(self):
         initialize_user_data()
         super().__init__()
@@ -76,6 +82,13 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.switch_page("Dashboard")
 
     #  แก้ไขฟังก์ชันนี้ใหม่ทั้งหมด
+    # หน้าที่: ซ่อนหน้าเดิมแล้วแสดงหน้าที่ชื่อตรงกัน พร้อมเรียก on_show และไฮไลต์ sidebar
+    # ที่มา: Tools/package_smoke.py::main (เรียกตรง)
+    # ที่มา: app.py::UNITApp.__init__ (อ้างอิง/callback)
+    # ที่มา: app.py::UNITApp.__init__ (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 6 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (UNITApp) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def switch_page(self, name):
         # 1. ปริ้นท์เช็คเลยว่า Sidebar ส่งคำว่าอะไรมา (ดูใน Terminal สีดำตอนรันโปรแกรม)
         print(f"[DEBUG] Requested page: '{name}'")
@@ -108,21 +121,38 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
             # ถ้ายังพังอีก มันจะปริ้นท์บอกชัดเจนเลยว่าหาไม่เจอ
             print(f"[ERROR] Cannot switch page: '{name}' was not found")
 
-    def navigate_to(self, name, sub=None):
+    # หน้าที่: เปิดหน้าและเลือก tool ย่อยหรือเพิ่ม Pipeline node ตามทางลัด My Tools
+    # ที่มา: app.py::UNITApp.__init__ (อ้างอิง/callback)
+    # ที่มา: tests/test_my_tools_catalog.py::NavigationTests.test_shortcuts_select_requested_tools (เรียกตรง)
+    # ที่มา: tests/test_my_tools_catalog.py::NavigationTests.test_legacy_xor_shortcut_still_opens_xor_mask (เรียกตรง)
+    # Input: self (UNITApp) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: sub (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: mode (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    def navigate_to(self, name, sub=None, mode=None):
         """เปิดหน้าพร้อมเครื่องมือย่อย โดยไม่ launch โปรแกรมภายนอกทันที"""
         self.switch_page(name)
         page = self.pages.get(name)
         if page is None or sub is None:
             return
         if name == "Data Hashing":
-            page.set_mode("Bitwise" if sub == "XOR" else "Decode")
-            page.select_quick_algo("XOR Mask" if sub == "XOR" else sub)
+            # ``XOR`` is retained for groups saved by older UNIT versions.
+            selected_mode = mode or ("Bitwise" if sub == "XOR" else "Decode")
+            selected_algo = "XOR Mask" if sub == "XOR" else sub
+            page.set_mode(selected_mode)
+            page.select_quick_algo(selected_algo)
         elif name == "File Inspection":
             page.tool_menu.set(sub)
             page.on_tool_change(sub)
+        elif name == "Pipeline":
+            page.add_tool_node(sub)
         elif name == "App Portal":
             page.search_var.set(sub)
 
+    # หน้าที่: บันทึก timer ยกเลิกงานที่กำลังรัน ปิด History และทำลายหน้าต่างหลัก
+    # ที่มา: Tools/package_smoke.py::main (เรียกตรง)
+    # ที่มา: app.py::UNITApp.__init__ (อ้างอิง/callback)
+    # Input: self (UNITApp) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def on_close(self):
         try:
             self.pages["Challenge"].save_before_close()
@@ -143,6 +173,13 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
             self.history_store.close()
         self.destroy()
 
+    # หน้าที่: ส่งข้อความที่เลือกจากหน้าอื่นเข้า Data Hashing พร้อม reference ของ History
+    # ที่มา: pages/file_inspection.py::ResultBox.send_selection (เรียกตรง)
+    # ที่มา: pages/gemini.py::GeminiPage.send_selection_to_hashing (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.send_selected_to_hashing (เรียกตรง)
+    # Input: self (UNITApp) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: source_history_id (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def send_to_hashing(self, text, source_history_id=None):
         # 1. สลับไปหน้า Data Hashing
         self.switch_page("Data Hashing")
@@ -155,6 +192,12 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         # 3. trigger process_data ทันที
         page.process_data()
 
+    # หน้าที่: ส่งข้อความที่เลือกจากหน้าอื่นเข้าช่อง prompt ของ Gemini
+    # ที่มา: pages/data_hash.py::DataHashPage.send_selection_to_gemini (เรียกตรง)
+    # ที่มา: pages/file_inspection.py::ResultBox.send_selection_to_gemini (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.send_selected_to_gemini (เรียกตรง)
+    # Input: self (UNITApp) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def send_to_gemini(self, text):
         # 1. สลับไปหน้า Gemini CLI
         self.switch_page("Gemini CLI")
@@ -165,6 +208,13 @@ class UNITApp(ctk.CTk, TkinterDnD.DnDWrapper):
         # 3. trigger send_message ทันที (ถ้ายังไม่ได้ connect CLI จะโชว์คำเตือนให้เอง)
         page.send_message()
 
+    # หน้าที่: ส่งข้อมูลกิจกรรมจากหน้าเครื่องมือให้ DashboardStore บันทึกและรีเฟรช Dashboard
+    # ที่มา: pages/app_portal.py::AppPortalPage._record_activity (เรียกตรง)
+    # ที่มา: pages/dashboard.py::DashboardPage.launch_favorite (เรียกตรง)
+    # ที่มา: pages/data_hash.py::DataHashPage._record_activity (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 2 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (UNITApp) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: **event (dict[str, Any]) — keyword arguments เพิ่มเติมจากผู้เรียก ส่งต่อไปยัง API ภายใน
     def record_activity(self, **event):
         """ให้ทุกหน้าเขียนสถิติ Dashboard ผ่านจุดเดียวกัน"""
         try:

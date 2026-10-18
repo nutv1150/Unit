@@ -18,6 +18,12 @@ class PipelineEngine:
     CUSTOM_TOOL_FILE = str(writable_path('Pipeline/custom_tools.json'))
     # regex สำหรับหา flag
 
+    # หน้าที่: เตรียมทะเบียนเครื่องมือและโหลด definitions จาก JSON พร้อมเก็บสถานะข้อผิดพลาด
+    # ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.validate_tools (อ้างอิง/callback)
+    # ที่มา: Tools/system_check.py::report (อ้างอิง/callback)
+    # ที่มา: pages/my_tools.py::available_tool_options (อ้างอิง/callback)
+    # ที่มาเพิ่มเติม: อีก 1 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (PipelineEngine) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def __init__(self):
         self.load_error = ""
         self._captures = []
@@ -38,6 +44,10 @@ class PipelineEngine:
             self.load_error = f"Cannot load tools: {error} (original file unchanged)"
         
 
+    # หน้าที่: ตรวจ definitions แล้วสร้าง callable สำหรับประกอบคำสั่งของ file/text tools
+    # ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.save_custom_tool (เรียกตรง)
+    # ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.__init__ (เรียกตรง)
+    # Input: self (PipelineEngine) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def load_custom_tools(self):
 
         if not os.path.exists(self.CUSTOM_TOOL_FILE):
@@ -83,12 +93,27 @@ class PipelineEngine:
                 self.tool_options[name] = tool.get("options", [])
 
                 #command + params + input → กลายเป็น list command
+                # หน้าที่: สร้าง closure ที่ประกอบ executable, params และตำแหน่ง input file
+                # ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.load_custom_tools (เรียกตรง)
+                # Input: command (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+                # Input: params (list[str]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+                # Input: input_mode (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+                # Input: input_flag (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
                 def make_file_tool(
                     command,
                     params,
                     input_mode="positional",
                     input_flag=None
                 ):
+                    # หน้าที่: คืน argument list ของเครื่องมือตามคำสั่งและค่าที่ closure จับไว้
+                    # ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.load_custom_tools.make_file_tool (อ้างอิง/callback)
+                    # Input: file_path (str | PathLike[str]) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
+                    # Input: p (str | list[str] | tuple[str, ...] | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+                    # Closure: command (str) — รับจาก scope PipelineEngine.load_custom_tools.make_file_tool
+                    # Closure: input_flag (str | None) — รับจาก scope PipelineEngine.load_custom_tools.make_file_tool
+                    # Closure: input_mode (str) — รับจาก scope PipelineEngine.load_custom_tools.make_file_tool
+                    # Closure: params (list[str]) — รับจาก scope PipelineEngine.load_custom_tools.make_file_tool
+                    # Closure: self (PipelineEngine) — รับจาก scope PipelineEngine.load_custom_tools
                     def tool(file_path, p=None):
 
                         cmd = [command] + params + self.arguments(p)
@@ -101,7 +126,17 @@ class PipelineEngine:
 
                     return tool
 
+                # หน้าที่: สร้าง closure ที่ประกอบคำสั่งสำหรับเครื่องมือรับข้อความทาง stdin
+                # ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.load_custom_tools (เรียกตรง)
+                # Input: command (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+                # Input: params (list[str]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
                 def make_text_tool(command, params):
+                    # หน้าที่: คืน argument list ของเครื่องมือตามคำสั่งและค่าที่ closure จับไว้
+                    # ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.load_custom_tools.make_text_tool (อ้างอิง/callback)
+                    # Input: p (str | list[str] | tuple[str, ...] | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+                    # Closure: command (str) — รับจาก scope PipelineEngine.load_custom_tools.make_text_tool
+                    # Closure: params (list[str]) — รับจาก scope PipelineEngine.load_custom_tools.make_text_tool
+                    # Closure: self (PipelineEngine) — รับจาก scope PipelineEngine.load_custom_tools
                     def tool(p=None):
                         return [command] + params + self.arguments(p)
                     return tool
@@ -117,6 +152,12 @@ class PipelineEngine:
                 else:
                     self.text_tools[name] = make_text_tool(command, params)
 
+    # หน้าที่: แปลงข้อความ arguments ด้วย shlex หรือคัดลอกรายการ tokens ที่ตรวจชนิดแล้ว
+    # ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.build_command (เรียกตรง)
+    # ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.validate_tools (เรียกตรง)
+    # ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.add_tool (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 3 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: value (str | list[str] | tuple[str, ...] | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     @staticmethod
     def arguments(value):
         if value is None:
@@ -127,6 +168,12 @@ class PipelineEngine:
             return list(value)
         raise ValueError("Arguments must be text or a list of strings")
 
+    # หน้าที่: ตรวจ schema หมวด เครื่องมือ input mode และ options ก่อนนำไปใช้งาน
+    # ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.load_custom_tools (เรียกตรง)
+    # ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.save_custom_tool (เรียกตรง)
+    # ที่มา: Tools/system_check.py::report (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 2 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: data (Any (JSON; validate_tools ตรวจ dict[str, list[dict]])) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     @staticmethod
     def validate_tools(data):
         if not isinstance(data, dict):
@@ -155,6 +202,12 @@ class PipelineEngine:
                     if not isinstance(opt, dict) or not isinstance(opt.get("flag"), str) or opt.get("type") not in ("checkbox", "text", "file"):
                         raise ValueError("Invalid tool option")
 
+    # หน้าที่: แนบ path แบบ positional, flag หรือ key=value และตรวจ input ที่ขัดกัน
+    # ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.load_custom_tools.make_file_tool.tool (เรียกตรง)
+    # Input: cmd (list[str]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: path (str | PathLike[str]) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
+    # Input: mode (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: flag (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     @staticmethod
     def attach_input(cmd, path, mode, flag):
         # Honour legacy manual -in/-r inputs, but never silently use a different file.
@@ -178,6 +231,13 @@ class PipelineEngine:
             cmd.append(path)
         return cmd
 
+    # หน้าที่: เรียก command builder ของ tool แล้วต่อ arguments ที่ต้องอยู่หลัง input
+    # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.command_for (เรียกตรง)
+    # Input: self (PipelineEngine) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: tool (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: params (str | list[str] | tuple[str, ...] | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: file_path (str | PathLike[str] | None) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
+    # Input: after_params (str | list[str] | tuple[str, ...] | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def build_command(self, tool, params=None, file_path=None, after_params=None):
         if tool in self.file_tools:
             cmd = self.file_tools[tool](file_path, params)
@@ -187,6 +247,12 @@ class PipelineEngine:
             raise ValueError(f"Unknown tool: {tool}")
         return cmd + self.arguments(after_params)
 
+    # หน้าที่: รันคำสั่งผ่าน stream capture และห่อ stdout/stderr เป็น CommandResult
+    # ที่มา: Pipeline/pipeline_engine.py::PipelineEngine._run_command (เรียกตรง)
+    # Input: self (PipelineEngine) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: cmd (list[str]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: input_data (bytes | Path | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: cancel_event (threading.Event หรือ object ที่มี is_set() -> bool) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _communicate(self, cmd, input_data, cancel_event):
         capture = run_capture(cmd, input_data, cancel_event)
         result = CommandResult(capture.stdout, capture.stderr, capture.returncode,
@@ -197,6 +263,9 @@ class PipelineEngine:
             capture.close()
         return result
 
+    # หน้าที่: ปิดและนำ capture ที่ไม่มีไฟล์ผลลัพธ์เหลืออยู่ออกจากรายการ
+    # ที่มา: pages/pipeline.py::PipelinePage.cleanup_pipeline_artifacts (เรียกตรง)
+    # Input: self (PipelineEngine) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def prune_captures(self):
         keep = []
         for capture in self._captures:
@@ -206,6 +275,16 @@ class PipelineEngine:
                 capture.close()
         self._captures = keep
 
+    # หน้าที่: รัน subprocess จัดการ timeout/cancel/error และสำรวจไฟล์ผลลัพธ์เมื่อร้องขอ
+    # ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.run_text_tool (เรียกตรง)
+    # ที่มา: Pipeline/pipeline_engine.py::PipelineEngine.run_file_tool (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.run_tool.worker (เรียกตรง)
+    # Input: self (PipelineEngine) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: cmd (list[str]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: input_data (bytes | Path | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: input_path (str | PathLike[str] | None) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
+    # Input: detailed (bool) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: cancel_event (threading.Event หรือ object ที่มี is_set() -> bool | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _run_command(self, cmd, input_data=None, input_path=None, detailed=False, cancel_event=None):
         if cancel_event is not None and cancel_event.is_set():
             result = CommandResult(stderr=b"Cancelled")
@@ -238,6 +317,13 @@ class PipelineEngine:
                 result.discovery_note = "File discovery was incomplete. Use Browse result file to select the output file."
         return result if detailed else result.stdout + result.stderr
 
+    # หน้าที่: เรียกเครื่องมือชนิด text โดยส่งข้อมูลเข้า stdin
+    # ที่มา: Tools/package_smoke.py::main (เรียกตรง)
+    # Input: self (PipelineEngine) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: tool (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: input_data (bytes | Path | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: params (str | list[str] | tuple[str, ...] | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: detailed (bool) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def run_text_tool(self, tool, input_data, params=None, detailed=False):
 
         if tool not in self.text_tools:
@@ -247,6 +333,13 @@ class PipelineEngine:
 
         return self._run_command(cmd, input_data=input_data, detailed=detailed)
 
+    # หน้าที่: เรียกเครื่องมือชนิด file โดยส่ง path ผ่าน arguments
+    # ที่มา: API/helper ของโมดูลนี้; ผู้เรียกส่ง arguments หรือเรียกผ่าน callback/interface
+    # Input: self (PipelineEngine) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: tool (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: file_path (str | PathLike[str]) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
+    # Input: params (str | list[str] | tuple[str, ...] | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: detailed (bool) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def run_file_tool(self, tool, file_path, params=None, detailed=False):
 
         if tool not in self.file_tools:
@@ -255,9 +348,19 @@ class PipelineEngine:
         cmd = self.file_tools[tool](file_path, params)
 
         return self._run_command(cmd, input_path=file_path, detailed=detailed)
+    # หน้าที่: คืน flag แรกที่จับรูปแบบได้จากผลลัพธ์
+    # ที่มา: API/helper ของโมดูลนี้; ผู้เรียกส่ง arguments หรือเรียกผ่าน callback/interface
+    # Input: self (PipelineEngine) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def check_flag(self, text):
         return find_first_flag(text)
     
+    # หน้าที่: ลงทะเบียน command builder ของเครื่องมือใหม่ในหน่วยความจำ
+    # ที่มา: API/helper ของโมดูลนี้; ผู้เรียกส่ง arguments หรือเรียกผ่าน callback/interface
+    # Input: self (PipelineEngine) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: command (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: mode (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def add_tool(self, name, command, mode):
 
         if mode == "file":
@@ -270,6 +373,14 @@ class PipelineEngine:
             self.text_tools[name] = lambda p=None, c=command: \
                 [c] + self.arguments(p)
             
+    # หน้าที่: ตรวจและบันทึก definition เครื่องมือใหม่ลง JSON แล้วโหลดทะเบียนใหม่
+    # ที่มา: pages/pipeline.py::PipelinePage.open_add_tool_window.save_tool (เรียกตรง)
+    # Input: self (PipelineEngine) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: command (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: mode (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: category (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: description (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def save_custom_tool(self, name, command, mode, category, description=""):
         # ปรับปรุงให้บันทึก description ลง JSON ด้วย
         data = read_json(self.CUSTOM_TOOL_FILE, {})

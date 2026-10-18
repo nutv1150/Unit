@@ -5,6 +5,9 @@ from Decode.base_decoder import detect_magic_bytes
 from Decode.base_decoder import is_probably_text
 
 
+# หน้าที่: บันทึก bytes เป็นไฟล์ชั่วคราวโดยเลือกนามสกุลจาก magic bytes
+# ที่มา: Tools/artifact_bridge.py::resolve_file_input (เรียกตรง)
+# Input: data (bytes) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def create_temp_artifact(data: bytes) -> dict:
     """
     Convert binary pipeline output into a temporary file.
@@ -53,6 +56,9 @@ def create_temp_artifact(data: bytes) -> dict:
     }
 
 
+# หน้าที่: ลบไฟล์ artifact ตาม path และรองรับกรณีไฟล์ถูกลบไปแล้ว
+# ที่มา: pages/pipeline.py::PipelinePage.cleanup_pipeline_artifacts (เรียกตรง)
+# Input: path (str) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
 def remove_temp_artifact(path: str):
     try:
         if path and os.path.exists(path):
@@ -60,6 +66,10 @@ def remove_temp_artifact(path: str):
     except OSError:
         pass
 
+# หน้าที่: ตัดสินว่าผลขั้นก่อนเป็น path เดิม ไบนารีที่ต้องสร้าง artifact หรือข้อมูลที่ต้องเลือกไฟล์เอง
+# ที่มา: pages/pipeline.py::PipelinePage.open_step_window (เรียกตรง)
+# ที่มา: pages/pipeline.py::PipelinePage.open_step_window.execute_tool (เรียกตรง)
+# Input: data (bytes | bytearray | str | Path | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def resolve_file_input(data):
     """
     ตัดสินใจว่า previous pipeline output ควรถูกส่งเข้า file tool แบบไหน

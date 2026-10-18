@@ -40,6 +40,10 @@ ALERT_RED = "#FF3366"       # สีแดง-ชมพู (ลบ/ล้าง/
 
 
 class PipelinePage(ctk.CTkFrame):
+    # หน้าที่: สร้างหน้า Pipeline เชื่อม engine และเตรียม canvas, tools, Auto/Step workspaces
+    # ที่มา: app.py::UNITApp.__init__ (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: master (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
     def __init__(self, master):
         super().__init__(master)
         self.app_root = master.master  # ใช้เรียก switch_page / send_to_* ข้ามหน้า
@@ -226,6 +230,12 @@ class PipelinePage(ctk.CTkFrame):
         # ตัดออกแล้วเพราะ Saved Pipelines / + Add Pipeline มีอยู่แล้วในแผง ALL_TOOLS ด้านซ้าย
         # ผู้ใช้ยังเรียกดู pipeline ที่บันทึกไว้ได้ตามปกติ ไม่ต้องถูกขัดจังหวะตอนเข้าหน้า
     
+    # หน้าที่: ตรวจ path และกำหนดไฟล์ต้นฉบับของ workspace โดยเคารพสถานะกำลังรัน
+    # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.set_new_original (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.browse_file (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
+    # Input: force (bool) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def set_original_file(self, path, force=False):
         """
         จดจำไฟล์ต้นฉบับของ pipeline
@@ -253,6 +263,11 @@ class PipelinePage(ctk.CTkFrame):
         return True
 
 
+    # หน้าที่: คืน path ไฟล์ต้นฉบับที่ยังใช้งานได้และอัปเดตสถานะเมื่อไฟล์หาย
+    # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.use_original (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.browse_file (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def get_original_file(self):
         """
         คืน original file ถ้ายังมีอยู่จริง
@@ -268,6 +283,14 @@ class PipelinePage(ctk.CTkFrame):
 
         return None
 
+    # หน้าที่: เติม path ลง Entry ของขั้นตอนโดยจัดการสถานะ readonly ชั่วคราว
+    # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.browse_file (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.use_previous (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.use_original (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 1 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: entry (CTkEntry) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
     def set_step_input_path(self, entry, path):
         """
         Replace path ในช่อง input ของ Step Window
@@ -278,11 +301,22 @@ class PipelinePage(ctk.CTkFrame):
         if path:
             entry.insert(0, path)
     
+    # หน้าที่: เก็บ path ของ artifact ที่หน้าเป็นเจ้าของเพื่อเก็บกวาดภายหลัง
+    # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.show_result (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.execute_tool (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
     def register_temp_artifact(self, path):
         if path and path not in self.temp_artifacts:
             self.temp_artifacts.append(path)
 
 
+    # หน้าที่: ลบ artifacts ที่ลงทะเบียนไว้แล้วล้างรายการอ้างอิง
+    # ที่มา: pages/pipeline.py::PipelinePage._run_step_analysis (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage._run_pipeline_steps (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.clear_pipeline (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def cleanup_pipeline_artifacts(self):
         for path in self.temp_artifacts:
             remove_temp_artifact(path)
@@ -290,19 +324,38 @@ class PipelinePage(ctk.CTkFrame):
         self.temp_artifacts.clear()
         self.engine.prune_captures()
 
+    # หน้าที่: ตั้ง cancel_event ของงาน subprocess ที่ยัง active
+    # ที่มา: app.py::UNITApp.on_close (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def cancel_active_runs(self):
         for event in tuple(self.active_runs):
             event.set()
 
+    # หน้าที่: ตรวจว่างาน Pipeline ยังทำงานอยู่และแจ้งห้ามแก้ canvas ระหว่างรัน
+    # ที่มา: pages/pipeline.py::PipelinePage.set_pipeline_mode (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.add_tool_node (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.run_pipeline (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 4 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def canvas_busy(self):
         if self._pipeline_running or self.active_runs:
             messagebox.showwarning("Pipeline running", "Close the active step before editing or running another pipeline.", parent=self)
             return True
         return False
 
+    # หน้าที่: สลับระหว่างโหมด Auto และ Step ผ่าน set_pipeline_mode
+    # ที่มา: pages/pipeline.py::PipelinePage.__init__ (อ้างอิง/callback)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def toggle_pipeline_mode(self):
         return self.set_pipeline_mode("Step" if self.pipeline_mode == "Auto" else "Auto")
 
+    # หน้าที่: แยกเก็บและคืน nodes/input/artifacts ของแต่ละโหมดพร้อมปรับปุ่ม UI
+    # ที่มา: pages/pipeline.py::PipelinePage.toggle_pipeline_mode (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.load_template (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.finalize_wizard_pipeline (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 1 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: mode (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def set_pipeline_mode(self, mode):
         if mode not in ("Auto", "Step"):
             raise ValueError("Unknown pipeline mode")
@@ -339,6 +392,14 @@ class PipelinePage(ctk.CTkFrame):
         return True
 
     # เพิ่ม node (tool) ลง canvas
+    # หน้าที่: เพิ่ม tool ที่ผู้ใช้เลือกลง canvas; ในโหมด Step เริ่ม exploration ใหม่
+    # ที่มา: app.py::UNITApp.navigate_to (เรียกตรง)
+    # ที่มา: pages/dashboard.py::DashboardPage.launch_favorite (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.load_template (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 3 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: tool_name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: user_desc (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def add_tool_node(self, tool_name, user_desc=""):
         if self.canvas_busy():
             return
@@ -347,6 +408,12 @@ class PipelinePage(ctk.CTkFrame):
             self.clear_pipeline()
         return self._append_tool_node(tool_name, user_desc)
 
+    # หน้าที่: สร้างการ์ด node พร้อม metadata และ event สำหรับลากตำแหน่ง
+    # ที่มา: pages/pipeline.py::PipelinePage.add_tool_node (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage._run_step_analysis (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: tool_name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: user_desc (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _append_tool_node(self, tool_name, user_desc=""):
         """Internal append; the Step runner may append while canvas edits are locked."""
         self.node_count += 1
@@ -382,6 +449,12 @@ class PipelinePage(ctk.CTkFrame):
         return True
 
     # เริ่มลาก node
+    # หน้าที่: เก็บ node ที่เลือกและตำแหน่งเริ่มลากจาก mouse event
+    # ที่มา: pages/pipeline.py::PipelinePage._append_tool_node (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.load_saved_pipeline_to_canvas (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: event (tkinter.Event) — Tk/TkDND ส่งมาจาก event binding; บางจุดเรียกตรงโดยไม่ส่ง event
+    # Input: node_data (dict[str, Any]) — dictionary ที่ event binding จับไว้ตอนสร้างการ์ดบน canvas
     def on_node_press(self, event, node_data):
         self.current_node = node_data
         node_data['drag_data'] = {
@@ -391,6 +464,12 @@ class PipelinePage(ctk.CTkFrame):
         node_data['frame'].lift()
 
     # ลาก node
+    # หน้าที่: ย้าย node ตาม mouse event แล้วเรียงลำดับและวาดเส้นใหม่เมื่ออนุญาตให้แก้ canvas
+    # ที่มา: pages/pipeline.py::PipelinePage._append_tool_node (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.load_saved_pipeline_to_canvas (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: event (tkinter.Event) — Tk/TkDND ส่งมาจาก event binding; บางจุดเรียกตรงโดยไม่ส่ง event
+    # Input: node_data (dict[str, Any]) — dictionary ที่ event binding จับไว้ตอนสร้างการ์ดบน canvas
     def on_node_drag(self, event, node_data):
         if self.pipeline_mode == "Step" or self._pipeline_running or self.active_runs:
             return
@@ -409,12 +488,21 @@ class PipelinePage(ctk.CTkFrame):
 
     # เรียง self.nodes ใหม่ตามตำแหน่ง x จริงบน canvas
     # เพื่อให้ลำดับที่ผู้ใช้ "เห็น" (ซ้าย -> ขวา) ตรงกับลำดับที่ Run All จะรันจริงเสมอ
+    # หน้าที่: เรียง self.nodes ตามตำแหน่ง x เพื่อให้ลำดับรันตรงกับที่มองเห็น
+    # ที่มา: pages/pipeline.py::PipelinePage.on_node_drag (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def reorder_nodes_by_position(self):
         self.nodes.sort(key=lambda n: n['frame'].winfo_x())
 
     
 
     # วาดเส้นเชื่อมระหว่าง node
+    # หน้าที่: วาดเส้นเชื่อมระหว่าง nodes และสลับ placeholder เมื่อ canvas ว่าง
+    # ที่มา: pages/pipeline.py::PipelinePage.set_pipeline_mode (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.set_pipeline_mode (อ้างอิง/callback)
+    # ที่มา: pages/pipeline.py::PipelinePage._append_tool_node (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 5 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def draw_connections(self):
         if self.nodes:
             self.placeholder.place_forget()
@@ -441,6 +529,10 @@ class PipelinePage(ctk.CTkFrame):
             )
     
     # รัน pipeline ทั้งหมด
+    # หน้าที่: ตรวจว่า widget ของหน้ายังอยู่โดยรองรับ TclError ระหว่างปิดแอป
+    # ที่มา: pages/pipeline.py::PipelinePage.run_pipeline (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage._run_step_analysis (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _page_exists(self):
         try:
             return bool(self.winfo_exists())
@@ -448,6 +540,9 @@ class PipelinePage(ctk.CTkFrame):
             # Closing the application also destroys the Tcl widget hierarchy.
             return False
 
+    # หน้าที่: ตรวจความพร้อม ตั้งสถานะรัน และ dispatch ไป runner ของโหมด Auto/Step
+    # ที่มา: pages/pipeline.py::PipelinePage.__init__ (อ้างอิง/callback)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def run_pipeline(self):
         if self.canvas_busy():
             return
@@ -466,6 +561,9 @@ class PipelinePage(ctk.CTkFrame):
                 self.mode_btn.configure(state="normal")
                 self.run_btn.configure(state="normal")
 
+    # หน้าที่: รัน exploration ทีละขั้น รับ decision และส่งผลไป tool ถัดไปที่ผู้ใช้เลือก
+    # ที่มา: pages/pipeline.py::PipelinePage.run_pipeline (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _run_step_analysis(self):
         if not self.nodes:
             messagebox.showwarning("No tool selected", "Select a tool before clicking Run Step.", parent=self)
@@ -497,6 +595,9 @@ class PipelinePage(ctk.CTkFrame):
             current_data = decision['output']
             self._append_tool_node(next_tool)
 
+    # หน้าที่: วน nodes ตามลำดับ เปิดหน้าต่างแต่ละขั้น และส่ง output ไปขั้นถัดไป
+    # ที่มา: pages/pipeline.py::PipelinePage.run_pipeline (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _run_pipeline_steps(self):
         if not self.nodes:
             return
@@ -533,6 +634,12 @@ class PipelinePage(ctk.CTkFrame):
             current_data = output
 
     # ล้าง pipeline
+    # หน้าที่: ล้าง nodes, input และ artifacts ของ workspace เมื่อไม่ได้กำลังรัน
+    # ที่มา: pages/pipeline.py::PipelinePage.load_template (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.__init__ (อ้างอิง/callback)
+    # ที่มา: pages/pipeline.py::PipelinePage.add_tool_node (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 2 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def clear_pipeline(self):
         if self.canvas_busy():
             return
@@ -548,6 +655,10 @@ class PipelinePage(ctk.CTkFrame):
         self.original_file_path = None
 
     # สร้างไฟล์ temp จาก data
+    # หน้าที่: เขียน bytes ลงไฟล์ชั่วคราวแล้วคืน path สำหรับส่งต่อ
+    # ที่มา: helper ของหน้านี้สำหรับผู้เรียกหรือ callback; ไม่มีจุดเรียกตรงใน flow ปัจจุบันที่ตรวจพบ
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: data (bytes) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def write_temp_file(self, data):
         tmp = tempfile.NamedTemporaryFile(delete=False)
         tmp.write(data)
@@ -555,6 +666,19 @@ class PipelinePage(ctk.CTkFrame):
         return tmp.name
 
     # เปิด popup ของแต่ละ step
+    # หน้าที่: เปิดหน้าต่างตั้งค่า/รันหนึ่งขั้น พร้อม input, options, preview, output และการส่งต่อ
+    # ที่มา: pages/pipeline.py::PipelinePage._run_step_analysis (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage._run_pipeline_steps (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: node (dict[str, Any]) — node ใน self.nodes ที่ runner เลือกมาประมวลผล
+    # Input: previous_output (bytes | Path | None) — current_data จาก runner: output/Path ของขั้นก่อนหน้า หรือ bytes ว่างในขั้นแรก
+    # Input: original_data (bytes | Path | None) — runner ส่ง current_data เช่นเดียวกับ previous_output; ไฟล์ต้นฉบับจริงอ่านผ่าน get_original_file
+    # Input: logs (list[dict[str, Any]]) — self.run_logs ที่ runner สะสมจากขั้นตอนก่อนหน้า
+    # Input: is_last (bool) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: step_index (int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: total_steps (int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: step_mode (bool) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # อ่านภายใน: input_entry ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def open_step_window(self, node, previous_output, original_data, logs, is_last, step_index=1, total_steps=1, step_mode=False):
 
         tool_name = node["name"]
@@ -615,6 +739,13 @@ class PipelinePage(ctk.CTkFrame):
         )
         output_box.pack(fill="both", expand=True, padx=10, pady=10)
 
+        # หน้าที่: หา History ID ที่สัมพันธ์กับข้อความ input/output ที่เลือก
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.send_selected_to_input (เรียกตรง)
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.send_selected_to_hashing (เรียกตรง)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: history_tags (dict) — รับจาก scope PipelinePage.open_step_window
+        # Closure: output_box (ctk.CTkTextbox) — รับจาก scope PipelinePage.open_step_window
+        # Closure: result (dict) — รับจาก scope PipelinePage.open_step_window
         def selected_history_id():
             try:
                 start, end = output_box.index('sel.first'), output_box.index('sel.last')
@@ -626,6 +757,13 @@ class PipelinePage(ctk.CTkFrame):
                     return event_id
             return None
 
+        # หน้าที่: นำข้อความที่เลือกไปใส่ช่อง input ของขั้นตอนปัจจุบัน
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: input_entry (ctk.CTkEntry) — รับจาก scope PipelinePage.open_step_window
+        # Closure: input_source (dict) — รับจาก scope PipelinePage.open_step_window
+        # Closure: output_box (ctk.CTkTextbox) — รับจาก scope PipelinePage.open_step_window
+        # อ่านภายใน: output_box ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
         def send_selected_to_input():
             try:
                 selected = output_box.get("sel.first", "sel.last")
@@ -636,6 +774,14 @@ class PipelinePage(ctk.CTkFrame):
             except tk.TclError:
                 pass
 
+        # หน้าที่: คืนข้อความที่เลือก หรือข้อความ output เมื่อไม่มี selection
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.send_selected_to_gemini (เรียกตรง)
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.send_selected_to_hashing (เรียกตรง)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: output_box (ctk.CTkTextbox) — รับจาก scope PipelinePage.open_step_window
+        # Closure: result (dict) — รับจาก scope PipelinePage.open_step_window
+        # Closure: win (ctk.CTkToplevel) — รับจาก scope PipelinePage.open_step_window
+        # อ่านภายใน: output_box ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
         def get_selected_or_output_text():
             # ถ้าผู้ใช้ select ข้อความไว้ ใช้ส่วนที่ select
             # ถ้าไม่ได้ select อะไรเลย ใช้ output ล่าสุดของ step นี้แทน (สะดวกกว่าปล่อยว่าง)
@@ -654,11 +800,19 @@ class PipelinePage(ctk.CTkFrame):
                     return str(result["output"]).strip()
             return ""
 
+        # หน้าที่: ส่งข้อความจากขั้นตอนปัจจุบันไปหน้า Gemini
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_step_window
         def send_selected_to_gemini():
             text = get_selected_or_output_text()
             if text and hasattr(self.app_root, "send_to_gemini"):
                 self.app_root.send_to_gemini(text)
 
+        # หน้าที่: ส่งข้อความจากขั้นตอนปัจจุบันไป Data Hashing พร้อม History ต้นทาง
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_step_window
         def send_selected_to_hashing():
             text = get_selected_or_output_text()
             if text and hasattr(self.app_root, "send_to_hashing"):
@@ -683,6 +837,10 @@ class PipelinePage(ctk.CTkFrame):
             command=send_selected_to_hashing
         )
 
+        # หน้าที่: เลือกเมนูคลิกขวาตาม widget ที่รับ event และเก็บข้อความที่เลือก
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+        # Input: event (tkinter.Event) — Tk/TkDND ส่งมาจาก event binding; บางจุดเรียกตรงโดยไม่ส่ง event
+        # Closure: context_menu (tk.Menu) — รับจาก scope PipelinePage.open_step_window
         def show_context_menu(event):
             try:
                 context_menu.tk_popup(event.x_root, event.y_root)
@@ -736,6 +894,15 @@ class PipelinePage(ctk.CTkFrame):
         file_list.pack(fill="both", expand=True)
         file_choices = {}
 
+        # หน้าที่: แสดงรายละเอียดของไฟล์ผลลัพธ์ที่เลือกในรายการ
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.browse_result_file (เรียกตรง)
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.add_result_file (อ้างอิง/callback)
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.show_result_panel (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: file_choices (dict) — รับจาก scope PipelinePage.open_step_window
+        # Closure: file_selection (tk.StringVar) — รับจาก scope PipelinePage.open_step_window
+        # Closure: file_status (ctk.CTkLabel) — รับจาก scope PipelinePage.open_step_window
+        # Closure: result (dict) — รับจาก scope PipelinePage.open_step_window
         def show_selected_file():
             selected = file_choices.get(file_selection.get())
             result["selected_file"] = selected
@@ -743,6 +910,14 @@ class PipelinePage(ctk.CTkFrame):
                 f"Forward file: {selected}" if selected else "Forward stdout"
             ))
 
+        # หน้าที่: ตรวจและเพิ่ม path ในรายการไฟล์ผลลัพธ์ที่ใช้ส่งต่อได้
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.browse_result_file (เรียกตรง)
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.show_result (เรียกตรง)
+        # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
+        # Closure: file_choices (dict) — รับจาก scope PipelinePage.open_step_window
+        # Closure: file_list (ctk.CTkScrollableFrame) — รับจาก scope PipelinePage.open_step_window
+        # Closure: file_selection (tk.StringVar) — รับจาก scope PipelinePage.open_step_window
+        # Closure: file_status (ctk.CTkLabel) — รับจาก scope PipelinePage.open_step_window
         def add_result_file(path):
             path = Path(path).absolute()
             try:
@@ -762,6 +937,13 @@ class PipelinePage(ctk.CTkFrame):
                 ).pack(anchor="w", padx=5, pady=3)
             return key
 
+        # หน้าที่: ให้ผู้ใช้เลือกไฟล์ผลลัพธ์เพิ่มเองผ่าน file dialog
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: file_selection (tk.StringVar) — รับจาก scope PipelinePage.open_step_window
+        # Closure: result (dict) — รับจาก scope PipelinePage.open_step_window
+        # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_step_window
+        # Closure: win (ctk.CTkToplevel) — รับจาก scope PipelinePage.open_step_window
         def browse_result_file():
             if result["run"] is None or not result["run"].succeeded:
                 return
@@ -783,6 +965,15 @@ class PipelinePage(ctk.CTkFrame):
             fg_color=BORDER_COLOR, text_color=ACCENT_CYAN,
         )
 
+        # หน้าที่: อัปเดตส่วนแสดง stdout/stderr และไฟล์ที่ค้นพบจากผลรัน
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.browse_result_file (เรียกตรง)
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.show_result (เรียกตรง)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: browse_result_button (ctk.CTkButton) — รับจาก scope PipelinePage.open_step_window
+        # Closure: file_list (ctk.CTkScrollableFrame) — รับจาก scope PipelinePage.open_step_window
+        # Closure: file_panel (ctk.CTkFrame) — รับจาก scope PipelinePage.open_step_window
+        # Closure: file_selection (tk.StringVar) — รับจาก scope PipelinePage.open_step_window
+        # Closure: result (dict) — รับจาก scope PipelinePage.open_step_window
         def show_result_panel():
             # The list is useful only when there is an actual file to select.
             browse_result_button.pack_forget()
@@ -798,6 +989,12 @@ class PipelinePage(ctk.CTkFrame):
                     text_color="white", fg_color=ACCENT_CYAN,
                 ).pack(anchor="w", padx=5, pady=3)
 
+        # หน้าที่: เลือก destination แล้วบันทึก output เต็มโดยคง bytes ต้นฉบับ
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: result (dict) — รับจาก scope PipelinePage.open_step_window
+        # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_step_window
+        # Closure: win (ctk.CTkToplevel) — รับจาก scope PipelinePage.open_step_window
         def save_output():
             if result["output"] is None:
                 return
@@ -818,6 +1015,11 @@ class PipelinePage(ctk.CTkFrame):
         ).pack(pady=5)
 
         full_buttons = ctk.CTkFrame(output_footer, fg_color='transparent')
+        # หน้าที่: เปิด viewer ของ stdout หรือ stderr ฉบับเต็มตาม stream ที่เลือก
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (เรียกตรง)
+        # Input: which (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+        # Closure: result (dict) — รับจาก scope PipelinePage.open_step_window
+        # Closure: win (ctk.CTkToplevel) — รับจาก scope PipelinePage.open_step_window
         def view_stream(which):
             run = result.get('run')
             path = getattr(run, which + '_file', None)
@@ -851,6 +1053,13 @@ class PipelinePage(ctk.CTkFrame):
         input_entry = ctk.CTkEntry(input_frame, textvariable=input_var, fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
         input_entry.pack(side="left", fill="x", expand=True)
 
+        # หน้าที่: เลือกไฟล์ input ของขั้นตอนแล้วอัปเดต Entry/preview
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: input_entry (ctk.CTkEntry) — รับจาก scope PipelinePage.open_step_window
+        # Closure: output_box (ctk.CTkTextbox) — รับจาก scope PipelinePage.open_step_window
+        # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_step_window
+        # Closure: win (ctk.CTkToplevel) — รับจาก scope PipelinePage.open_step_window
         def browse_file():
             win.attributes("-topmost", False)
             path = filedialog.askopenfilename(parent=win)
@@ -1057,6 +1266,13 @@ class PipelinePage(ctk.CTkFrame):
             # PREVIOUS
             # ----------------------------------------------
 
+            # หน้าที่: นำ output หรือไฟล์จากขั้นก่อนหน้ามาใช้เป็น input ของขั้นนี้
+            # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+            # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+            # Closure: input_entry (ctk.CTkEntry) — รับจาก scope PipelinePage.open_step_window
+            # Closure: output_box (ctk.CTkTextbox) — รับจาก scope PipelinePage.open_step_window
+            # Closure: previous_file_path (str | None) — รับจาก scope PipelinePage.open_step_window
+            # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_step_window
             def use_previous():
 
                 if not previous_file_path:
@@ -1084,6 +1300,12 @@ class PipelinePage(ctk.CTkFrame):
             # ORIGINAL
             # ----------------------------------------------
 
+            # หน้าที่: ใช้ข้อมูลหรือ path ไฟล์ต้นฉบับเป็น input ของขั้นนี้
+            # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+            # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+            # Closure: input_entry (ctk.CTkEntry) — รับจาก scope PipelinePage.open_step_window
+            # Closure: output_box (ctk.CTkTextbox) — รับจาก scope PipelinePage.open_step_window
+            # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_step_window
             def use_original():
 
                 original = self.get_original_file()
@@ -1113,6 +1335,14 @@ class PipelinePage(ctk.CTkFrame):
             # SET ORIGINAL
             # ----------------------------------------------
 
+            # หน้าที่: เลือกและตั้งไฟล์ต้นฉบับใหม่จากหน้าต่างขั้นตอน
+            # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+            # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+            # Closure: input_entry (ctk.CTkEntry) — รับจาก scope PipelinePage.open_step_window
+            # Closure: original_status (ctk.CTkLabel) — รับจาก scope PipelinePage.open_step_window
+            # Closure: output_box (ctk.CTkTextbox) — รับจาก scope PipelinePage.open_step_window
+            # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_step_window
+            # Closure: win (ctk.CTkToplevel) — รับจาก scope PipelinePage.open_step_window
             def set_new_original():
 
                 win.attributes(
@@ -1248,6 +1478,15 @@ class PipelinePage(ctk.CTkFrame):
 
         preview_ready = False
 
+        # หน้าที่: อ่าน options ที่เลือกแล้วประกอบ argument tokens ของเครื่องมือ
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.command_for (เรียกตรง)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: node (dict[str, Any]) — รับจาก scope PipelinePage.open_step_window
+        # Closure: option_vars (list) — รับจาก scope PipelinePage.open_step_window
+        # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_step_window
+        # Closure: switch_after_var (ctk.BooleanVar) — รับจาก scope PipelinePage.open_step_window
+        # Closure: switch_before_var (ctk.BooleanVar) — รับจาก scope PipelinePage.open_step_window
+        # อ่านภายใน: switch_before_var, switch_after_var ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
         def option_arguments():
             params_list = self.engine.arguments(node.get("params", ""))
             if switch_before_var.get():
@@ -1263,10 +1502,28 @@ class PipelinePage(ctk.CTkFrame):
             after = self.engine.arguments(preview_after_args()) if switch_after_var.get() else []
             return params_list, after
 
+        # หน้าที่: รวม tool, options และ path input เป็น argument list ผ่าน engine
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.update_preview (เรียกตรง)
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.execute_tool (เรียกตรง)
+        # Input: path (str | PathLike[str] | None) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
+        # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_step_window
+        # Closure: tool_name (str) — รับจาก scope PipelinePage.open_step_window
         def command_for(path=None):
             before, after = option_arguments()
             return self.engine.build_command(tool_name, before, path, after)
 
+        # หน้าที่: อัปเดตข้อความคำสั่ง preview เมื่อค่าที่เกี่ยวข้องเปลี่ยน
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (เรียกตรง)
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.add_before_row (อ้างอิง/callback)
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.add_before_row (เรียกตรง)
+        # ที่มาเพิ่มเติม: อีก 13 จุดเรียก/อ้างอิงในโปรเจกต์
+        # Input: *args (tuple[str, ...] (arguments ของ Tk variable trace)) — Tk trace_add ส่งชื่อ variable/index/operation เมื่อค่าเปลี่ยน
+        # Closure: input_entry (ctk.CTkEntry) — รับจาก scope PipelinePage.open_step_window
+        # Closure: preview_label (ctk.CTkLabel) — รับจาก scope PipelinePage.open_step_window
+        # Closure: preview_ready (bool) — รับจาก scope PipelinePage.open_step_window
+        # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_step_window
+        # Closure: tool_name (str) — รับจาก scope PipelinePage.open_step_window
+        # อ่านภายใน: input_entry ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
         def update_preview(*args):
             if not preview_ready:
                 return
@@ -1319,6 +1576,12 @@ class PipelinePage(ctk.CTkFrame):
         # =================================================================
         advanced_frame = ctk.CTkFrame(right, fg_color="transparent")
 
+        # หน้าที่: แสดงหรือซ่อนส่วนตั้งค่า arguments ขั้นสูง
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (เรียกตรง)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: advanced_frame (ctk.CTkFrame) — รับจาก scope PipelinePage.open_step_window
+        # Closure: advanced_toggle_btn (ctk.CTkButton) — รับจาก scope PipelinePage.open_step_window
         def toggle_advanced():
             if advanced_frame.winfo_ismapped():
                 advanced_frame.pack_forget()
@@ -1341,6 +1604,10 @@ class PipelinePage(ctk.CTkFrame):
         before_container = ctk.CTkFrame(advanced_frame, fg_color="transparent")
         before_rows = []
 
+        # หน้าที่: อ่านแถว options ก่อน input แล้วประกอบ tokens สำหรับ preview
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.option_arguments (เรียกตรง)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: before_rows (list) — รับจาก scope PipelinePage.open_step_window
         def preview_before_args():
             args = []
             for row in before_rows:
@@ -1356,6 +1623,11 @@ class PipelinePage(ctk.CTkFrame):
                             args.append(f)
             return " ".join(args)
 
+        # หน้าที่: สร้างแถว option เพิ่มเติมในส่วน arguments ก่อน input
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (เรียกตรง)
+        # Input: opt_type (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+        # Closure: before_container (ctk.CTkFrame) — รับจาก scope PipelinePage.open_step_window
+        # Closure: before_rows (list) — รับจาก scope PipelinePage.open_step_window
         def add_before_row(opt_type="checkbox"):
             row = ctk.CTkFrame(before_container, fg_color="transparent")
             row.pack(fill="x", pady=2)
@@ -1379,6 +1651,12 @@ class PipelinePage(ctk.CTkFrame):
             row_data = {"frame": row, "type": opt_type, "flag": flag_var, "val": val_var}
             before_rows.append(row_data)
 
+            # หน้าที่: ลบแถว option ที่ closure จับไว้และอัปเดต preview
+            # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.add_before_row (อ้างอิง/callback)
+            # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+            # Closure: row (ctk.CTkFrame) — รับจาก scope PipelinePage.open_step_window.add_before_row
+            # Closure: row_data (dict) — รับจาก scope PipelinePage.open_step_window.add_before_row
+            # Closure: before_rows (list) — รับจาก scope PipelinePage.open_step_window
             def delete_row():
                 before_rows.remove(row_data)
                 row.destroy()
@@ -1392,6 +1670,13 @@ class PipelinePage(ctk.CTkFrame):
         ctk.CTkButton(before_btn_frame, text="+ No Param", width=90, height=24, fg_color="#3498db", hover_color="#2980b9", command=lambda: add_before_row("checkbox")).pack(side="left", padx=2)
         ctk.CTkButton(before_btn_frame, text="+ With Param", width=90, height=24, fg_color="#9b59b6", hover_color="#8e44ad", command=lambda: add_before_row("text")).pack(side="left", padx=2)
 
+        # หน้าที่: แสดงหรือซ่อนส่วน arguments ก่อน input
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: before_container (ctk.CTkFrame) — รับจาก scope PipelinePage.open_step_window
+        # Closure: switch_before (ctk.CTkSwitch) — รับจาก scope PipelinePage.open_step_window
+        # Closure: switch_before_var (ctk.BooleanVar) — รับจาก scope PipelinePage.open_step_window
+        # อ่านภายใน: switch_before_var ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
         def toggle_before():
             if switch_before_var.get():
                 before_container.pack(after=switch_before, fill="x", pady=(0, 5))
@@ -1409,6 +1694,10 @@ class PipelinePage(ctk.CTkFrame):
         after_container = ctk.CTkFrame(advanced_frame, fg_color="transparent")
         after_rows = []
 
+        # หน้าที่: อ่านแถว options หลัง input แล้วประกอบ tokens สำหรับ preview
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.option_arguments (เรียกตรง)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: after_rows (list) — รับจาก scope PipelinePage.open_step_window
         def preview_after_args():
             args = []
             for row in after_rows:
@@ -1424,6 +1713,11 @@ class PipelinePage(ctk.CTkFrame):
                             args.append(f)
             return " ".join(args)
 
+        # หน้าที่: สร้างแถว option เพิ่มเติมในส่วน arguments หลัง input
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (เรียกตรง)
+        # Input: opt_type (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+        # Closure: after_container (ctk.CTkFrame) — รับจาก scope PipelinePage.open_step_window
+        # Closure: after_rows (list) — รับจาก scope PipelinePage.open_step_window
         def add_after_row(opt_type="checkbox"):
             row = ctk.CTkFrame(after_container, fg_color="transparent")
             row.pack(fill="x", pady=2)
@@ -1447,6 +1741,12 @@ class PipelinePage(ctk.CTkFrame):
             row_data = {"frame": row, "type": opt_type, "flag": flag_var, "val": val_var}
             after_rows.append(row_data)
 
+            # หน้าที่: ลบแถว option ที่ closure จับไว้และอัปเดต preview
+            # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.add_after_row (อ้างอิง/callback)
+            # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+            # Closure: row (ctk.CTkFrame) — รับจาก scope PipelinePage.open_step_window.add_after_row
+            # Closure: row_data (dict) — รับจาก scope PipelinePage.open_step_window.add_after_row
+            # Closure: after_rows (list) — รับจาก scope PipelinePage.open_step_window
             def delete_row():
                 after_rows.remove(row_data)
                 row.destroy()
@@ -1460,6 +1760,13 @@ class PipelinePage(ctk.CTkFrame):
         ctk.CTkButton(after_btn_frame, text="+ No Param", width=90, height=24, fg_color="#3498db", hover_color="#2980b9", command=lambda: add_after_row("checkbox")).pack(side="left", padx=2)
         ctk.CTkButton(after_btn_frame, text="+ With Param", width=90, height=24, fg_color="#9b59b6", hover_color="#8e44ad", command=lambda: add_after_row("text")).pack(side="left", padx=2)
 
+        # หน้าที่: แสดงหรือซ่อนส่วน arguments หลัง input
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: after_container (ctk.CTkFrame) — รับจาก scope PipelinePage.open_step_window
+        # Closure: switch_after (ctk.CTkSwitch) — รับจาก scope PipelinePage.open_step_window
+        # Closure: switch_after_var (ctk.BooleanVar) — รับจาก scope PipelinePage.open_step_window
+        # อ่านภายใน: switch_after_var ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
         def toggle_after():
             if switch_after_var.get():
                 after_container.pack(after=switch_after, fill="x", pady=(0, 5))
@@ -1487,6 +1794,10 @@ class PipelinePage(ctk.CTkFrame):
         # Observe all edits, including Send to Input, paste and file selection.
         if logs and (previous_output or forwarded_file is not None):
             input_source.update(text=input_entry.get(), id=logs[-1].get('history_id'))
+        # หน้าที่: ล้างการอ้างอิง source เดิมเมื่อแก้ input และปรับ preview
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+        # Input: *args (tuple[str, ...] (arguments ของ Tk variable trace)) — Tk trace_add ส่งชื่อ variable/index/operation เมื่อค่าเปลี่ยน
+        # Closure: input_source (dict) — รับจาก scope PipelinePage.open_step_window
         def input_changed(*args):
             input_source.update(text=None, id=None)
             update_preview()
@@ -1500,6 +1811,16 @@ class PipelinePage(ctk.CTkFrame):
             ctk.CTkLabel(right, text=desc, text_color=TEXT_DIM, wraplength=300).pack(anchor="w", padx=20)
 
         # -------- Run Tool --------
+        # หน้าที่: อ่าน UI และตรวจ input เพื่อเตรียม (command, stdin, input_path); ยังไม่รัน subprocess
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.run_tool (เรียกตรง)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: forwarded_file (Path | None) — รับจาก scope PipelinePage.open_step_window
+        # Closure: input_entry (ctk.CTkEntry) — รับจาก scope PipelinePage.open_step_window
+        # Closure: output_box (ctk.CTkTextbox) — รับจาก scope PipelinePage.open_step_window
+        # Closure: previous_output (bytes | Path | None) — รับจาก scope PipelinePage.open_step_window
+        # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_step_window
+        # Closure: tool_name (str) — รับจาก scope PipelinePage.open_step_window
+        # อ่านภายใน: input_entry ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
         def execute_tool():
             # รวม options → params
             # ตรวจว่าเป็น file tool หรือ text tool
@@ -1569,6 +1890,17 @@ class PipelinePage(ctk.CTkFrame):
 
                 return command_for(), input_bytes, None
 
+        # หน้าที่: นำ CommandResult มาอัปเดต stdout/stderr ไฟล์ผลลัพธ์ และสถานะของขั้นตอน
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.run_tool.poll (เรียกตรง)
+        # Input: res (CommandResult) — ผลหรือสถานะจากงานเบื้องหลังที่ผู้เรียกส่งต่อมา
+        # Closure: browse_result_button (ctk.CTkButton) — รับจาก scope PipelinePage.open_step_window
+        # Closure: continuation_panel (ctk.CTkFrame) — รับจาก scope PipelinePage.open_step_window
+        # Closure: file_choices (dict) — รับจาก scope PipelinePage.open_step_window
+        # Closure: file_status (ctk.CTkLabel) — รับจาก scope PipelinePage.open_step_window
+        # Closure: full_buttons (ctk.CTkFrame) — รับจาก scope PipelinePage.open_step_window
+        # Closure: history_tags (dict) — รับจาก scope PipelinePage.open_step_window
+        # Closure: ยังอ่านตัวแปรร่วมอีก 5 ตัวจาก scope แม่
+        # อ่านภายใน: output_box ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
         def show_result(res):
             start = output_box.index('end-1c')
             result["run"] = res
@@ -1618,6 +1950,17 @@ class PipelinePage(ctk.CTkFrame):
                 output_box.tag_add(tag, start, 'end-1c')
                 history_tags[tag] = result['history_id']
 
+        # หน้าที่: ตรวจ input เก็บ snapshot/History และเริ่ม worker รันคำสั่งโดยไม่บล็อก UI
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: browse_result_button (ctk.CTkButton) — รับจาก scope PipelinePage.open_step_window
+        # Closure: cancel_button (ctk.CTkButton) — รับจาก scope PipelinePage.open_step_window
+        # Closure: cancel_event (threading.Event) — รับจาก scope PipelinePage.open_step_window
+        # Closure: continuation_panel (ctk.CTkFrame) — รับจาก scope PipelinePage.open_step_window
+        # Closure: file_choices (dict) — รับจาก scope PipelinePage.open_step_window
+        # Closure: file_list (ctk.CTkScrollableFrame) — รับจาก scope PipelinePage.open_step_window
+        # Closure: ยังอ่านตัวแปรร่วมอีก 15 ตัวจาก scope แม่
+        # อ่านภายใน: input_entry ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
         def run_tool():
             if running[0]:
                 return
@@ -1653,6 +1996,15 @@ class PipelinePage(ctk.CTkFrame):
             cancel_button.configure(state="normal")
             output_box.insert("end", "\n[Running]\n")
 
+            # หน้าที่: รันคำสั่งที่เตรียมแล้วผ่าน engine._run_command และส่ง CommandResult หรือ exception ลง queue
+            # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.run_tool (อ้างอิง/callback)
+            # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+            # Closure: command (list[str]) — รับจาก scope PipelinePage.open_step_window.run_tool
+            # Closure: input_data (bytes | Path | None) — รับจาก scope PipelinePage.open_step_window.run_tool
+            # Closure: input_path (str | None) — รับจาก scope PipelinePage.open_step_window.run_tool
+            # Closure: cancel_event (threading.Event) — รับจาก scope PipelinePage.open_step_window
+            # Closure: results (queue.Queue) — รับจาก scope PipelinePage.open_step_window
+            # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_step_window
             def worker():
                 try:
                     outcome = self.engine._run_command(command, input_data, input_path,
@@ -1661,6 +2013,16 @@ class PipelinePage(ctk.CTkFrame):
                     outcome = error
                 results.put(outcome)
 
+            # หน้าที่: ตรวจ queue ตามรอบ Tk timer แล้วนำผล worker มาแสดง
+            # ที่มา: pages/pipeline.py::PipelinePage.open_step_window.run_tool (อ้างอิง/callback)
+            # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+            # Closure: source_files (list[str]) — รับจาก scope PipelinePage.open_step_window.run_tool
+            # Closure: cancel_button (ctk.CTkButton) — รับจาก scope PipelinePage.open_step_window
+            # Closure: cancel_event (threading.Event) — รับจาก scope PipelinePage.open_step_window
+            # Closure: closing (list[bool]) — รับจาก scope PipelinePage.open_step_window
+            # Closure: next_button (ctk.CTkButton) — รับจาก scope PipelinePage.open_step_window
+            # Closure: output_box (ctk.CTkTextbox) — รับจาก scope PipelinePage.open_step_window
+            # Closure: ยังอ่านตัวแปรร่วมอีก 6 ตัวจาก scope แม่
             def poll():
                 try:
                     outcome = results.get_nowait()
@@ -1691,6 +2053,14 @@ class PipelinePage(ctk.CTkFrame):
         cancel_event = threading.Event()
         results = queue.Queue()
 
+        # หน้าที่: ยกเลิกงานที่ยังทำอยู่และปิดหน้าต่างขั้นตอนพร้อมคืนสถานะ
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: cancel_event (threading.Event) — รับจาก scope PipelinePage.open_step_window
+        # Closure: closing (list[bool]) — รับจาก scope PipelinePage.open_step_window
+        # Closure: result (dict) — รับจาก scope PipelinePage.open_step_window
+        # Closure: running (list[bool]) — รับจาก scope PipelinePage.open_step_window
+        # Closure: win (ctk.CTkToplevel) — รับจาก scope PipelinePage.open_step_window
         def close_window():
             if running[0]:
                 closing[0] = True
@@ -1711,6 +2081,16 @@ class PipelinePage(ctk.CTkFrame):
                                       command=cancel_event.set, fg_color=BORDER_COLOR)
         cancel_button.pack(pady=(0, 5))
 
+        # หน้าที่: ตรวจและเลือก output ที่จะส่งต่อแล้วปิดหน้าต่างเพื่อให้ runner ทำขั้นถัดไป
+        # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: file_choices (dict) — รับจาก scope PipelinePage.open_step_window
+        # Closure: file_selection (tk.StringVar) — รับจาก scope PipelinePage.open_step_window
+        # Closure: file_status (ctk.CTkLabel) — รับจาก scope PipelinePage.open_step_window
+        # Closure: is_last (bool) — รับจาก scope PipelinePage.open_step_window
+        # Closure: result (dict) — รับจาก scope PipelinePage.open_step_window
+        # Closure: running (list[bool]) — รับจาก scope PipelinePage.open_step_window
+        # Closure: ยังอ่านตัวแปรร่วมอีก 1 ตัวจาก scope แม่
         def next_step(): # ปิด window แล้วส่ง output กลับ pipeline
             if running[0]:
                 return
@@ -1738,6 +2118,17 @@ class PipelinePage(ctk.CTkFrame):
             decision_status = ctk.CTkLabel(continuation_panel, text="", text_color=ALERT_RED, wraplength=430)
             decision_status.pack(fill="x", padx=10)
 
+            # หน้าที่: ตั้ง decision ของโหมด Step ว่าจะจบหรือส่งต่อไปเครื่องมือที่เลือก
+            # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
+            # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (เรียกตรง)
+            # Input: finish (bool) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+            # Closure: decision_status (ctk.CTkLabel) — รับจาก scope PipelinePage.open_step_window
+            # Closure: file_choices (dict) — รับจาก scope PipelinePage.open_step_window
+            # Closure: file_selection (tk.StringVar) — รับจาก scope PipelinePage.open_step_window
+            # Closure: next_tool_menu (ctk.CTkComboBox) — รับจาก scope PipelinePage.open_step_window
+            # Closure: result (dict) — รับจาก scope PipelinePage.open_step_window
+            # Closure: running (list[bool]) — รับจาก scope PipelinePage.open_step_window
+            # Closure: ยังอ่านตัวแปรร่วมอีก 2 ตัวจาก scope แม่
             def complete_step(finish=False):
                 if running[0] or result['run'] is None or not result['run'].succeeded:
                     return
@@ -1782,6 +2173,10 @@ class PipelinePage(ctk.CTkFrame):
         return result["decision"] if step_mode else result["output"]
 
     #โหลด template pipeline สำเร็จรูป
+    # หน้าที่: เลือกชุด tool จากชื่อ template แล้วสร้าง nodes ในโหมด Auto
+    # ที่มา: pages/pipeline.py::PipelinePage.__init__ (อ้างอิง/callback)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: template (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def load_template(self, template):
         if self.canvas_busy():
             return
@@ -1805,6 +2200,11 @@ class PipelinePage(ctk.CTkFrame):
             self.add_tool_node(tool)
 
     #โหลด tool จาก JSON
+    # หน้าที่: อ่านและตรวจ definitions ของ tools พร้อมเก็บ config error สำหรับ UI
+    # ที่มา: pages/pipeline.py::PipelinePage.__init__ (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.refresh_tools_panel (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.open_pipeline_wizard (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def load_tools_from_json(self):
         self.config_error = self.engine.load_error
         tools_path = str(writable_path('Pipeline/custom_tools.json'))
@@ -1840,6 +2240,10 @@ class PipelinePage(ctk.CTkFrame):
         return categories
 
     #refresh panel tool 
+    # หน้าที่: วาดรายการ tools และ Saved Pipelines ในแผงเลือกเครื่องมือใหม่
+    # ที่มา: pages/pipeline.py::PipelinePage.finalize_wizard_pipeline (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.open_add_tool_window.save_tool (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def refresh_tools_panel(self):
         for widget in self.tools_panel.winfo_children():
             widget.destroy()
@@ -1888,11 +2292,18 @@ class PipelinePage(ctk.CTkFrame):
                 ).pack(fill="x", padx=15, pady=(5, 10))
 
     #เช็ค pipeline ที่เคย save
+    # หน้าที่: ตรวจรายการที่บันทึกแล้วและเลือกแสดงตัวช่วยเริ่มต้น Pipeline
+    # ที่มา: helper ของหน้านี้สำหรับผู้เรียกหรือ callback; ไม่มีจุดเรียกตรงใน flow ปัจจุบันที่ตรวจพบ
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def check_pipeline_status(self):
         saved_data = self.load_saved_pipelines()
         self.show_startup_popup(saved_data)
 
     # popup หน้าเริ่มต้น (Pipeline Manager)
+    # หน้าที่: แสดงตัวเลือกสร้าง Pipeline ใหม่หรือเปิดรายการที่บันทึกไว้
+    # ที่มา: pages/pipeline.py::PipelinePage.check_pipeline_status (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: saved_data (list[dict[str, Any]]) — รายการใน key saved_pipelines ที่ load_saved_pipelines อ่านจาก JSON
     def show_startup_popup(self, saved_data):
         popup = ctk.CTkToplevel(self)
         popup.title("Pipeline Manager")
@@ -1904,10 +2315,20 @@ class PipelinePage(ctk.CTkFrame):
             popup, text=">_ UNIT PIPELINE", font=("Consolas", 20, "bold"), text_color=ACCENT_CYAN
         ).pack(pady=(20, 5))
 
+        # หน้าที่: ปิด popup เริ่มต้นแล้วเปิด wizard สร้าง Pipeline
+        # ที่มา: pages/pipeline.py::PipelinePage.show_startup_popup (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: popup (ctk.CTkToplevel) — รับจาก scope PipelinePage.show_startup_popup
+        # Closure: self (PipelinePage) — รับจาก scope PipelinePage.show_startup_popup
         def create_new():
             popup.destroy()
             self.open_pipeline_wizard()
 
+        # หน้าที่: ปิด popup เริ่มต้นแล้วโหลด Pipeline ตามชื่อที่เลือก
+        # ที่มา: pages/pipeline.py::PipelinePage.show_startup_popup (เรียกตรง)
+        # Input: p_name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+        # Closure: popup (ctk.CTkToplevel) — รับจาก scope PipelinePage.show_startup_popup
+        # Closure: self (PipelinePage) — รับจาก scope PipelinePage.show_startup_popup
         def load_existing(p_name):
             popup.destroy()
             self.load_saved_pipeline_to_canvas(p_name)
@@ -1949,6 +2370,10 @@ class PipelinePage(ctk.CTkFrame):
                 btn.pack(side="right", padx=10)
 
     #โหลด saved pipeline จากไฟล์
+    # หน้าที่: อ่านและตรวจ Saved Pipelines จาก JSON แล้วคืนรายการหรือแจ้ง error
+    # ที่มา: pages/dashboard.py::DashboardPage.get_available_tools (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.check_pipeline_status (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def load_saved_pipelines(self):
         save_path = str(writable_path('Pipeline/saved_pipelines.json'))
         save_path = os.path.abspath(save_path)
@@ -1961,10 +2386,23 @@ class PipelinePage(ctk.CTkFrame):
         return []
 
     # แสดงจำนวน pipeline (debug)
+    # หน้าที่: พิมพ์จำนวน Saved Pipelines สำหรับตรวจสถานะ
+    # ที่มา: helper ของหน้านี้สำหรับผู้เรียกหรือ callback; ไม่มีจุดเรียกตรงใน flow ปัจจุบันที่ตรวจพบ
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: saved_data (list[dict[str, Any]]) — รายการใน key saved_pipelines ที่ load_saved_pipelines อ่านจาก JSON
     def show_saved_pipelines_list(self, saved_data):
         print(f"You have {len(saved_data)} saved pipelines available in the sidebar.")
 
     # Wizard สร้าง pipeline
+    # หน้าที่: เปิดฟอร์มสร้าง Pipeline ทีละขั้นพร้อม tool/options ของแต่ละขั้น
+    # ที่มา: pages/pipeline.py::PipelinePage.show_startup_popup.create_new (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.open_pipeline_wizard.add_next_tool (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.__init__ (อ้างอิง/callback)
+    # ที่มาเพิ่มเติม: อีก 1 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: current_step (int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: pipeline_data (list[dict[str, Any]] | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # อ่านภายใน: tool_var ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def open_pipeline_wizard(self, current_step=1, pipeline_data=None):
         if pipeline_data is None:
             pipeline_data = []
@@ -2027,6 +2465,11 @@ class PipelinePage(ctk.CTkFrame):
         # ==========================================
         self.temp_options_list = []
         # popup เพิ่ม option
+        # หน้าที่: เปิดฟอร์มกำหนด options เพิ่มเติมให้ tool ใน wizard
+        # ที่มา: pages/pipeline.py::PipelinePage.open_pipeline_wizard (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: wizard (ctk.CTkToplevel) — รับจาก scope PipelinePage.open_pipeline_wizard
         def open_add_option_popup():
             popup = ctk.CTkToplevel(wizard)
             popup.title("Add Custom Option")
@@ -2045,6 +2488,17 @@ class PipelinePage(ctk.CTkFrame):
             option_rows = []
 
             # อัปเดตพรีวิวแบบ Real-time ทันทีที่พิมพ์
+            # หน้าที่: ประกอบคำสั่งตัวอย่างจาก options ในฟอร์มของ wizard
+            # ที่มา: pages/pipeline.py::PipelinePage.open_pipeline_wizard.open_add_option_popup (เรียกตรง)
+            # ที่มา: pages/pipeline.py::PipelinePage.open_pipeline_wizard.open_add_option_popup.add_option_row (อ้างอิง/callback)
+            # ที่มา: pages/pipeline.py::PipelinePage.open_pipeline_wizard.open_add_option_popup.add_option_row (เรียกตรง)
+            # ที่มาเพิ่มเติม: อีก 1 จุดเรียก/อ้างอิงในโปรเจกต์
+            # Input: *args (tuple[str, ...] (arguments ของ Tk variable trace)) — Tk trace_add ส่งชื่อ variable/index/operation เมื่อค่าเปลี่ยน
+            # Closure: option_rows (list) — รับจาก scope PipelinePage.open_pipeline_wizard.open_add_option_popup
+            # Closure: preview_label (ctk.CTkLabel) — รับจาก scope PipelinePage.open_pipeline_wizard.open_add_option_popup
+            # Closure: custom_tool_entry (ctk.CTkEntry) — รับจาก scope PipelinePage.open_pipeline_wizard
+            # Closure: tool_var (ctk.StringVar) — รับจาก scope PipelinePage.open_pipeline_wizard
+            # อ่านภายใน: tool_var, custom_tool_entry, flag_var ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
             def preview_command(*args):
                 base_tool = tool_var.get()
                 if base_tool == "Custom":
@@ -2062,6 +2516,13 @@ class PipelinePage(ctk.CTkFrame):
                 cmd = f"{base_tool} {' '.join(flags)}"
                 preview_label.configure(text=f"Preview: {cmd}")
 
+            # หน้าที่: สร้างแถว checkbox/text/file option พร้อม flag และคำอธิบายเริ่มต้น
+            # ที่มา: pages/pipeline.py::PipelinePage.open_pipeline_wizard.open_add_option_popup (เรียกตรง)
+            # Input: opt_type (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+            # Input: default_flag (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+            # Input: default_desc (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+            # Closure: option_rows (list) — รับจาก scope PipelinePage.open_pipeline_wizard.open_add_option_popup
+            # Closure: options_container (ctk.CTkScrollableFrame) — รับจาก scope PipelinePage.open_pipeline_wizard.open_add_option_popup
             def add_option_row(opt_type="checkbox", default_flag="", default_desc=""):
                 row = ctk.CTkFrame(options_container, fg_color="transparent")
                 row.pack(fill="x", pady=5)
@@ -2084,6 +2545,12 @@ class PipelinePage(ctk.CTkFrame):
                 row_data = (flag_var, desc_var, opt_type)
                 option_rows.append(row_data)
 
+                # หน้าที่: ลบแถว option ที่จับไว้ใน closure แล้วปรับ preview
+                # ที่มา: pages/pipeline.py::PipelinePage.open_pipeline_wizard.open_add_option_popup.add_option_row (อ้างอิง/callback)
+                # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+                # Closure: row (ctk.CTkFrame) — รับจาก scope PipelinePage.open_pipeline_wizard.open_add_option_popup.add_option_row
+                # Closure: row_data (tuple) — รับจาก scope PipelinePage.open_pipeline_wizard.open_add_option_popup.add_option_row
+                # Closure: option_rows (list) — รับจาก scope PipelinePage.open_pipeline_wizard.open_add_option_popup
                 def delete_this_row():
                     if row_data in option_rows:
                         option_rows.remove(row_data)
@@ -2099,6 +2566,13 @@ class PipelinePage(ctk.CTkFrame):
             for opt in self.temp_options_list:
                 add_option_row(opt["type"], opt["flag"], opt["description"])
 
+            # หน้าที่: เก็บ options ที่กำหนดใน popup กลับสู่ขั้นตอนของ wizard
+            # ที่มา: pages/pipeline.py::PipelinePage.open_pipeline_wizard.open_add_option_popup (อ้างอิง/callback)
+            # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+            # Closure: option_rows (list) — รับจาก scope PipelinePage.open_pipeline_wizard.open_add_option_popup
+            # Closure: popup (ctk.CTkToplevel) — รับจาก scope PipelinePage.open_pipeline_wizard.open_add_option_popup
+            # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_pipeline_wizard
+            # อ่านภายใน: flag_var, desc_var ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
             def save_option_from_popup():
                 self.temp_options_list.clear() # เคลียร์ของเก่าทิ้งก่อนบันทึกใหม่
                 for flag_var, desc_var, opt_type in option_rows:
@@ -2124,6 +2598,17 @@ class PipelinePage(ctk.CTkFrame):
         # ==========================================
 
         # อัปเดต info tool ที่เลือก
+        # หน้าที่: ปรับข้อมูลและ controls เมื่อเลือก tool ใหม่ใน wizard
+        # ที่มา: pages/pipeline.py::PipelinePage.open_pipeline_wizard (เรียกตรง)
+        # ที่มา: pages/pipeline.py::PipelinePage.open_pipeline_wizard (อ้างอิง/callback)
+        # Input: choice (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+        # Closure: add_option_btn (ctk.CTkButton) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: custom_tool_frame (ctk.CTkFrame) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: desc_label (ctk.CTkLabel) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: has_option_checkbox (ctk.CTkCheckBox) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: has_option_var (ctk.BooleanVar) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: ยังอ่านตัวแปรร่วมอีก 2 ตัวจาก scope แม่
         def update_tool_selection(choice):
             if choice == "Custom":
                 custom_tool_frame.pack(after=tool_menu, fill="x", padx=40, pady=(0, 10))
@@ -2138,6 +2623,13 @@ class PipelinePage(ctk.CTkFrame):
             add_option_btn.pack_forget()
 
         # toggle ปุ่ม add option
+        # หน้าที่: ปรับการแสดงส่วนกำหนด options ตามตัวเลือกของ wizard
+        # ที่มา: pages/pipeline.py::PipelinePage.open_pipeline_wizard (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: add_option_btn (ctk.CTkButton) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: has_option_checkbox (ctk.CTkCheckBox) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: has_option_var (ctk.BooleanVar) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # อ่านภายใน: has_option_var ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
         def toggle_add_option_btn():
             if has_option_var.get():
                 add_option_btn.pack(after=has_option_checkbox, pady=5, padx=40, anchor="w")
@@ -2152,6 +2644,17 @@ class PipelinePage(ctk.CTkFrame):
         btn_frame.pack(side="bottom", pady=30, fill="x", padx=40)
 
         # เพิ่ม tool step ถัดไป
+        # หน้าที่: บันทึกข้อมูลขั้นปัจจุบันแล้วเปิด wizard ของขั้นถัดไป
+        # ที่มา: pages/pipeline.py::PipelinePage.open_pipeline_wizard (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: current_step (int) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: custom_tool_entry (ctk.CTkEntry) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: name_entry (CTkEntry | None) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: pipeline_data (list[dict[str, Any]] | None) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: tool_var (ctk.StringVar) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: ยังอ่านตัวแปรร่วมอีก 2 ตัวจาก scope แม่
+        # อ่านภายใน: name_entry, tool_var, custom_tool_entry, user_desc_entry ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
         def add_next_tool():
             if current_step == 1 and name_entry:
                 self.current_pipeline_name = name_entry.get()
@@ -2171,6 +2674,17 @@ class PipelinePage(ctk.CTkFrame):
             self.open_pipeline_wizard(current_step + 1, pipeline_data)
 
         # finish wizard + save pipeline
+        # หน้าที่: บันทึกขั้นสุดท้ายและขอชื่อก่อนส่งชุดข้อมูลไป finalize
+        # ที่มา: pages/pipeline.py::PipelinePage.open_pipeline_wizard (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: current_step (int) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: custom_tool_entry (ctk.CTkEntry) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: name_entry (CTkEntry | None) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: pipeline_data (list[dict[str, Any]] | None) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: tool_var (ctk.StringVar) — รับจาก scope PipelinePage.open_pipeline_wizard
+        # Closure: ยังอ่านตัวแปรร่วมอีก 2 ตัวจาก scope แม่
+        # อ่านภายใน: name_entry, tool_var, custom_tool_entry, user_desc_entry ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
         def finish_pipeline():
             if current_step == 1 and name_entry:
                 self.current_pipeline_name = name_entry.get()
@@ -2195,6 +2709,11 @@ class PipelinePage(ctk.CTkFrame):
         ctk.CTkButton(btn_frame, text="Finish & Save", fg_color=ACCENT_GREEN, text_color="black", hover_color="#00CC33", command=finish_pipeline).pack(side="left", expand=True, padx=5)
 
     # สร้าง pipeline ลง canvas + save
+    # หน้าที่: ตรวจและบันทึก Pipeline ที่สร้างจาก wizard แล้วโหลด nodes ลง canvas
+    # ที่มา: pages/pipeline.py::PipelinePage.open_pipeline_wizard.finish_pipeline (เรียกตรง)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: pipeline_data (list[dict[str, Any]]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: pipeline_name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def finalize_wizard_pipeline(self, pipeline_data, pipeline_name):
         if self.canvas_busy():
             return
@@ -2230,6 +2749,13 @@ class PipelinePage(ctk.CTkFrame):
             messagebox.showerror("Save Pipeline", f"Save failed. The original file was not overwritten:\n{e}", parent=self)
 
     # โหลด pipeline มาแสดงบน canvas
+    # หน้าที่: ค้นหา Pipeline ตามชื่อและคืนค่า nodes/params/options ลง canvas
+    # ที่มา: pages/dashboard.py::DashboardPage.launch_favorite (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.show_startup_popup.load_existing (เรียกตรง)
+    # ที่มา: pages/pipeline.py::PipelinePage.__init__ (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 1 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: pipeline_name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def load_saved_pipeline_to_canvas(self, pipeline_name):
         if self.canvas_busy():
             return
@@ -2298,6 +2824,9 @@ class PipelinePage(ctk.CTkFrame):
         return False
 
     # popup เพิ่ม tool ใหม่
+    # หน้าที่: เปิดฟอร์มสร้าง definition ของ custom tool ใหม่
+    # ที่มา: pages/pipeline.py::PipelinePage.__init__ (อ้างอิง/callback)
+    # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def open_add_tool_window(self):
         win = ctk.CTkToplevel(self)
         win.title("Add Tool")
@@ -2322,6 +2851,15 @@ class PipelinePage(ctk.CTkFrame):
             text_color=ACCENT_CYAN, dropdown_fg_color=PANEL_COLOR, dropdown_text_color=ACCENT_CYAN
         ).pack(pady=5)
 
+        # หน้าที่: อ่านฟอร์ม custom tool แล้วให้ engine ตรวจ/บันทึกและรีเฟรชรายการ tools
+        # ที่มา: pages/pipeline.py::PipelinePage.open_add_tool_window (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: cmd_entry (ctk.CTkEntry) — รับจาก scope PipelinePage.open_add_tool_window
+        # Closure: mode_var (ctk.StringVar) — รับจาก scope PipelinePage.open_add_tool_window
+        # Closure: name_entry (ctk.CTkEntry) — รับจาก scope PipelinePage.open_add_tool_window
+        # Closure: self (PipelinePage) — รับจาก scope PipelinePage.open_add_tool_window
+        # Closure: win (ctk.CTkToplevel) — รับจาก scope PipelinePage.open_add_tool_window
+        # อ่านภายใน: name_entry, cmd_entry, mode_var ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
         def save_tool():
             name = name_entry.get()
             cmd = cmd_entry.get()

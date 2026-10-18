@@ -20,6 +20,10 @@ TEXT_DIM = "#8892B0"
 ALERT_RED = "#FF3366"       
 
 class AppPortalPage(ctk.CTkFrame):
+    # หน้าที่: สร้างหน้า App Portal โหลด custom launchers และเตรียมช่องค้นหา/การ์ดเปิดแอป
+    # ที่มา: app.py::UNITApp.__init__ (เรียกตรง)
+    # Input: self (AppPortalPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: master (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
     def __init__(self, master):
         super().__init__(master)
         self.app_root = master.master
@@ -91,6 +95,9 @@ class AppPortalPage(ctk.CTkFrame):
 
         self.refresh_grid()
 
+    # หน้าที่: อ่านและตรวจ schema ของ custom_tools.json; เข้าโหมดอ่านอย่างเดียวเมื่อไฟล์ผิดรูปแบบ
+    # ที่มา: pages/app_portal.py::AppPortalPage.__init__ (เรียกตรง)
+    # Input: self (AppPortalPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def load_custom_tools(self):
         if os.path.exists(self.custom_tools_file):
             try:
@@ -105,6 +112,9 @@ class AppPortalPage(ctk.CTkFrame):
                 return []
         return []
 
+    # หน้าที่: ตรวจฟิลด์ name/check/cmd และข้อความเสริมของ launcher จาก JSON
+    # ที่มา: pages/app_portal.py::AppPortalPage.load_custom_tools (เรียกตรง)
+    # Input: tool (Any (ค่าจาก JSON ที่ต้องตรวจ schema)) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     @staticmethod
     def _valid_tool(tool):
         return isinstance(tool, dict) and all(
@@ -112,6 +122,10 @@ class AppPortalPage(ctk.CTkFrame):
             for key in ("name", "check", "cmd")
         ) and all(isinstance(tool.get(key, ""), str) for key in ("desc", "icon"))
 
+    # หน้าที่: บันทึกรายการ custom launchers ผ่านไฟล์ชั่วคราวแล้วแทนที่ config แบบ atomic
+    # ที่มา: pages/app_portal.py::AppPortalPage.save_custom_tools (เรียกตรง)
+    # Input: self (AppPortalPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: tools (list[dict[str, Any]]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _persist_tools(self, tools):
         if self.custom_tools_read_only:
             raise OSError(self.custom_tools_error or "Custom tools are read-only")
@@ -128,6 +142,11 @@ class AppPortalPage(ctk.CTkFrame):
             except OSError: pass
             raise
 
+    # หน้าที่: บันทึก custom launchers ปัจจุบันและแจ้งข้อผิดพลาดหากเขียนไม่สำเร็จ
+    # ที่มา: pages/app_portal.py::AppPortalPage.delete_tool (เรียกตรง)
+    # ที่มา: pages/app_portal.py::AppPortalPage.open_add_tool_popup.save_new_tool (เรียกตรง)
+    # ที่มา: pages/app_portal.py::AppPortalPage.open_edit_tool_popup.save_edited_tool (เรียกตรง)
+    # Input: self (AppPortalPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def save_custom_tools(self):
         previous = list(self.custom_tools)
         try:
@@ -139,6 +158,13 @@ class AppPortalPage(ctk.CTkFrame):
             return False
         return True
 
+    # หน้าที่: กรอง launchers ตามคำค้นและวาดการ์ดใน grid ใหม่
+    # ที่มา: pages/app_portal.py::AppPortalPage.__init__ (เรียกตรง)
+    # ที่มา: pages/app_portal.py::AppPortalPage.delete_tool (เรียกตรง)
+    # ที่มา: pages/app_portal.py::AppPortalPage.open_add_tool_popup.save_new_tool (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 1 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (AppPortalPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # อ่านภายใน: self.search_var ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def refresh_grid(self):
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
@@ -158,6 +184,13 @@ class AppPortalPage(ctk.CTkFrame):
                 col_idx = 0
                 row_idx += 1
 
+    # หน้าที่: สร้างการ์ด launcher พร้อมสถานะติดตั้ง ปุ่มเปิด และปุ่มจัดการ custom tool
+    # ที่มา: pages/app_portal.py::AppPortalPage.refresh_grid (เรียกตรง)
+    # Input: self (AppPortalPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: parent (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
+    # Input: tool (dict[str, str]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: r (int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: c (int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def create_app_card(self, parent, tool, r, c):
         card = ctk.CTkFrame(parent, fg_color=PANEL_COLOR, corner_radius=6, border_width=1, border_color="#333344")
         card.grid(row=r, column=c, padx=10, pady=10, sticky="nsew")
@@ -206,6 +239,10 @@ class AppPortalPage(ctk.CTkFrame):
             )
             btn_edit.pack(side="right", padx=(0, 5))
 
+    # หน้าที่: ขอยืนยัน ลบ custom launcher และบันทึก config ก่อนปรับรายการบน UI
+    # ที่มา: pages/app_portal.py::AppPortalPage.create_app_card (เรียกตรง)
+    # Input: self (AppPortalPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: tool (dict[str, str]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def delete_tool(self, tool):
         if tool in self.custom_tools:
             candidate = [item for item in self.custom_tools if item != tool]
@@ -218,6 +255,11 @@ class AppPortalPage(ctk.CTkFrame):
             self.refresh_grid()
             self.status_label.configure(text=f"[-] TOOL '{tool['name']}' REMOVED.", text_color=ALERT_RED)
 
+    # หน้าที่: ตรวจ executable แล้วเปิด shell command ของ launcher และนัดตรวจสถานะ process
+    # ที่มา: pages/app_portal.py::AppPortalPage.create_app_card (เรียกตรง)
+    # ที่มา: pages/dashboard.py::DashboardPage.launch_favorite (เรียกตรง)
+    # Input: self (AppPortalPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: tool (dict[str, str]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def launch_app(self, tool):
         name = tool["name"]
         check_cmd = tool["check"]
@@ -241,6 +283,11 @@ class AppPortalPage(ctk.CTkFrame):
             self.status_label.configure(text=f"[!] ERROR LAUNCHING {name.upper()}: {e}", text_color=ALERT_RED)
             self._record_activity(name, "failed", str(e))
 
+    # หน้าที่: ตรวจ process หลังเปิด launcher แล้วรายงานผลเบื้องต้น โดยไม่ได้ยืนยันสถานะแอปปลายทาง
+    # ที่มา: pages/app_portal.py::AppPortalPage.launch_app (เรียกตรง)
+    # Input: self (AppPortalPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: process (subprocess.Popen) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _finish_launch_check(self, process, name):
         return_code = process.poll()
         if return_code is None:
@@ -252,6 +299,13 @@ class AppPortalPage(ctk.CTkFrame):
                 self.status_label.configure(text=f"[!] ERROR: {name.upper()} EXITED ({return_code}).", text_color=ALERT_RED)
                 self._record_activity(name, "failed", f"Process exited with code {return_code}")
 
+    # หน้าที่: ส่งเหตุการณ์เปิด launcher ไปเก็บใน Dashboard
+    # ที่มา: pages/app_portal.py::AppPortalPage.launch_app (เรียกตรง)
+    # ที่มา: pages/app_portal.py::AppPortalPage._finish_launch_check (เรียกตรง)
+    # Input: self (AppPortalPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: tool (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: status (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: details (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _record_activity(self, tool, status, details=""):
         if not hasattr(self.app_root, "record_activity"):
             return
@@ -263,6 +317,9 @@ class AppPortalPage(ctk.CTkFrame):
             details=details,
         )
 
+    # หน้าที่: เปิดแบบฟอร์มเพิ่มชื่อ executable check และคำสั่งสำหรับ custom launcher
+    # ที่มา: pages/app_portal.py::AppPortalPage.__init__ (อ้างอิง/callback)
+    # Input: self (AppPortalPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def open_add_tool_popup(self):
         popup = ctk.CTkToplevel(self)
         popup.title("ADD CUSTOM TOOL :: [CONFIG]")
@@ -306,6 +363,16 @@ class AppPortalPage(ctk.CTkFrame):
         btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
         btn_frame.pack(fill="x")
         
+        # หน้าที่: อ่านค่าจากฟอร์ม ตรวจข้อมูล แล้วบันทึก launcher ใหม่และรีเฟรชการ์ด
+        # ที่มา: pages/app_portal.py::AppPortalPage.open_add_tool_popup (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: ent_check (ctk.CTkEntry) — รับจาก scope AppPortalPage.open_add_tool_popup
+        # Closure: ent_cmd (ctk.CTkEntry) — รับจาก scope AppPortalPage.open_add_tool_popup
+        # Closure: ent_desc (ctk.CTkEntry) — รับจาก scope AppPortalPage.open_add_tool_popup
+        # Closure: ent_icon (ctk.CTkEntry) — รับจาก scope AppPortalPage.open_add_tool_popup
+        # Closure: ent_name (ctk.CTkEntry) — รับจาก scope AppPortalPage.open_add_tool_popup
+        # Closure: popup (ctk.CTkToplevel) — รับจาก scope AppPortalPage.open_add_tool_popup
+        # Closure: ยังอ่านตัวแปรร่วมอีก 1 ตัวจาก scope แม่
         def save_new_tool():
             name = ent_name.get().strip()
             check = ent_check.get().strip()
@@ -339,6 +406,10 @@ class AppPortalPage(ctk.CTkFrame):
         popup.grab_set()
 
     # 🌟 ฟังก์ชันสำหรับ Edit แอปเดิม
+    # หน้าที่: เปิดแบบฟอร์มแก้ไขข้อมูลของ custom launcher ที่เลือก
+    # ที่มา: pages/app_portal.py::AppPortalPage.create_app_card (เรียกตรง)
+    # Input: self (AppPortalPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: tool (dict[str, str]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def open_edit_tool_popup(self, tool):
         popup = ctk.CTkToplevel(self)
         popup.title("EDIT CUSTOM TOOL :: [CONFIG]")
@@ -386,6 +457,16 @@ class AppPortalPage(ctk.CTkFrame):
         btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
         btn_frame.pack(fill="x")
         
+        # หน้าที่: อ่านฟอร์มแก้ไขและบันทึกข้อมูล launcher ก่อนรีเฟรชหน้า
+        # ที่มา: pages/app_portal.py::AppPortalPage.open_edit_tool_popup (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: ent_check (ctk.CTkEntry) — รับจาก scope AppPortalPage.open_edit_tool_popup
+        # Closure: ent_cmd (ctk.CTkEntry) — รับจาก scope AppPortalPage.open_edit_tool_popup
+        # Closure: ent_desc (ctk.CTkEntry) — รับจาก scope AppPortalPage.open_edit_tool_popup
+        # Closure: ent_icon (ctk.CTkEntry) — รับจาก scope AppPortalPage.open_edit_tool_popup
+        # Closure: ent_name (ctk.CTkEntry) — รับจาก scope AppPortalPage.open_edit_tool_popup
+        # Closure: popup (ctk.CTkToplevel) — รับจาก scope AppPortalPage.open_edit_tool_popup
+        # Closure: ยังอ่านตัวแปรร่วมอีก 2 ตัวจาก scope แม่
         def save_edited_tool():
             name = ent_name.get().strip()
             check = ent_check.get().strip()
@@ -415,6 +496,13 @@ class AppPortalPage(ctk.CTkFrame):
     # ==========================================
     # ⭐ ระบบสแกนและกรองเฉพาะแอปที่มี GUI + มีช่อง Search
     # ==========================================
+    # หน้าที่: ค้นหาไฟล์ desktop entries ของระบบและเปิดตัวเลือกนำเข้าชื่อ/คำสั่งแอป
+    # ที่มา: pages/app_portal.py::AppPortalPage.open_add_tool_popup (เรียกตรง)
+    # ที่มา: pages/app_portal.py::AppPortalPage.open_edit_tool_popup (เรียกตรง)
+    # Input: self (AppPortalPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: ent_name (CTkEntry) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: ent_check (CTkEntry) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: ent_cmd (CTkEntry) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def open_system_apps_picker(self, ent_name, ent_check, ent_cmd):
         picker = ctk.CTkToplevel(self)
         picker.title("SELECT INSTALLED APP")
@@ -467,6 +555,17 @@ class AppPortalPage(ctk.CTkFrame):
         app_list = sorted(list(set(raw_app_list)), key=lambda x: x[0])
         app_buttons = []
 
+        # หน้าที่: วาดรายการแอปที่ผ่านการกรองพร้อมปุ่มเลือกลงในหน้าต่างย่อย
+        # ที่มา: pages/app_portal.py::AppPortalPage.open_system_apps_picker (เรียกตรง)
+        # ที่มา: pages/app_portal.py::AppPortalPage.open_system_apps_picker.filter_picker_list (เรียกตรง)
+        # Input: filtered_items (list[tuple[str, str]]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+        # Closure: app_buttons (list) — รับจาก scope AppPortalPage.open_system_apps_picker
+        # Closure: ent_check (CTkEntry) — รับจาก scope AppPortalPage.open_system_apps_picker
+        # Closure: ent_cmd (CTkEntry) — รับจาก scope AppPortalPage.open_system_apps_picker
+        # Closure: ent_name (CTkEntry) — รับจาก scope AppPortalPage.open_system_apps_picker
+        # Closure: picker (ctk.CTkToplevel) — รับจาก scope AppPortalPage.open_system_apps_picker
+        # Closure: scroll_apps (ctk.CTkScrollableFrame) — รับจาก scope AppPortalPage.open_system_apps_picker
+        # Closure: ยังอ่านตัวแปรร่วมอีก 1 ตัวจาก scope แม่
         def render_list(filtered_items):
             for w in scroll_apps.winfo_children():
                 w.destroy()
@@ -482,6 +581,12 @@ class AppPortalPage(ctk.CTkFrame):
                 btn_app.pack(fill="x", padx=5, pady=2)
                 app_buttons.append((app_name, btn_app))
 
+        # หน้าที่: อ่านคำค้นจากตัวแปร Tk แล้วกรองรายการแอปของระบบ
+        # ที่มา: pages/app_portal.py::AppPortalPage.open_system_apps_picker (เรียกตรง)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: app_list (list[tuple[str, str]]) — รับจาก scope AppPortalPage.open_system_apps_picker
+        # Closure: picker_search_var (ctk.StringVar) — รับจาก scope AppPortalPage.open_system_apps_picker
+        # อ่านภายใน: picker_search_var ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
         def filter_picker_list():
             kw = picker_search_var.get().strip().lower()
             matched = [item for item in app_list if kw in item[0].lower() or kw in item[1].lower()]
@@ -493,6 +598,15 @@ class AppPortalPage(ctk.CTkFrame):
         picker.focus()
         picker.grab_set()
 
+    # หน้าที่: เติมชื่อและคำสั่งของแอปที่เลือกลงช่องกรอกแล้วปิดหน้าต่างเลือกแอป
+    # ที่มา: pages/app_portal.py::AppPortalPage.open_system_apps_picker.render_list (เรียกตรง)
+    # Input: self (AppPortalPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: cmd (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: ent_name (CTkEntry) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: ent_check (CTkEntry) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: ent_cmd (CTkEntry) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: picker (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
     def select_system_app(self, name, cmd, ent_name, ent_check, ent_cmd, picker):
         ent_name.delete(0, "end")
         ent_name.insert(0, name)

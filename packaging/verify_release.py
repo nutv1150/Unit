@@ -8,6 +8,10 @@ import tarfile
 import tempfile
 
 
+# หน้าที่: แตก release ลง temporary directory ตรวจสิ่งที่แพ็ก และรัน release checks
+# ที่มา: packaging/verify_release.py::<module> (เรียกตรง)
+# Input: ไม่มีพารามิเตอร์ที่ส่งเข้ามาโดยตรง
+# อ่านภายใน: sys.argv (list[str]) จาก command line ระบุ release archive และตัวเลือกการตรวจ
 def main():
     archive = Path(sys.argv[1]).resolve()
     with tempfile.TemporaryDirectory(prefix='unit-release-check-') as directory:

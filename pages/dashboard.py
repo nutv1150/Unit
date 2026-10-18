@@ -22,6 +22,10 @@ ALERT_AMBER = "#FFB800"
 class DashboardPage(ctk.CTkFrame):
     """หน้า Dashboard ที่เป็นศูนย์ควบคุมและสรุปกิจกรรมของ UNIT."""
 
+    # หน้าที่: เชื่อม DashboardStore ของหน้าต่างหลัก สร้างส่วนแสดงผล และโหลดสถิติเริ่มต้น
+    # ที่มา: app.py::UNITApp.__init__ (เรียกตรง)
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: master (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
     def __init__(self, master):
         super().__init__(master, fg_color=BG_COLOR)
         self.app_root = master.master
@@ -42,6 +46,9 @@ class DashboardPage(ctk.CTkFrame):
         self._build_favorites_section()
         self._build_detail_sections()
 
+    # หน้าที่: สร้างหัวข้อและคำอธิบายของหน้า Dashboard
+    # ที่มา: pages/dashboard.py::DashboardPage.__init__ (เรียกตรง)
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _build_header(self):
         from Tools.history_hooks import open_history
         from Tools.system_check import open_window
@@ -89,6 +96,9 @@ class DashboardPage(ctk.CTkFrame):
             text_color=ACCENT_GREEN,
         ).pack(anchor="w", padx=14, pady=10)
 
+    # หน้าที่: สร้างการ์ดตัวเลขสถิติรวมที่อัปเดตภายหลังได้
+    # ที่มา: pages/dashboard.py::DashboardPage.__init__ (เรียกตรง)
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _build_stats_section(self):
         ctk.CTkLabel(
             self.main_frame,
@@ -140,6 +150,9 @@ class DashboardPage(ctk.CTkFrame):
             ).pack(anchor="w", padx=15, pady=(0, 12))
             self.stat_value_labels[key] = value_label
 
+    # หน้าที่: สร้างพื้นที่แสดงการ์ดทางลัดรายการโปรด โดยไม่มีปุ่มจัดหมวด/ปักหมุดเดิม
+    # ที่มา: pages/dashboard.py::DashboardPage.__init__ (เรียกตรง)
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _build_favorites_section(self):
         header = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         header.pack(fill="x", pady=(0, 8))
@@ -149,30 +162,6 @@ class DashboardPage(ctk.CTkFrame):
             font=("Consolas", 15, "bold"),
             text_color=ACCENT_CYAN,
         ).pack(side="left")
-        ctk.CTkButton(
-            header,
-            text="+ PIN TOOL",
-            width=100,
-            height=28,
-            fg_color="transparent",
-            border_width=1,
-            border_color=ACCENT_CYAN,
-            text_color=ACCENT_CYAN,
-            hover_color="#003344",
-            command=self.open_pin_popup,
-        ).pack(side="right", padx=(6, 0))
-        ctk.CTkButton(
-            header,
-            text="MANAGE CATEGORIES",
-            width=150,
-            height=28,
-            fg_color="transparent",
-            border_width=1,
-            border_color=ACCENT_PURPLE,
-            text_color=ACCENT_PURPLE,
-            hover_color=CARD_COLOR,
-            command=self.open_category_popup,
-        ).pack(side="right")
 
         self.favorites_frame = ctk.CTkFrame(
             self.main_frame,
@@ -183,6 +172,9 @@ class DashboardPage(ctk.CTkFrame):
         )
         self.favorites_frame.pack(fill="x", pady=(0, 18))
 
+    # หน้าที่: สร้าง panel ของการแข่งขัน เครื่องมือยอดนิยม และไฟล์ล่าสุด
+    # ที่มา: pages/dashboard.py::DashboardPage.__init__ (เรียกตรง)
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _build_detail_sections(self):
         detail_row = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         detail_row.pack(fill="x", pady=(0, 18))
@@ -208,6 +200,10 @@ class DashboardPage(ctk.CTkFrame):
         self.recent_files_frame = ctk.CTkFrame(recent_panel, fg_color="transparent")
         self.recent_files_frame.pack(fill="x", padx=12, pady=(0, 12))
 
+    # หน้าที่: สร้างกรอบและหัวข้อ panel สำหรับส่วนแสดงรายละเอียด
+    # ที่มา: pages/dashboard.py::DashboardPage._build_detail_sections (เรียกตรง)
+    # Input: master (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
+    # Input: title (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     @staticmethod
     def _create_panel(master, title):
         panel = ctk.CTkFrame(
@@ -225,14 +221,29 @@ class DashboardPage(ctk.CTkFrame):
         ).pack(anchor="w", padx=14, pady=12)
         return panel
 
+    # หน้าที่: ทำลาย widget ลูกใน frame เพื่อเตรียมวาดข้อมูลใหม่
+    # ที่มา: pages/dashboard.py::DashboardPage._render_favorites (เรียกตรง)
+    # ที่มา: pages/dashboard.py::DashboardPage._render_competition_stats (เรียกตรง)
+    # ที่มา: pages/dashboard.py::DashboardPage._render_top_tools (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 2 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: frame (tkinter.Misc (widget ของ Tk/CustomTkinter)) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     @staticmethod
     def _clear_frame(frame):
         for widget in frame.winfo_children():
             widget.destroy()
 
+    # หน้าที่: รีเฟรช Dashboard เมื่อหน้าต่างหลักสลับมาแสดงหน้านี้
+    # ที่มา: app.py::UNITApp.switch_page (เรียกตรง)
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def on_show(self):
         self.refresh_dashboard()
 
+    # หน้าที่: อ่าน snapshot จาก store แล้วอัปเดตตัวเลขและรายการบน UI
+    # ที่มา: pages/dashboard.py::DashboardPage.on_show (เรียกตรง)
+    # ที่มา: pages/dashboard.py::DashboardPage.change_competition (เรียกตรง)
+    # ที่มา: pages/dashboard.py::DashboardPage.remove_favorite (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 4 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def refresh_dashboard(self):
         error = getattr(self.store, "persistence_error", None)
         self.persistence_notice.configure(
@@ -251,14 +262,18 @@ class DashboardPage(ctk.CTkFrame):
         self._render_competition_stats(snapshot["competition_stats"])
         self._render_top_tools(snapshot["top_tools"])
         self._render_recent_files(snapshot["recent_files"])
-        self._register_shortcuts(snapshot["favorites"])
 
+    # หน้าที่: จัดการ์ดรายการโปรดตามหมวดพร้อมปุ่ม OPEN/ลบ โดยไม่แสดงคีย์ลัด
+    # ที่มา: pages/dashboard.py::DashboardPage.refresh_dashboard (เรียกตรง)
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: favorites (list[dict[str, Any]]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: categories (list[str]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _render_favorites(self, favorites, categories):
         self._clear_frame(self.favorites_frame)
         if not favorites:
             ctk.CTkLabel(
                 self.favorites_frame,
-                text="No pinned tools. Select + PIN TOOL to add one.",
+                text="No pinned tools.",
                 font=("Consolas", 12),
                 text_color=TEXT_DIM,
             ).pack(padx=15, pady=20)
@@ -325,13 +340,6 @@ class DashboardPage(ctk.CTkFrame):
                     ),
                 ).pack(side="right")
 
-                shortcut = favorite.get("shortcut") or "Click to launch"
-                ctk.CTkLabel(
-                    card,
-                    text=shortcut,
-                    font=("Consolas", 10),
-                    text_color=ACCENT_GREEN,
-                ).pack(anchor="w", padx=10)
                 ctk.CTkButton(
                     card,
                     text="OPEN",
@@ -344,6 +352,10 @@ class DashboardPage(ctk.CTkFrame):
                     command=lambda item=favorite: self.launch_favorite(item),
                 ).pack(fill="x", padx=10, pady=(7, 10))
 
+    # หน้าที่: วาดสถิติของแต่ละการแข่งขันลง panel
+    # ที่มา: pages/dashboard.py::DashboardPage.refresh_dashboard (เรียกตรง)
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: rows (list[dict[str, Any]]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _render_competition_stats(self, rows):
         self._clear_frame(self.competition_stats_frame)
         headers = ["CTF", "OPS", "FILES", "FLAGS", "SUCCESS"]
@@ -376,6 +388,10 @@ class DashboardPage(ctk.CTkFrame):
                     anchor="w",
                 ).grid(row=row_index, column=column, sticky="w", padx=5, pady=4)
 
+    # หน้าที่: แสดงอันดับเครื่องมือและจำนวนครั้งที่ใช้งาน
+    # ที่มา: pages/dashboard.py::DashboardPage.refresh_dashboard (เรียกตรง)
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: top_tools (list[tuple[str, int]]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _render_top_tools(self, top_tools):
         self._clear_frame(self.top_tools_frame)
         if not top_tools:
@@ -412,6 +428,10 @@ class DashboardPage(ctk.CTkFrame):
                 text_color=ACCENT_GREEN,
             ).pack(side="right", padx=10)
 
+    # หน้าที่: แสดงไฟล์ล่าสุดพร้อมข้อมูลกิจกรรมและปุ่มเปิดไฟล์
+    # ที่มา: pages/dashboard.py::DashboardPage.refresh_dashboard (เรียกตรง)
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: recent_files (list[dict[str, Any]]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _render_recent_files(self, recent_files):
         self._clear_frame(self.recent_files_frame)
         if not recent_files:
@@ -465,6 +485,9 @@ class DashboardPage(ctk.CTkFrame):
                 command=lambda path=item["path"]: self.open_recent_file(path),
             ).pack(side="right", padx=10)
 
+    # หน้าที่: แปลง timestamp ที่เก็บไว้เป็นข้อความวันเวลาสำหรับหน้าจอ
+    # ที่มา: pages/dashboard.py::DashboardPage._render_recent_files (เรียกตรง)
+    # Input: timestamp (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     @staticmethod
     def _format_time(timestamp):
         try:
@@ -473,6 +496,9 @@ class DashboardPage(ctk.CTkFrame):
         except (TypeError, ValueError):
             return "--"
 
+    # หน้าที่: รวบรวมเป้าหมายหน้าเครื่องมือ Saved Pipelines และ App Portal สำหรับฟอร์มปักหมุด
+    # ที่มา: pages/dashboard.py::DashboardPage.open_pin_popup (เรียกตรง)
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def get_available_tools(self):
         tools = []
         pages = getattr(self.app_root, "pages", {})
@@ -528,6 +554,9 @@ class DashboardPage(ctk.CTkFrame):
             unique.setdefault(tool["target"], tool)
         return list(unique.values())
 
+    # หน้าที่: สร้างฟอร์มปักหมุดรายการโปรด; helper เดิมที่ไม่ได้มีปุ่มเรียกบนหน้าหลักแล้ว
+    # ที่มา: helper ของหน้านี้สำหรับผู้เรียกหรือ callback; ไม่มีจุดเรียกตรงใน flow ปัจจุบันที่ตรวจพบ
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def open_pin_popup(self):
         available = self.get_available_tools()
         if not available:
@@ -586,6 +615,15 @@ class DashboardPage(ctk.CTkFrame):
             text_color="white",
         ).pack(fill="x", pady=(0, 16))
 
+        # หน้าที่: อ่านเครื่องมือ ชื่อ หมวด และคีย์ลัดจากฟอร์มแล้วบันทึกรายการโปรด
+        # ที่มา: pages/dashboard.py::DashboardPage.open_pin_popup (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: popup (CTkToplevel) — รับจาก scope DashboardPage.open_pin_popup
+        # Closure: selected_category (ctk.StringVar) — รับจาก scope DashboardPage.open_pin_popup
+        # Closure: selected_shortcut (ctk.StringVar) — รับจาก scope DashboardPage.open_pin_popup
+        # Closure: selected_tool (ctk.StringVar) — รับจาก scope DashboardPage.open_pin_popup
+        # Closure: self (DashboardPage) — รับจาก scope DashboardPage.open_pin_popup
+        # Closure: tool_map (dict) — รับจาก scope DashboardPage.open_pin_popup
         def save_pin():
             selected = tool_map[selected_tool.get()]
             shortcut = selected_shortcut.get()
@@ -606,6 +644,9 @@ class DashboardPage(ctk.CTkFrame):
             command=save_pin,
         ).pack(fill="x")
 
+    # หน้าที่: สร้างฟอร์มจัดหมวด; helper เดิมที่ถอดปุ่มเรียกบนหน้าหลักแล้ว
+    # ที่มา: helper ของหน้านี้สำหรับผู้เรียกหรือ callback; ไม่มีจุดเรียกตรงใน flow ปัจจุบันที่ตรวจพบ
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def open_category_popup(self):
         popup = self._create_popup("MANAGE CATEGORIES", "550x490")
         ctk.CTkLabel(
@@ -631,6 +672,13 @@ class DashboardPage(ctk.CTkFrame):
         )
         list_frame.pack(fill="both", expand=True, padx=22, pady=(0, 18))
 
+        # หน้าที่: วาดรายการหมวดและปุ่มลบในฟอร์มจัดหมวด
+        # ที่มา: pages/dashboard.py::DashboardPage.open_category_popup (เรียกตรง)
+        # ที่มา: pages/dashboard.py::DashboardPage.open_category_popup.add_category (เรียกตรง)
+        # ที่มา: pages/dashboard.py::DashboardPage.open_category_popup.delete_category (เรียกตรง)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: list_frame (ctk.CTkScrollableFrame) — รับจาก scope DashboardPage.open_category_popup
+        # Closure: self (DashboardPage) — รับจาก scope DashboardPage.open_category_popup
         def render_categories():
             self._clear_frame(list_frame)
             for category in self.store.list_categories():
@@ -656,6 +704,13 @@ class DashboardPage(ctk.CTkFrame):
                         command=lambda name=category: delete_category(name),
                     ).pack(side="right", padx=8)
 
+        # หน้าที่: อ่านชื่อหมวดจาก Entry แล้วเพิ่มลง store และรีเฟรช UI
+        # ที่มา: pages/dashboard.py::DashboardPage.open_category_popup (เรียกตรง)
+        # ที่มา: pages/dashboard.py::DashboardPage.open_category_popup (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: category_entry (ctk.CTkEntry) — รับจาก scope DashboardPage.open_category_popup
+        # Closure: self (DashboardPage) — รับจาก scope DashboardPage.open_category_popup
+        # อ่านภายใน: category_entry ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
         def add_category():
             name = category_entry.get().strip()
             if not name:
@@ -669,6 +724,10 @@ class DashboardPage(ctk.CTkFrame):
             render_categories()
             self.refresh_dashboard()
 
+        # หน้าที่: ลบหมวดที่เลือกและรีเฟรช popup กับรายการโปรด
+        # ที่มา: pages/dashboard.py::DashboardPage.open_category_popup.render_categories (เรียกตรง)
+        # Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+        # Closure: self (DashboardPage) — รับจาก scope DashboardPage.open_category_popup
         def delete_category(name):
             try:
                 self.store.remove_category(name)
@@ -689,6 +748,9 @@ class DashboardPage(ctk.CTkFrame):
         category_entry.bind("<Return>", lambda _event: add_category())
         render_categories()
 
+    # หน้าที่: เปิดฟอร์มสร้างการแข่งขันใหม่
+    # ที่มา: helper ของหน้านี้สำหรับผู้เรียกหรือ callback; ไม่มีจุดเรียกตรงใน flow ปัจจุบันที่ตรวจพบ
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def open_competition_popup(self):
         popup = self._create_popup("ADD CTF COMPETITION", "520x280")
         ctk.CTkLabel(
@@ -707,6 +769,14 @@ class DashboardPage(ctk.CTkFrame):
         )
         entry.pack(fill="x", padx=28, pady=(0, 14))
 
+        # หน้าที่: อ่านชื่อจากฟอร์ม เพิ่มการแข่งขัน และรีเฟรช Dashboard
+        # ที่มา: pages/dashboard.py::DashboardPage.open_competition_popup (เรียกตรง)
+        # ที่มา: pages/dashboard.py::DashboardPage.open_competition_popup (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: entry (ctk.CTkEntry) — รับจาก scope DashboardPage.open_competition_popup
+        # Closure: popup (CTkToplevel) — รับจาก scope DashboardPage.open_competition_popup
+        # Closure: self (DashboardPage) — รับจาก scope DashboardPage.open_competition_popup
+        # อ่านภายใน: entry ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
         def save_competition():
             name = entry.get().strip()
             if not name:
@@ -729,6 +799,13 @@ class DashboardPage(ctk.CTkFrame):
         ).pack(fill="x", padx=28)
         entry.bind("<Return>", lambda _event: save_competition())
 
+    # หน้าที่: สร้างหน้าต่างย่อยพร้อมชื่อ ขนาด และธีมของ Dashboard
+    # ที่มา: pages/dashboard.py::DashboardPage.open_pin_popup (เรียกตรง)
+    # ที่มา: pages/dashboard.py::DashboardPage.open_category_popup (เรียกตรง)
+    # ที่มา: pages/dashboard.py::DashboardPage.open_competition_popup (เรียกตรง)
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: title (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: geometry (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _create_popup(self, title, geometry):
         popup = ctk.CTkToplevel(self)
         popup.title(title)
@@ -738,6 +815,10 @@ class DashboardPage(ctk.CTkFrame):
         popup.grab_set()
         return popup
 
+    # หน้าที่: สร้าง label หัวข้อฟิลด์ในแบบฟอร์ม
+    # ที่มา: pages/dashboard.py::DashboardPage.open_pin_popup (เรียกตรง)
+    # Input: master (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
+    # Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     @staticmethod
     def _form_label(master, text):
         ctk.CTkLabel(
@@ -747,6 +828,10 @@ class DashboardPage(ctk.CTkFrame):
             text_color=TEXT_DIM,
         ).pack(anchor="w", pady=(0, 4))
 
+    # หน้าที่: เปลี่ยนการแข่งขันที่ active ใน store และอัปเดตสถิติ
+    # ที่มา: helper ของหน้านี้สำหรับผู้เรียกหรือ callback; ไม่มีจุดเรียกตรงใน flow ปัจจุบันที่ตรวจพบ
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def change_competition(self, name):
         try:
             self.store.set_active_competition(name)
@@ -755,6 +840,10 @@ class DashboardPage(ctk.CTkFrame):
             return
         self.refresh_dashboard()
 
+    # หน้าที่: ลบรายการโปรดตาม target แล้ววาดการ์ดใหม่
+    # ที่มา: pages/dashboard.py::DashboardPage._render_favorites (เรียกตรง)
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: target (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def remove_favorite(self, target):
         try:
             self.store.remove_favorite(target)
@@ -763,6 +852,11 @@ class DashboardPage(ctk.CTkFrame):
             return
         self.refresh_dashboard()
 
+    # หน้าที่: แยกชนิด target เพื่อเปิดหน้า โหลด Pipeline หรือเรียก launcher ของ App Portal
+    # ที่มา: pages/dashboard.py::DashboardPage._register_shortcuts (เรียกตรง)
+    # ที่มา: pages/dashboard.py::DashboardPage._render_favorites (เรียกตรง)
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: favorite (dict[str, Any]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def launch_favorite(self, favorite):
         target = favorite.get("target", "")
         name = favorite.get("name", "Tool")
@@ -806,12 +900,20 @@ class DashboardPage(ctk.CTkFrame):
         )
         return "break"
 
+    # หน้าที่: ตรวจ path แล้วส่งไฟล์ไปเปิดในหน้า File Inspection
+    # ที่มา: pages/dashboard.py::DashboardPage._render_recent_files (เรียกตรง)
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: path (str | PathLike[str]) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
     def open_recent_file(self, path):
         if not os.path.isfile(path):
             return
         self.app_root.switch_page("File Inspection")
         self.app_root.pages["File Inspection"].load_files([path])
 
+    # หน้าที่: ผูกคีย์กับรายการโปรด; เก็บ helper เดิมไว้แต่ refresh_dashboard ไม่เรียกแล้ว
+    # ที่มา: helper ของหน้านี้สำหรับผู้เรียกหรือ callback; ไม่มีจุดเรียกตรงใน flow ปัจจุบันที่ตรวจพบ
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: favorites (list[dict[str, Any]]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _register_shortcuts(self, favorites):
         # ถอนคีย์ลัดเดิมออกจากหน้าต่างหลัก
         for sequence, function_id in self._bound_shortcuts:
@@ -841,6 +943,9 @@ class DashboardPage(ctk.CTkFrame):
                 (sequence, function_id)
             )
 
+    # หน้าที่: แปลงข้อความคีย์ Ctrl/Alt/Shift เป็นรูปแบบ Tk binding
+    # ที่มา: pages/dashboard.py::DashboardPage._register_shortcuts (เรียกตรง)
+    # Input: shortcut (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     @staticmethod
     def _shortcut_to_sequence(shortcut):
         if not shortcut:
@@ -864,6 +969,9 @@ class DashboardPage(ctk.CTkFrame):
             return None
         return f"<{'-'.join(modifiers)}-Key-{key}>"
 
+    # หน้าที่: ถอน key bindings ที่เคยบันทึกไว้ก่อนทำลายหน้า Dashboard
+    # ที่มา: Tk/หน้าต่างหลักเรียกเมื่อทำลาย widget
+    # Input: self (DashboardPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def destroy(self):
         for sequence, function_id in self._bound_shortcuts:
             try:

@@ -21,16 +21,27 @@ import tarfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
+# หน้าที่: อ่านเลขรุ่นจาก UNIT_VERSION หรือใช้ค่าเริ่มต้น
+# ที่มา: packaging/build.py::build (เรียกตรง)
+# Input: ไม่มีพารามิเตอร์ที่ส่งเข้ามาโดยตรง
+# อ่านภายใน: UNIT_VERSION (str | None) จาก environment; fallback เป็นเลขรุ่นเริ่มต้น (str)
 def _version() -> str:
     return os.environ.get("UNIT_VERSION", "0.1.0")
 
 
+# หน้าที่: ตรวจเลขรุ่นให้ใช้เป็นชื่อไฟล์และโฟลเดอร์ได้อย่างปลอดภัย
+# ที่มา: packaging/build.py::build (เรียกตรง)
+# Input: version (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _safe_version(version: str) -> str:
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+-]{0,63}", version):
         raise ValueError("version must contain only safe filename characters")
     return version
 
 
+# หน้าที่: เก็บเวอร์ชันแอป runtime ระบบ และ dependencies ลง manifest ของ bundle
+# ที่มา: packaging/build.py::build (เรียกตรง)
+# Input: out (Path) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: version (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _manifest(out: Path, version: str) -> None:
     packages = []
     for name in ("customtkinter", "tkinterdnd2", "puremagic", "PyInstaller"):
@@ -49,6 +60,11 @@ def _manifest(out: Path, version: str) -> None:
     (out / "manifest.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
+# หน้าที่: สร้างแพ็กเกจ Linux x86_64 ด้วย PyInstaller และ archive ตามตัวเลือก
+# ที่มา: packaging/build.py::main (เรียกตรง)
+# Input: output_root (Path) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: version (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: archive (bool) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def build(output_root: Path, version: str | None = None, archive: bool = True) -> Path:
     version = version or _version()
     version = _safe_version(version)
@@ -94,6 +110,9 @@ def build(output_root: Path, version: str | None = None, archive: bool = True) -
     return target
 
 
+# หน้าที่: อ่าน CLI arguments แล้วเรียก build พร้อมพิมพ์ path ผลลัพธ์
+# ที่มา: packaging/build.py::<module> (เรียกตรง)
+# Input: argv (list[str] | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build UNIT Linux onedir")
     parser.add_argument("--output-root", type=Path, default=ROOT / "dist")

@@ -18,6 +18,7 @@ from Tools.extra_tools import (
 from Tools.flag_detector import find_flags
 from Tools.text_view import open_text_view, save_async
 from Tools import history_hooks
+from Tools.tool_catalog import DATA_HASH_DECODE_ALGORITHMS, DATA_HASH_BITWISE_ALGORITHMS
 from tkinter import filedialog, Menu, TclError
 
 # ==========================================
@@ -43,6 +44,9 @@ PREVIEW_CHARS = 12000
 
 
 class _TempOutputPath(str):
+    # หน้าที่: ลบไฟล์ output ชั่วคราวเมื่อไม่มีผู้ถือ reference ของ path แล้ว
+    # ที่มา: Python เรียกผ่านวงจรชีวิตหรือ protocol ของ object
+    # Input: self (_TempOutputPath) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def __del__(self):
         try:
             os.unlink(self)
@@ -52,6 +56,9 @@ class _TempOutputPath(str):
 
 class _DaemonLatestExecutor:
     """One daemon worker; at most one queued (supersedable) job."""
+    # หน้าที่: เตรียม condition/ช่องเก็บงานและเริ่ม daemon worker แบบรับงานล่าสุด
+    # ที่มา: pages/data_hash.py::DataHashPage.__init__ (เรียกตรง)
+    # Input: self (_DaemonLatestExecutor) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def __init__(self):
         self._condition = threading.Condition()
         self._pending = None
@@ -60,6 +67,12 @@ class _DaemonLatestExecutor:
         self._thread = threading.Thread(target=self._run, name="data-hash", daemon=True)
         self._thread.start()
 
+    # หน้าที่: ส่ง callable และ snapshot เข้า executor โดยแทนที่งานที่ยังไม่เริ่มด้วยงานล่าสุด
+    # ที่มา: pages/data_hash.py::DataHashPage.browse_file (เรียกตรง)
+    # ที่มา: pages/data_hash.py::DataHashPage.process_data (เรียกตรง)
+    # Input: self (_DaemonLatestExecutor) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: function (Callable[..., Any]) — callable ที่ผู้เรียกลงทะเบียนไว้ให้เรียกต่อ
+    # Input: argument (Any (argument ที่ส่งต่อให้ callable)) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def submit(self, function, argument):
         future = Future()
         with self._condition:
@@ -73,6 +86,9 @@ class _DaemonLatestExecutor:
             self._condition.notify()
         return future
 
+    # หน้าที่: รอรับงานจากช่อง pending แล้วคำนวณผลหรือ exception ใส่ Future
+    # ที่มา: pages/data_hash.py::_DaemonLatestExecutor.__init__ (อ้างอิง/callback)
+    # Input: self (_DaemonLatestExecutor) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _run(self):
         while True:
             with self._condition:
@@ -94,6 +110,9 @@ class _DaemonLatestExecutor:
                 # Do not keep the previous large input/result while idle.
                 del future, function, argument
 
+    # หน้าที่: ปิดรับงานใหม่และยกเลิกงานที่ยังรออยู่ใน executor
+    # ที่มา: pages/data_hash.py::DataHashPage.destroy (เรียกตรง)
+    # Input: self (_DaemonLatestExecutor) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def shutdown(self):
         with self._condition:
             self._closed = True
@@ -106,6 +125,11 @@ class _DaemonLatestExecutor:
 
 class DataHashPage(ctk.CTkFrame):
 
+    # หน้าที่: สร้างหน้า Encode/Decode/Hash/Bitwise พร้อมช่อง input/output และ executor
+    # ที่มา: app.py::UNITApp.__init__ (เรียกตรง)
+    # ที่มา: pages/data_hash.py::DataHashPage._compute_snapshot (อ้างอิง/callback)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: master (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
     def __init__(self, master):
         super().__init__(master)
         self.app_root = master.master
@@ -137,16 +161,7 @@ class DataHashPage(ctk.CTkFrame):
             "Unicode Escape", "Reverse", "ROT"
         ]
 
-        self.decode_algos = [
-            "Auto Detect", "Base64", "Base32",
-            "Base45", "Base85", "Base58", "Base62", "Ascii85",
-            "Base16", "Hex",
-            "Binary", "Octal", "Decimal",
-            "URL Decode",
-            "URL-safe Base64",
-            "HTML Entity",
-            "Unicode Escape", "Reverse", "ROT"
-        ]
+        self.decode_algos = list(DATA_HASH_DECODE_ALGORITHMS)
 
         self.hash_algos = [
             "md5", "sha1", "sha224", "sha256",
@@ -157,12 +172,7 @@ class DataHashPage(ctk.CTkFrame):
         ]
 
         # ⭐ Bitwise algorithms จาก Tools
-        self.bitwise_algos = [
-            "XOR Mask",
-            "XOR Unmask",
-            "OR Mask",
-            "AND Mask"
-        ]
+        self.bitwise_algos = list(DATA_HASH_BITWISE_ALGORITHMS)
 
         # แผนที่ค่าเริ่มต้นของแต่ละโหมด (ใช้แทน logic การ "วน" โหมดแบบเดิม)
         self._mode_algos = {
@@ -387,6 +397,9 @@ class DataHashPage(ctk.CTkFrame):
         self.refresh_quick_chips()
         self.update_mode_button_styles()
 
+    # หน้าที่: ยกเลิกงาน ปิด executor และเก็บกวาดทรัพยากรก่อนทำลายหน้า
+    # ที่มา: Tk/หน้าต่างหลักเรียกเมื่อทำลาย widget
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def destroy(self):
         """Stop queued work when navigating away without waiting on a huge job."""
         future = getattr(self, "_active_future", None)
@@ -404,6 +417,12 @@ class DataHashPage(ctk.CTkFrame):
         self._temp_outputs.clear()
         super().destroy()
 
+    # หน้าที่: เก็บข้อความที่เลือกและเปิดเมนูคลิกขวาสำหรับส่งไป Gemini
+    # ที่มา: pages/data_hash.py::DataHashPage.__init__ (เรียกตรง)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: event (tkinter.Event) — Tk/TkDND ส่งมาจาก event binding; บางจุดเรียกตรงโดยไม่ส่ง event
+    # Input: textbox (CTkTextbox | tkinter.Text) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # อ่านภายใน: textbox ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def show_context_menu(self, event, textbox):
         # เก็บเฉพาะข้อความที่เลือกในช่องที่คลิก ก่อน popup เปลี่ยน focus
         try:
@@ -419,6 +438,9 @@ class DataHashPage(ctk.CTkFrame):
             self.context_menu.grab_release()
         return "break"
 
+    # หน้าที่: ส่งข้อความที่เลือกใน Data Hashing ไปยังหน้า Gemini
+    # ที่มา: pages/data_hash.py::DataHashPage.__init__ (อ้างอิง/callback)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def send_selection_to_gemini(self):
         if self.gemini_selection.strip():
             self.app_root.send_to_gemini(self.gemini_selection)
@@ -426,6 +448,11 @@ class DataHashPage(ctk.CTkFrame):
     # =========================
     # Process Main Logic
     # =========================
+    # หน้าที่: ตรวจการแก้ input และเลิกใช้ full-file source เมื่อผู้ใช้แก้ข้อความบนจอ
+    # ที่มา: pages/data_hash.py::DataHashPage.__init__ (อ้างอิง/callback)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: event (tkinter.Event | None) — Tk/TkDND ส่งมาจาก event binding; บางจุดเรียกตรงโดยไม่ส่ง event
+    # อ่านภายใน: self.input_box ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def _input_changed(self, event=None):
         # A file preview is only authoritative until the user edits it.
         if not self._loading_programmatically and self._file_source_text is not None:
@@ -436,12 +463,22 @@ class DataHashPage(ctk.CTkFrame):
                 self._file_preview_text = None
         self.process_data(event)
 
+    # หน้าที่: คืนข้อความต้นทางเต็มจากไฟล์หรืออ่านข้อความปัจจุบันจาก input box
+    # ที่มา: pages/data_hash.py::DataHashPage.process_data (เรียกตรง)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # อ่านภายใน: self.input_box ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def _snapshot_source(self):
         visible = self.input_box.get("1.0", "end-1c")
         if self._file_source_text is not None and visible == self._file_preview_text:
             return self._file_source_text
         return visible
 
+    # หน้าที่: เตรียม tuple ผลคำนวณและสร้างไฟล์ดูผลเต็มเมื่อข้อความเกิน preview
+    # ที่มา: pages/data_hash.py::DataHashPage._compute_snapshot (เรียกตรง)
+    # Input: output (bytes) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: result (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: algo (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: detected (str | dict[str, str] | None) — ผล auto-detect เป็น str หรือ key ของ Bitwise เป็น dict; None เมื่อไม่มีผลตรวจ
     @staticmethod
     def _worker_result(output, result, algo, detected):
         full_path = None
@@ -457,6 +494,10 @@ class DataHashPage(ctk.CTkFrame):
             full_path = _TempOutputPath(handle.name)
         return output, result, algo, detected, full_path
 
+    # หน้าที่: คำนวณ Encode/Decode/Hash/Bitwise จาก snapshot โดยไม่เข้าถึง Tk widgets
+    # ที่มา: pages/data_hash.py::DataHashPage.process_data (อ้างอิง/callback)
+    # ที่มา: pages/data_hash.py::DataHashPage.process_data (เรียกตรง)
+    # Input: snapshot (tuple[str, str, str, dict[str, str]]) — process_data เก็บ (input, mode, algo, options) จาก UI ก่อนส่งเข้า worker
     @staticmethod
     def _compute_snapshot(snapshot):
         """Pure worker operation.  It must never touch Tk objects."""
@@ -500,6 +541,19 @@ class DataHashPage(ctk.CTkFrame):
         output = result.encode("utf-8") if isinstance(result, str) else bytes(result)
         return DataHashPage._worker_result(output, result, algo, {"key": key})
 
+    # หน้าที่: แสดงผลของ generation ปัจจุบันและบันทึก History/กิจกรรม
+    # ที่มา: pages/data_hash.py::DataHashPage._job_done (เรียกตรง)
+    # ที่มา: pages/data_hash.py::DataHashPage.process_data (เรียกตรง)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: output_bytes (bytes) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: result (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: algo (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: detected (str | dict[str, str] | None) — ผล auto-detect เป็น str หรือ key ของ Bitwise เป็น dict; None เมื่อไม่มีผลตรวจ
+    # Input: full_path (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: history_id (str | None) — ID ที่ history_hooks.begin คืนให้เมื่อเริ่มงาน; None เมื่อ History ใช้งานไม่ได้
+    # Input: data (str) — ข้อความต้นทางจาก _snapshot_source ที่ส่งต่อพร้อมงาน
+    # Input: generation (int) — หมายเลข _job_generation ที่ใช้ข้ามผลของงานเก่า
+    # อ่านภายใน: self.key_entry ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def _show_result(self, output_bytes, result, algo, detected, full_path, history_id, data, generation):
         if generation != self._job_generation:
             return
@@ -524,6 +578,13 @@ class DataHashPage(ctk.CTkFrame):
         self._record_activity(tool=f"{self.mode}: {algo}", action=self.mode, status="success", flags=find_flags(result[:PREVIEW_CHARS]), details=f"Input length: {len(data)} characters")
         self.update_output_label()
 
+    # หน้าที่: รับผลหรือ exception จาก Future และแสดงเฉพาะงานที่ยังตรงกับ generation
+    # ที่มา: pages/data_hash.py::DataHashPage.process_data (เรียกตรง)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: future (concurrent.futures.Future) — ผลหรือสถานะจากงานเบื้องหลังที่ผู้เรียกส่งต่อมา
+    # Input: generation (int) — หมายเลข _job_generation ที่ใช้ข้ามผลของงานเก่า
+    # Input: history_id (str | None) — ID ที่ history_hooks.begin คืนให้เมื่อเริ่มงาน; None เมื่อ History ใช้งานไม่ได้
+    # Input: data (str) — ข้อความต้นทางจาก _snapshot_source ที่ส่งต่อพร้อมงาน
     def _job_done(self, future, generation, history_id, data):
         if getattr(self, '_active_future', None) is future:
             self._active_future = None
@@ -543,6 +604,12 @@ class DataHashPage(ctk.CTkFrame):
             return
         self._show_result(output, result, algo, detected, full_path, history_id, data, generation)
 
+    # หน้าที่: ตรวจ Future ตามรอบ Tk timer แล้วเรียก completion callback บน UI thread
+    # ที่มา: pages/data_hash.py::DataHashPage.browse_file (อ้างอิง/callback)
+    # ที่มา: pages/data_hash.py::DataHashPage.process_data (อ้างอิง/callback)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: future (concurrent.futures.Future) — ผลหรือสถานะจากงานเบื้องหลังที่ผู้เรียกส่งต่อมา
+    # Input: callback (Callable[[concurrent.futures.Future], None]) — callable ที่ผู้เรียกลงทะเบียนไว้ให้เรียกต่อ
     def _poll_future(self, future, callback):
         """Poll completion from Tk; worker threads never call Tk APIs."""
         if future.done():
@@ -550,6 +617,14 @@ class DataHashPage(ctk.CTkFrame):
         else:
             self.after(20, self._poll_future, future, callback)
 
+    # หน้าที่: อ่าน input/algorithm/options เป็น snapshot แล้วคำนวณทันทีหรือส่งเข้า worker
+    # ที่มา: Tools/package_smoke.py::main (เรียกตรง)
+    # ที่มา: app.py::UNITApp.send_to_hashing (เรียกตรง)
+    # ที่มา: pages/data_hash.py::DataHashPage.__init__ (อ้างอิง/callback)
+    # ที่มาเพิ่มเติม: อีก 4 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: event (tkinter.Event | None) — Tk/TkDND ส่งมาจาก event binding; บางจุดเรียกตรงโดยไม่ส่ง event
+    # อ่านภายใน: self.rot_entry, self.rot_mode_var, self.custom_hex_entry, self.key_entry ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def process_data(self, event=None):
         if getattr(self, '_file_loading', False):
             return
@@ -633,6 +708,9 @@ class DataHashPage(ctk.CTkFrame):
 
         self.update_output_label()
 
+    # หน้าที่: เลือก destination แล้วบันทึก output bytes ฉบับเต็ม
+    # ที่มา: pages/data_hash.py::DataHashPage.__init__ (อ้างอิง/callback)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def save_raw_output(self):
         """Save the exact decoded/output bytes, without text re-encoding."""
         if not self.output_bytes:
@@ -655,6 +733,9 @@ class DataHashPage(ctk.CTkFrame):
         except OSError as exc:
             self.output_box.insert("end", f"\nError saving raw output: {exc}")
 
+    # หน้าที่: เปิด viewer สำหรับไฟล์ output เต็มที่ยาวเกิน preview
+    # ที่มา: pages/data_hash.py::DataHashPage.__init__ (อ้างอิง/callback)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def view_full_output(self):
         path = getattr(self, "_full_output_path", None)
         if path:
@@ -663,12 +744,19 @@ class DataHashPage(ctk.CTkFrame):
     # =========================
     # Highlight Output
     # =========================
+    # หน้าที่: อ่านคำค้นแล้วไฮไลต์ข้อความที่ตรงใน output box
+    # ที่มา: pages/data_hash.py::DataHashPage.__init__ (อ้างอิง/callback)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # อ่านภายใน: self.search_entry ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def search_output(self):
         highlight_text(self.output_box, self.search_entry.get())
 
     # =========================
     # Browse File
     # =========================
+    # หน้าที่: เลือกไฟล์ ตรวจขนาด และเริ่มอ่าน UTF-8 เบื้องหลัง
+    # ที่มา: pages/data_hash.py::DataHashPage.__init__ (อ้างอิง/callback)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def browse_file(self):
 
         file_path = filedialog.askopenfilename(
@@ -694,6 +782,10 @@ class DataHashPage(ctk.CTkFrame):
         self._file_source_text = None
         self._file_preview_text = None
 
+        # หน้าที่: อ่านไฟล์ที่เลือกเป็น UTF-8 โดยตรวจเพดานขนาด input
+        # ที่มา: pages/data_hash.py::DataHashPage.browse_file (เรียกตรง)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: file_path (str) — รับจาก scope DataHashPage.browse_file
         def read_file():
             with open(file_path, "rb") as handle:
                 raw = handle.read(MAX_FILE_BYTES + 1)
@@ -701,6 +793,11 @@ class DataHashPage(ctk.CTkFrame):
                 raise ValueError(f"File exceeds the 64 MiB Data Hashing limit ({MAX_FILE_BYTES:,} bytes)")
             return raw.decode("utf-8")
 
+        # หน้าที่: รับผลอ่านไฟล์จาก Future ตรวจ generation และเตรียมนำข้อมูลเข้า UI
+        # ที่มา: pages/data_hash.py::DataHashPage.browse_file (อ้างอิง/callback)
+        # Input: future (concurrent.futures.Future) — ผลหรือสถานะจากงานเบื้องหลังที่ผู้เรียกส่งต่อมา
+        # Closure: load_generation (int) — รับจาก scope DataHashPage.browse_file
+        # Closure: self (DataHashPage) — รับจาก scope DataHashPage.browse_file
         def loaded(future):
             if load_generation != self._job_generation:
                 return
@@ -713,6 +810,12 @@ class DataHashPage(ctk.CTkFrame):
                 self.input_status_label.configure(text="FILE NOT LOADED")
                 self.output_box.insert("end", f"Error reading file: {exc}")
                 return
+            # หน้าที่: ติดตั้ง full-file source และ preview ลงหน้าจอแล้วเริ่มประมวลผล
+            # ที่มา: pages/data_hash.py::DataHashPage.browse_file.loaded (เรียกตรง)
+            # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+            # Closure: content (str) — รับจาก scope DataHashPage.browse_file.loaded
+            # Closure: load_generation (int) — รับจาก scope DataHashPage.browse_file
+            # Closure: self (DataHashPage) — รับจาก scope DataHashPage.browse_file
             def install():
                 if load_generation != self._job_generation:
                     return
@@ -733,6 +836,16 @@ class DataHashPage(ctk.CTkFrame):
         future = self._job_executor.submit(lambda _: read_file(), None)
         self.after(20, self._poll_future, future, loaded)
 
+    # หน้าที่: ส่งเหตุการณ์แปลงข้อมูลไป Dashboard พร้อม path และ flags ที่พบ
+    # ที่มา: pages/data_hash.py::DataHashPage._show_result (เรียกตรง)
+    # ที่มา: pages/data_hash.py::DataHashPage._job_done (เรียกตรง)
+    # ที่มา: pages/data_hash.py::DataHashPage.process_data (เรียกตรง)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: tool (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: action (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: status (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: flags (list[str] | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: details (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _record_activity(self, tool, action, status, flags=None, details=""):
         if not hasattr(self.app_root, "record_activity"):
             return
@@ -749,6 +862,12 @@ class DataHashPage(ctk.CTkFrame):
     # =========================
     # Mode Selector (Segmented Control)
     # =========================
+    # หน้าที่: เปลี่ยนโหมดพร้อมค่า dropdown และช่องกรอกเฉพาะโหมด
+    # ที่มา: Tools/package_smoke.py::main (เรียกตรง)
+    # ที่มา: app.py::UNITApp.navigate_to (เรียกตรง)
+    # ที่มา: pages/data_hash.py::DataHashPage.__init__ (เรียกตรง)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def set_mode(self, name):
         """สลับโหมดโดยตรง (Decode / Encode / Hash / Bitwise) แทนการวนปุ่มเดิม
         logic การประมวลผลข้างในยังเหมือนเดิมทุกอย่าง แค่เปลี่ยนวิธีเลือกโหมดใน UI"""
@@ -772,6 +891,10 @@ class DataHashPage(ctk.CTkFrame):
         self.refresh_quick_chips()
         self.on_algo_selected()
 
+    # หน้าที่: ปรับสีปุ่มให้ตรงกับโหมดที่ใช้งานอยู่
+    # ที่มา: pages/data_hash.py::DataHashPage.__init__ (เรียกตรง)
+    # ที่มา: pages/data_hash.py::DataHashPage.set_mode (เรียกตรง)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def update_mode_button_styles(self):
         """ไฮไลต์ปุ่มโหมดที่กำลังใช้งานอยู่ (สไตล์เดียวกับ segmented control หน้าอื่น)"""
         for name, btn in self.mode_buttons.items():
@@ -784,6 +907,10 @@ class DataHashPage(ctk.CTkFrame):
     # =========================
     # Quick Select Chips
     # =========================
+    # หน้าที่: สร้างปุ่มอัลกอริทึมด่วนตามโหมดปัจจุบัน
+    # ที่มา: pages/data_hash.py::DataHashPage.__init__ (เรียกตรง)
+    # ที่มา: pages/data_hash.py::DataHashPage.set_mode (เรียกตรง)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def refresh_quick_chips(self):
         """สร้างปุ่มลัดใหม่ตามโหมดปัจจุบัน (แก้บั๊กเดิมที่ select_tab ไม่มีอยู่จริง)"""
         for btn in self.quick_buttons:
@@ -801,6 +928,10 @@ class DataHashPage(ctk.CTkFrame):
 
         self.refresh_quick_chip_styles()
 
+    # หน้าที่: ไฮไลต์ปุ่มอัลกอริทึมด่วนที่ตรงกับ dropdown
+    # ที่มา: pages/data_hash.py::DataHashPage.refresh_quick_chips (เรียกตรง)
+    # ที่มา: pages/data_hash.py::DataHashPage.on_algo_selected (เรียกตรง)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def refresh_quick_chip_styles(self):
         current = self.algo_menu.get()
         for btn in self.quick_buttons:
@@ -810,10 +941,20 @@ class DataHashPage(ctk.CTkFrame):
                 btn.configure(fg_color="transparent", text_color=TEXT_DIM, hover_color="#2B2B36",
                                border_width=1, border_color=BORDER_DIM)
 
+    # หน้าที่: ตั้ง dropdown เป็นอัลกอริทึมที่เลือกแล้วอัปเดตผล
+    # ที่มา: app.py::UNITApp.navigate_to (เรียกตรง)
+    # ที่มา: pages/data_hash.py::DataHashPage.refresh_quick_chips (เรียกตรง)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: algo (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def select_quick_algo(self, algo):
         self.algo_menu.set(algo)
         self.on_algo_selected()
 
+    # หน้าที่: ปรับช่อง options และคำนวณผลเมื่อเลือกอัลกอริทึมใหม่
+    # ที่มา: pages/data_hash.py::DataHashPage.set_mode (เรียกตรง)
+    # ที่มา: pages/data_hash.py::DataHashPage.select_quick_algo (เรียกตรง)
+    # ที่มา: pages/data_hash.py::DataHashPage.__init__ (เรียกตรง)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def on_algo_selected(self):
         if self.mode == "Decode" and self.algo_menu.get() == "Hex":
             self.custom_hex_panel.pack(fill="x", padx=15, pady=(0, 12))
@@ -831,6 +972,11 @@ class DataHashPage(ctk.CTkFrame):
     # =========================
     # Update Label
     # =========================
+    # หน้าที่: ปรับหัวข้อ output ตามโหมดและอัลกอริทึมที่ตรวจพบ
+    # ที่มา: pages/data_hash.py::DataHashPage._show_result (เรียกตรง)
+    # ที่มา: pages/data_hash.py::DataHashPage.process_data (เรียกตรง)
+    # ที่มา: pages/data_hash.py::DataHashPage._job_done (เรียกตรง)
+    # Input: self (DataHashPage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def update_output_label(self):
         # ⭐ แก้ไข: ให้โชว์ป้ายกำกับเท่ๆ เวลาใช้งาน Auto Detect
         if self.mode == "Decode" and self.algo_menu.get() == "Auto Detect":

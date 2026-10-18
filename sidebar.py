@@ -1,6 +1,11 @@
 import customtkinter as ctk
 
 class Sidebar(ctk.CTkFrame):
+    # หน้าที่: สร้าง sidebar พร้อมปุ่มเลือกหน้าต่างและเก็บ callback ของหน้าต่างหลัก
+    # ที่มา: app.py::UNITApp.__init__ (เรียกตรง)
+    # Input: self (Sidebar) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: master (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
+    # Input: callback (Callable[[str], None]) — callable ที่ผู้เรียกลงทะเบียนไว้ให้เรียกต่อ
     def __init__(self, master, callback):
         super().__init__(master, width=190, fg_color="#15151E", corner_radius=0)
         self.grid_columnconfigure(0, weight=1)
@@ -45,6 +50,11 @@ class Sidebar(ctk.CTkFrame):
             btn.grid(row=i, column=0, sticky="ew", padx=12, pady=4)
             self.buttons[name] = btn
 
+    # หน้าที่: ปรับสีปุ่ม sidebar ให้ตรงกับชื่อหน้าที่เลือก
+    # ที่มา: app.py::UNITApp.switch_page (เรียกตรง)
+    # ที่มา: sidebar.py::Sidebar.on_click (เรียกตรง)
+    # Input: self (Sidebar) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: selected_name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def update_button_styles(self, selected_name):
         """ เปลี่ยนสีไฮไลท์ปุ่มตามชื่อหน้า """
         for name, btn in self.buttons.items():
@@ -61,6 +71,10 @@ class Sidebar(ctk.CTkFrame):
                     font=("Consolas", 12),
                 )
 
+    # หน้าที่: อัปเดตปุ่มที่เลือกแล้วเรียก callback เพื่อสลับหน้าหลัก
+    # ที่มา: sidebar.py::Sidebar.__init__ (เรียกตรง)
+    # Input: self (Sidebar) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def on_click(self, name):
         # ไฮไลท์ปุ่มก่อน
         self.update_button_styles(name)

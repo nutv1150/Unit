@@ -27,15 +27,25 @@ PORTAL = {'wireshark': ['wireshark'], 'burpsuite': ['burpsuite'],
           'ghidra': ['ghidra'], 'nmap': ['nmap'], 'hashcat': ['hashcat'],
           'metasploit-framework': ['msfconsole'], 'firefox-esr': ['firefox']}
 
+# หน้าที่: แสดงและรันคำสั่งติดตั้งโดยเลือกได้ว่าจะ capture stdout/stderr หรือไม่
+# ที่มา: packaging/install_dependencies.py::main (เรียกตรง)
+# Input: args (Sequence[str | Path]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: capture (bool) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def run(args, capture=False):
     print('+ ' + shlex.join(map(str, args)), flush=True)
     return subprocess.run(list(map(str, args)), text=True, check=False,
                           stdout=subprocess.PIPE if capture else None,
                           stderr=subprocess.PIPE if capture else None)
 
+# หน้าที่: แสดงคำถามใน terminal และอ่านคำตอบยืนยันจาก stdin
+# ที่มา: packaging/install_dependencies.py::main (เรียกตรง)
+# Input: message (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def ask(message):
     return input(message + ' [y/N] ').strip().lower() in ('y', 'yes')
 
+# หน้าที่: ตรวจ executable ที่ต้องการใน PATH และคืนรายชื่อที่ยังขาด
+# ที่มา: packaging/install_dependencies.py::main (เรียกตรง)
+# Input: commands (list[str]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def report(commands):
     missing = []
     for cmd in sorted(set(commands)):
@@ -44,6 +54,9 @@ def report(commands):
         if not found: missing.append(cmd)
     return missing
 
+# หน้าที่: อ่านตัวเลือก --check/--plan/--core-only และดำเนิน flow ติดตั้ง dependencies
+# ที่มา: packaging/install_dependencies.py::<module> (เรียกตรง)
+# Input: argv (list[str] | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true', help='Read-only executable discovery')

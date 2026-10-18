@@ -6,6 +6,11 @@ import tempfile
 import time
 
 
+# หน้าที่: ทดสอบ packaged app ด้วย workspace/profile ชั่วคราวและคืน environment เมื่อเสร็จ
+# ที่มา: entry point ของ CLI/launcher; รับข้อมูลจาก command line หรือระบบ
+# Input: ไม่มีพารามิเตอร์ที่ส่งเข้ามาโดยตรง
+# อ่านภายใน: resource files ของ bundle (Path) และ environment (Mapping[str, str]); ใช้ profile ชั่วคราว
+# อ่านภายใน: inspection.result_boxes[str(source)].textbox.get() — ค่าจาก widget/Tk variable (str หรือชนิดของ Variable)
 def main():
     previous_cwd = Path.cwd()
     previous_data = os.environ.get('UNIT_DATA_HOME')

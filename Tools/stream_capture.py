@@ -22,9 +22,15 @@ class Capture:
     stderr_file: Path | None
     owner: object
 
+    # หน้าที่: เก็บกวาด temporary directory ที่เป็นเจ้าของไฟล์ stdout/stderr
+    # ที่มา: Tools/stream_capture.py::Capture.__del__ (เรียกตรง)
+    # Input: self (Capture) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def close(self):
         self.owner.cleanup()
 
+    # หน้าที่: รวม stdout และ stderr เต็มลงไฟล์รายงานพร้อมหัวข้อแยก stream
+    # ที่มา: pages/gemini.py::GeminiPage.process_request (เรียกตรง)
+    # Input: self (Capture) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def report_path(self):
         """Full, labelled command output without joining both streams in RAM."""
         folder = Path(self.owner.name)
@@ -38,6 +44,9 @@ class Capture:
                 shutil.copyfileobj(source, output, 65536)
         return destination
 
+    # หน้าที่: คืนทรัพยากรของ capture เมื่อ object หมดอายุ
+    # ที่มา: Python เรียกผ่านวงจรชีวิตของ object หรือ protocol ของคลาส
+    # Input: self (Capture) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def __del__(self):
         try:
             self.close()
@@ -45,6 +54,17 @@ class Capture:
             pass
 
 
+# หน้าที่: รัน subprocess โดยเก็บ stream ลงดิสก์ ตรวจ timeout/cancel และจำกัดขนาด output
+# ที่มา: Pipeline/pipeline_engine.py::PipelineEngine._communicate (เรียกตรง)
+# ที่มา: pages/file_inspection.py::FileInspectionPage._external_analysis (เรียกตรง)
+# ที่มา: pages/gemini.py::GeminiPage.call_gemini_cli (เรียกตรง)
+# ที่มาเพิ่มเติม: อีก 1 จุดเรียก/อ้างอิงในโปรเจกต์
+# Input: command (str | list[str]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: input_data (bytes | Path | None) — stdin ที่ engine/worker เตรียมเป็น bytes หรือ Path สำหรับอ่านแบบ streaming
+# Input: cancel_event (threading.Event หรือ object ที่มี is_set() -> bool | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: timeout (float | int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: on_process (Callable[[subprocess.Popen], None]) — callable ที่ผู้เรียกลงทะเบียนไว้ให้เรียกต่อ
+# Input: **kwargs (dict[str, Any]) — keyword arguments เพิ่มเติมจากผู้เรียก ส่งต่อไปยัง API ภายใน
 def run_capture(command, input_data=None, cancel_event=None, timeout=30, on_process=None, **kwargs):
     """Caller owns Capture until all consumers of its files have finished.
 

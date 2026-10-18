@@ -12,6 +12,10 @@ from Tools.app_paths import writable_path
 CONFIG_DIR = writable_path('config')
 
 
+# หน้าที่: อ่านรายการ records จาก JSON และตรวจ ID ว่าครบและไม่ซ้ำ
+# ที่มา: Tools/workspace_store.py::ChallengeStore.__init__ (เรียกตรง)
+# ที่มา: pages/my_tools.py::MyToolsPage.__init__ (เรียกตรง)
+# Input: path (str | PathLike[str]) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
 def load_records(path):
     path = Path(path)
     if not path.exists():
@@ -25,6 +29,11 @@ def load_records(path):
     return rows
 
 
+# หน้าที่: เขียนรายการ records เป็น JSON ผ่านไฟล์ชั่วคราวแล้วแทนที่ไฟล์จริง
+# ที่มา: Tools/workspace_store.py::ChallengeStore.commit (เรียกตรง)
+# ที่มา: pages/my_tools.py::MyToolsPage._commit (เรียกตรง)
+# Input: path (str | PathLike[str]) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
+# Input: rows (list[dict[str, Any]]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def save_records(path, rows):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -33,6 +42,12 @@ def save_records(path, rows):
     os.replace(temporary, path)
 
 
+# หน้าที่: ตรวจชื่อและเครื่องมือแล้วสร้าง group record พร้อม ID และสำเนารายการ tools
+# ที่มา: pages/my_tools.py::MyToolsPage._open_dialog.save (เรียกตรง)
+# ที่มา: pages/my_tools.py::MyToolsPage.__init__ (เรียกตรง)
+# Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: tools (list[dict[str, Any]]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: group_id (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def make_group(name, tools, group_id=None):
     name = name.strip()
     if not name:
@@ -43,6 +58,14 @@ def make_group(name, tools, group_id=None):
                 category_color=tools[0].get('color', 'purple'), tools=deepcopy(tools))
 
 
+# หน้าที่: ตรวจค่าจำนวนเต็ม ASCII และค่าต่ำสุดก่อนแปลงเป็น int
+# ที่มา: Tools/workspace_store.py::ChallengeStore.update (เรียกตรง)
+# ที่มา: Tools/workspace_store.py::ChallengeStore.__init__ (เรียกตรง)
+# ที่มา: Tools/workspace_store.py::ChallengeStore.create (เรียกตรง)
+# ที่มาเพิ่มเติม: อีก 1 จุดเรียก/อ้างอิงในโปรเจกต์
+# Input: value (str | int (ตรวจค่าและปฏิเสธ bool)) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: minimum (int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: label (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def integer(value, minimum, label):
     if isinstance(value, bool) or not str(value).isascii() or not str(value).isdigit():
         raise ValueError(f'{label} must be an integer of at least {minimum}')
@@ -52,6 +75,12 @@ def integer(value, minimum, label):
     return number
 
 
+# หน้าที่: คำนวณเวลารวมจากเวลาสะสมและ timestamp ที่เริ่มจับเวลาล่าสุด
+# ที่มา: Tools/workspace_store.py::ChallengeStore.update (เรียกตรง)
+# ที่มา: Tools/workspace_store.py::ChallengeStore.pause_all (เรียกตรง)
+# ที่มา: pages/challenge.py::ChallengePage._time_text (เรียกตรง)
+# Input: record (dict[str, Any]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: now (float | int | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def elapsed(record, now=None):
     now = time.time() if now is None else now
     total = record['elapsed_seconds']
@@ -60,6 +89,9 @@ def elapsed(record, now=None):
     return total
 
 
+# หน้าที่: จัดวินาทีเป็นข้อความ HH:MM:SS
+# ที่มา: pages/challenge.py::ChallengePage._time_text (เรียกตรง)
+# Input: seconds (float | int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def format_elapsed(seconds):
     seconds = max(0, int(seconds))
     hours, seconds = divmod(seconds, 3600)
@@ -68,6 +100,11 @@ def format_elapsed(seconds):
 
 
 class ChallengeStore:
+    # หน้าที่: โหลด Challenge records และตรวจคะแนน เวลา และสถานะ timer
+    # ที่มา: pages/challenge.py::ChallengePage.__init__ (เรียกตรง)
+    # Input: self (ChallengeStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: path (str | PathLike[str] | None) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
+    # Input: clock (Callable[[], float]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def __init__(self, path=None, clock=time.time):
         self.path = Path(path) if path is not None else CONFIG_DIR / 'challenges.json'
         self.clock = clock
@@ -87,10 +124,22 @@ class ChallengeStore:
                 if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
                     raise ValueError('Invalid timer value')
 
+    # หน้าที่: บันทึก Challenge records และอัปเดตสำเนาในหน่วยความจำ
+    # ที่มา: Tools/solve_history.py::SolveHistoryStore.begin (เรียกตรง)
+    # ที่มา: Tools/solve_history.py::SolveHistoryStore.finish (เรียกตรง)
+    # ที่มา: Tools/solve_history.py::SolveHistoryStore.clear (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 4 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (ChallengeStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: rows (list[dict[str, Any]]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def commit(self, rows):
         save_records(self.path, rows)
         self.rows = rows
 
+    # หน้าที่: สร้าง Challenge ใหม่พร้อมคะแนนเริ่มต้นและ timer ที่หยุดอยู่
+    # ที่มา: pages/challenge.py::ChallengePage._create (เรียกตรง)
+    # Input: self (ChallengeStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: total (str | int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def create(self, name, total):
         if not name.strip():
             raise ValueError('Enter a competition name')
@@ -99,9 +148,23 @@ class ChallengeStore:
         self.commit(self.rows + [record])
         return record['id']
 
+    # หน้าที่: ค้นหา Challenge record ตาม ID
+    # ที่มา: pages/challenge.py::ChallengePage._open_editor (เรียกตรง)
+    # ที่มา: pages/challenge.py::ChallengePage._open_editor.toggle (เรียกตรง)
+    # ที่มา: pages/challenge.py::ChallengePage._delete (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 2 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (ChallengeStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: record_id (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def get(self, record_id):
         return next(row for row in self.rows if row['id'] == record_id)
 
+    # หน้าที่: ตรวจคะแนน อัปเดต timer และบันทึก record ที่แก้ไข
+    # ที่มา: pages/challenge.py::ChallengePage._open_editor.toggle (เรียกตรง)
+    # ที่มา: pages/challenge.py::ChallengePage._open_editor.save (เรียกตรง)
+    # Input: self (ChallengeStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: record_id (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: solved (str | int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: running (bool) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def update(self, record_id, solved, running):
         rows = deepcopy(self.rows)
         row = next(r for r in rows if r['id'] == record_id)
@@ -113,9 +176,16 @@ class ChallengeStore:
                    is_running=bool(running), solved_items=solved)
         self.commit(rows)
 
+    # หน้าที่: ลบ Challenge ที่มี ID ตรงกันแล้วบันทึกรายการที่เหลือ
+    # ที่มา: pages/challenge.py::ChallengePage._delete.remove (เรียกตรง)
+    # Input: self (ChallengeStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: record_id (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def delete(self, record_id):
         self.commit([r for r in self.rows if r['id'] != record_id])
 
+    # หน้าที่: หยุด timers ทุกตัวและบันทึกเวลาสะสมก่อนปิดแอป
+    # ที่มา: pages/challenge.py::ChallengePage.save_before_close (เรียกตรง)
+    # Input: self (ChallengeStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def pause_all(self):
         rows = deepcopy(self.rows)
         now = self.clock()

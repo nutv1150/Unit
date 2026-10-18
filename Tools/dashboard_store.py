@@ -18,6 +18,10 @@ class DashboardStore:
     DEFAULT_COMPETITION = "General"
     DEFAULT_CATEGORY = "Core"
 
+    # หน้าที่: กำหนด path, lock และโหลดสถานะ Dashboard
+    # ที่มา: app.py::UNITApp.__init__ (เรียกตรง)
+    # Input: self (DashboardStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: state_path (str | PathLike[str] | None) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
     def __init__(self, state_path=None):
         default_path = writable_path('data/dashboard_state.json')
         self.state_path = Path(state_path or default_path)
@@ -26,6 +30,9 @@ class DashboardStore:
         self.read_only = False
         self._state = self._load_state()
 
+    # หน้าที่: สร้างค่าเริ่มต้นของหมวด การแข่งขัน รายการโปรด และประวัติกิจกรรม
+    # ที่มา: Tools/dashboard_store.py::DashboardStore._load_state (เรียกตรง)
+    # Input: cls (type[DashboardStore]) — Python ส่งคลาสเมื่อเรียก classmethod
     @classmethod
     def _default_state(cls):
         return {
@@ -56,6 +63,9 @@ class DashboardStore:
             "events": [],
         }
 
+    # หน้าที่: อ่านและตรวจ state จาก JSON โดยเก็บข้อผิดพลาดและปิดการเขียนเมื่อข้อมูลเสีย
+    # ที่มา: Tools/dashboard_store.py::DashboardStore.__init__ (เรียกตรง)
+    # Input: self (DashboardStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _load_state(self):
         default = self._default_state()
 
@@ -109,6 +119,10 @@ class DashboardStore:
         loaded["schema_version"] = self.SCHEMA_VERSION
         return loaded
 
+    # หน้าที่: ตรวจ schema และชนิดฟิลด์ของ state ที่อ่านจากไฟล์
+    # ที่มา: Tools/dashboard_store.py::DashboardStore._load_state (เรียกตรง)
+    # Input: cls (type[DashboardStore]) — Python ส่งคลาสเมื่อเรียก classmethod
+    # Input: state (dict[str, Any]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     @classmethod
     def _valid_loaded_state(cls, state):
         if state.get("schema_version", cls.SCHEMA_VERSION) != cls.SCHEMA_VERSION:
@@ -144,6 +158,9 @@ class DashboardStore:
                 return False
         return True
 
+    # หน้าที่: ตรวจและปรับรูปแบบรายการโปรดหนึ่งรายการ
+    # ที่มา: Tools/dashboard_store.py::DashboardStore._load_state (เรียกตรง)
+    # Input: favorite (Any (record จาก JSON ที่ต้องตรวจชนิด)) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     @staticmethod
     def _clean_favorite(favorite):
         if not isinstance(favorite, dict):
@@ -157,6 +174,9 @@ class DashboardStore:
             "shortcut": str(favorite.get("shortcut") or "").strip(),
         }
 
+    # หน้าที่: ปรับฟิลด์กิจกรรมให้อยู่ในชนิดที่บันทึกและแสดงผลได้
+    # ที่มา: Tools/dashboard_store.py::DashboardStore._load_state (เรียกตรง)
+    # Input: event (Any (record จาก JSON ที่ต้องตรวจชนิด)) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     @staticmethod
     def _clean_event(event):
         if not isinstance(event, dict):
@@ -175,6 +195,10 @@ class DashboardStore:
             "details": str(event.get("details") or "")[:500],
         }
 
+    # หน้าที่: ตัดช่องว่างและชื่อซ้ำ พร้อมใส่ชื่อสำรองในรายการ
+    # ที่มา: Tools/dashboard_store.py::DashboardStore._load_state (เรียกตรง)
+    # Input: values (Any (ค่าจาก JSON; ต้องเป็น list จึงใช้รายการได้)) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: fallback (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     @staticmethod
     def _clean_names(values, fallback):
         if not isinstance(values, list):
@@ -190,6 +214,12 @@ class DashboardStore:
             cleaned.insert(0, fallback)
         return cleaned
 
+    # หน้าที่: บันทึก state แบบ atomic โดยเคารพสถานะ read-only
+    # ที่มา: Tools/dashboard_store.py::DashboardStore._mutate (เรียกตรง)
+    # ที่มา: Tools/dashboard_store.py::DashboardStore.remove_category (เรียกตรง)
+    # ที่มา: Tools/dashboard_store.py::DashboardStore.save_favorite (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 2 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (DashboardStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _save(self):
         if self.read_only:
             raise OSError(self.persistence_error or "Dashboard state is read-only")
@@ -208,6 +238,12 @@ class DashboardStore:
                 pass
             raise
 
+    # หน้าที่: แก้ state ภายใต้ lock และย้อนคืนสำเนาเมื่อบันทึกไม่สำเร็จ
+    # ที่มา: Tools/dashboard_store.py::DashboardStore.add_competition (เรียกตรง)
+    # ที่มา: Tools/dashboard_store.py::DashboardStore.set_active_competition (เรียกตรง)
+    # ที่มา: Tools/dashboard_store.py::DashboardStore.add_category (เรียกตรง)
+    # Input: self (DashboardStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: operation (Callable[[], None]) — callable ที่ผู้เรียกลงทะเบียนไว้ให้เรียกต่อ
     def _mutate(self, operation):
         with self._lock:
             previous = deepcopy(self._state)
@@ -218,19 +254,34 @@ class DashboardStore:
                 self._state = previous
                 raise
 
+    # หน้าที่: คืนชื่อการแข่งขันที่กำลังเลือกจาก state
+    # ที่มา: API/helper ของโมดูลนี้; ผู้เรียกส่ง arguments หรือเรียกผ่าน callback/interface
+    # Input: self (DashboardStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def get_active_competition(self):
         with self._lock:
             return self._state["active_competition"]
 
+    # หน้าที่: คืนสำเนารายชื่อการแข่งขัน
+    # ที่มา: API/helper ของโมดูลนี้; ผู้เรียกส่ง arguments หรือเรียกผ่าน callback/interface
+    # Input: self (DashboardStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def list_competitions(self):
         with self._lock:
             return list(self._state["competitions"])
 
+    # หน้าที่: ตรวจชื่อและเพิ่มการแข่งขันพร้อมเลือกเป็นรายการปัจจุบัน
+    # ที่มา: pages/dashboard.py::DashboardPage.open_competition_popup.save_competition (เรียกตรง)
+    # Input: self (DashboardStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def add_competition(self, name):
         clean_name = str(name or "").strip()
         if not clean_name:
             raise ValueError("Competition name is required")
 
+        # หน้าที่: แก้ state ที่ฟังก์ชันภายนอกเตรียมไว้ ภายใต้ขั้นตอนบันทึกและ rollback ของ store
+        # ที่มา: Tools/dashboard_store.py::DashboardStore.add_competition (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์ที่ส่งเข้ามาโดยตรง
+        # Closure: clean_name (str) — รับจาก scope DashboardStore.add_competition
+        # Closure: self (DashboardStore) — รับจาก scope DashboardStore.add_competition
         def operation():
             if clean_name not in self._state["competitions"]:
                 self._state["competitions"].append(clean_name)
@@ -238,21 +289,38 @@ class DashboardStore:
         self._mutate(operation)
         return clean_name
 
+    # หน้าที่: เปลี่ยนการแข่งขันปัจจุบันและเพิ่มชื่อถ้ายังไม่มี
+    # ที่มา: pages/dashboard.py::DashboardPage.change_competition (เรียกตรง)
+    # Input: self (DashboardStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def set_active_competition(self, name):
         clean_name = str(name or "").strip()
         if not clean_name:
             return
 
+        # หน้าที่: แก้ state ที่ฟังก์ชันภายนอกเตรียมไว้ ภายใต้ขั้นตอนบันทึกและ rollback ของ store
+        # ที่มา: Tools/dashboard_store.py::DashboardStore.set_active_competition (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์ที่ส่งเข้ามาโดยตรง
+        # Closure: clean_name (str) — รับจาก scope DashboardStore.set_active_competition
+        # Closure: self (DashboardStore) — รับจาก scope DashboardStore.set_active_competition
         def operation():
             if clean_name not in self._state["competitions"]:
                 self._state["competitions"].append(clean_name)
             self._state["active_competition"] = clean_name
         self._mutate(operation)
 
+    # หน้าที่: คืนสำเนารายชื่อหมวดรายการโปรด
+    # ที่มา: pages/dashboard.py::DashboardPage.open_pin_popup (เรียกตรง)
+    # ที่มา: pages/dashboard.py::DashboardPage.open_category_popup.render_categories (เรียกตรง)
+    # Input: self (DashboardStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def list_categories(self):
         with self._lock:
             return list(self._state["categories"])
 
+    # หน้าที่: ตรวจชื่อหมวดและบันทึกเมื่อเป็นหมวดใหม่
+    # ที่มา: pages/dashboard.py::DashboardPage.open_category_popup.add_category (เรียกตรง)
+    # Input: self (DashboardStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def add_category(self, name):
         clean_name = str(name or "").strip()
         if not clean_name:
@@ -262,6 +330,10 @@ class DashboardStore:
             self._mutate(lambda: self._state["categories"].append(clean_name))
         return clean_name
 
+    # หน้าที่: ลบหมวดที่ไม่ใช่หมวดหลักและย้ายรายการโปรดกลับหมวดเริ่มต้น
+    # ที่มา: pages/dashboard.py::DashboardPage.open_category_popup.delete_category (เรียกตรง)
+    # Input: self (DashboardStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def remove_category(self, name):
         clean_name = str(name or "").strip()
         if clean_name == self.DEFAULT_CATEGORY:
@@ -271,6 +343,11 @@ class DashboardStore:
             if clean_name not in self._state["categories"]:
                 return False
 
+            # หน้าที่: แก้ state ที่ฟังก์ชันภายนอกเตรียมไว้ ภายใต้ขั้นตอนบันทึกและ rollback ของ store
+            # ที่มา: Tools/dashboard_store.py::DashboardStore.remove_category (เรียกตรง)
+            # Input: ไม่มีพารามิเตอร์ที่ส่งเข้ามาโดยตรง
+            # Closure: clean_name (str) — รับจาก scope DashboardStore.remove_category
+            # Closure: self (DashboardStore) — รับจาก scope DashboardStore.remove_category
             def operation():
                 self._state["categories"].remove(clean_name)
                 for favorite in self._state["favorites"]:
@@ -285,10 +362,20 @@ class DashboardStore:
                 raise
         return True
 
+    # หน้าที่: คืน deep copy ของรายการโปรดเพื่อไม่ให้ผู้เรียกแก้ state โดยตรง
+    # ที่มา: API/helper ของโมดูลนี้; ผู้เรียกส่ง arguments หรือเรียกผ่าน callback/interface
+    # Input: self (DashboardStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def list_favorites(self):
         with self._lock:
             return deepcopy(self._state["favorites"])
 
+    # หน้าที่: เพิ่มหรือแก้รายการโปรดและจัดการ shortcut ที่ซ้ำก่อนบันทึก
+    # ที่มา: pages/dashboard.py::DashboardPage.open_pin_popup.save_pin (เรียกตรง)
+    # Input: self (DashboardStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: name (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: target (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: category (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: shortcut (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def save_favorite(self, name, target, category=None, shortcut=""):
         clean_name = str(name or "").strip()
         clean_target = str(target or "").strip()
@@ -330,6 +417,10 @@ class DashboardStore:
                 raise
         return deepcopy(new_favorite)
 
+    # หน้าที่: ลบรายการโปรดตาม target และบันทึก state เมื่อมีการเปลี่ยนแปลง
+    # ที่มา: pages/dashboard.py::DashboardPage.remove_favorite (เรียกตรง)
+    # Input: self (DashboardStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: target (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def remove_favorite(self, target):
         clean_target = str(target or "").strip()
         with self._lock:
@@ -349,6 +440,17 @@ class DashboardStore:
                     raise
         return changed
 
+    # หน้าที่: ปรับข้อมูลกิจกรรมและบันทึกลงประวัติ Dashboard ภายใต้เพดานรายการ
+    # ที่มา: app.py::UNITApp.record_activity (เรียกตรง)
+    # Input: self (DashboardStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: tool (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: category (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: action (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: status (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: file_path (str | PathLike[str] | None) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
+    # Input: flags (list[str] | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: details (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+    # Input: competition (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def record_event(
         self,
         tool,
@@ -404,6 +506,10 @@ class DashboardStore:
                 raise
         return deepcopy(event)
 
+    # หน้าที่: สรุปสถิติ หมวด รายการโปรด เครื่องมือยอดนิยม และไฟล์ล่าสุดจาก state
+    # ที่มา: pages/dashboard.py::DashboardPage.refresh_dashboard (เรียกตรง)
+    # Input: self (DashboardStore) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: recent_limit (int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def get_snapshot(self, recent_limit=6):
         with self._lock:
             events = deepcopy(self._state["events"])

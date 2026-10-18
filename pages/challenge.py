@@ -4,6 +4,12 @@ from pages.workspace_ui import THEME_COLORS as T, label, dialog, CTkMessagebox, 
 
 
 class ChallengePage(ctk.CTkFrame):
+    # หน้าที่: โหลด ChallengeStore และสร้างหน้าคะแนน/ตัวจับเวลา โดยแสดง error หาก config ใช้งานไม่ได้
+    # ที่มา: app.py::UNITApp.__init__ (เรียกตรง)
+    # Input: self (ChallengePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: parent (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
+    # Input: storage_path (str | PathLike[str] | None) — path จากตัวเลือกไฟล์/config ที่จุดเรียกส่งมา หรือ default เมื่อไม่ระบุ
+    # Input: **kwargs (dict[str, Any]) — keyword options ของ widget ที่ผู้เรียกส่งเพิ่มมา
     def __init__(self, parent, storage_path=None, **kwargs):
         super().__init__(parent, fg_color=T['bg'], **kwargs)
         self.load_error = ''
@@ -18,6 +24,9 @@ class ChallengePage(ctk.CTkFrame):
         self._build_ui()
         self._tick()
 
+    # หน้าที่: สร้างช่องเพิ่มการแข่งขันและพื้นที่แสดงรายการ Challenge
+    # ที่มา: pages/challenge.py::ChallengePage.__init__ (เรียกตรง)
+    # Input: self (ChallengePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _build_ui(self):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(3, weight=1)
@@ -45,6 +54,10 @@ class ChallengePage(ctk.CTkFrame):
         self.table.grid(row=3, column=0, sticky='nsew', padx=24, pady=(0, 20))
         self._render_rows()
 
+    # หน้าที่: อ่านชื่อและจำนวนข้อจากฟอร์ม สร้าง Challenge แล้ววาดรายการใหม่
+    # ที่มา: pages/challenge.py::ChallengePage._build_ui (อ้างอิง/callback)
+    # Input: self (ChallengePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # อ่านภายใน: self.name_entry, self.total_entry ผ่าน .get() — str จากช่องกรอก หรือชนิดที่ Tk Variable กำหนด
     def _create(self):
         self.name_error.configure(text='' if self.name_entry.get().strip() else 'Enter a competition name')
         try:
@@ -64,6 +77,12 @@ class ChallengePage(ctk.CTkFrame):
         self.total_entry.delete(0, 'end')
         self._render_rows()
 
+    # หน้าที่: สร้างแถวแสดงคะแนน เวลาสะสม สถานะ และปุ่มแก้ไข/ลบของแต่ละ Challenge
+    # ที่มา: pages/challenge.py::ChallengePage._build_ui (เรียกตรง)
+    # ที่มา: pages/challenge.py::ChallengePage._create (เรียกตรง)
+    # ที่มา: pages/challenge.py::ChallengePage._delete.remove (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 2 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (ChallengePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _render_rows(self):
         self.time_labels.clear()
         for widget in self.table.winfo_children():
@@ -88,9 +107,19 @@ class ChallengePage(ctk.CTkFrame):
             ctk.CTkButton(actions, text='✎', width=32, command=lambda rid=record_id: self._open_editor(rid)).pack(side='left', padx=3)
             ctk.CTkButton(actions, text='🗑', width=32, fg_color=T['error'], command=lambda rid=record_id: self._delete(rid)).pack(side='left')
 
+    # หน้าที่: จัดข้อความเวลาสะสมของ record สำหรับแสดงบนหน้าจอ
+    # ที่มา: pages/challenge.py::ChallengePage._open_editor (เรียกตรง)
+    # ที่มา: pages/challenge.py::ChallengePage._render_rows (เรียกตรง)
+    # ที่มา: pages/challenge.py::ChallengePage._tick (เรียกตรง)
+    # ที่มาเพิ่มเติม: อีก 1 จุดเรียก/อ้างอิงในโปรเจกต์
+    # Input: self (ChallengePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: row (dict[str, Any]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _time_text(self, row):
         return f"{format_elapsed(elapsed(row, self.store.clock()))} {'▶' if row['is_running'] else '⏸'}"
 
+    # หน้าที่: อัปเดตป้ายเวลาของแต่ละ Challenge ตามรอบ Tk timer
+    # ที่มา: pages/challenge.py::ChallengePage.__init__ (เรียกตรง)
+    # Input: self (ChallengePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def _tick(self):
         if self.store:
             for row in self.store.rows:
@@ -101,7 +130,17 @@ class ChallengePage(ctk.CTkFrame):
                 self.editor_time.configure(text=self._time_text(self.store.get(self.edit_id)))
         self._tick_id = self.after(1000, self._tick)
 
+    # หน้าที่: เปิดกล่องยืนยันก่อนลบ Challenge ที่เลือก
+    # ที่มา: pages/challenge.py::ChallengePage._open_editor (เรียกตรง)
+    # ที่มา: pages/challenge.py::ChallengePage._render_rows (เรียกตรง)
+    # Input: self (ChallengePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: record_id (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _delete(self, record_id):
+        # หน้าที่: ลบ record ที่ยืนยันแล้วออกจาก store และวาดรายการใหม่
+        # ที่มา: pages/challenge.py::ChallengePage._delete (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: record_id (str) — รับจาก scope ChallengePage._delete
+        # Closure: self (ChallengePage) — รับจาก scope ChallengePage._delete
         def remove():
             try:
                 self.store.delete(record_id)
@@ -114,6 +153,10 @@ class ChallengePage(ctk.CTkFrame):
             self._render_rows()
         CTkMessagebox(self, f"Delete {self.store.get(record_id)['name']}?", remove)
 
+    # หน้าที่: เปิดฟอร์มแก้คะแนนและควบคุมการเริ่ม/หยุด timer ของ Challenge
+    # ที่มา: pages/challenge.py::ChallengePage._render_rows (เรียกตรง)
+    # Input: self (ChallengePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
+    # Input: record_id (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _open_editor(self, record_id):
         if self.editor and self.editor.winfo_exists():
             self.editor.focus()
@@ -129,6 +172,13 @@ class ChallengePage(ctk.CTkFrame):
         error.pack(padx=20)
         self.editor_time = label(window, self._time_text(row))
         self.editor_time.pack()
+        # หน้าที่: สลับสถานะ timer และบันทึกทันทีโดยคงคะแนนเดิม; คะแนนในช่องกรอกยังไม่บันทึกจนกด Save
+        # ที่มา: pages/challenge.py::ChallengePage._open_editor (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: error (ctk.CTkLabel) — รับจาก scope ChallengePage._open_editor
+        # Closure: record_id (str) — รับจาก scope ChallengePage._open_editor
+        # Closure: self (ChallengePage) — รับจาก scope ChallengePage._open_editor
+        # Closure: toggle_button (ctk.CTkButton) — รับจาก scope ChallengePage._open_editor
         def toggle():
             current = self.store.get(record_id)
             try:
@@ -141,6 +191,14 @@ class ChallengePage(ctk.CTkFrame):
                 error.configure(text=str(exc))
         toggle_button = ctk.CTkButton(window, text='Pause' if row['is_running'] else 'Start', command=toggle)
         toggle_button.pack(pady=8)
+        # หน้าที่: บันทึกคะแนนจากฟอร์มแก้ไขแล้วอัปเดตหน้าหลัก
+        # ที่มา: pages/challenge.py::ChallengePage._open_editor (อ้างอิง/callback)
+        # Input: ไม่มีพารามิเตอร์โดยตรง; ใช้ค่าที่จับไว้จาก scope ภายนอกตามด้านล่าง
+        # Closure: error (ctk.CTkLabel) — รับจาก scope ChallengePage._open_editor
+        # Closure: record_id (str) — รับจาก scope ChallengePage._open_editor
+        # Closure: self (ChallengePage) — รับจาก scope ChallengePage._open_editor
+        # Closure: solved (ctk.CTkEntry) — รับจาก scope ChallengePage._open_editor
+        # Closure: window (CTkToplevel) — รับจาก scope ChallengePage._open_editor
         def save():
             try:
                 self.store.update(record_id, solved.get(), self.store.get(record_id)['is_running'])
@@ -156,10 +214,16 @@ class ChallengePage(ctk.CTkFrame):
         ctk.CTkButton(buttons, text='Save', width=100, command=save).pack(side='right')
         return window
 
+    # หน้าที่: สั่งหยุด timers และบันทึกเวลาสะสมก่อนปิดแอป
+    # ที่มา: app.py::UNITApp.on_close (เรียกตรง)
+    # Input: self (ChallengePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def save_before_close(self):
         if self.store:
             self.store.pause_all()
 
+    # หน้าที่: ยกเลิก Tk timer ที่ยังรออยู่แล้วทำลาย widget ของหน้า
+    # ที่มา: Tk/หน้าต่างหลักเรียกเมื่อทำลาย widget
+    # Input: self (ChallengePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def destroy(self):
         if self._tick_id is not None:
             self.after_cancel(self._tick_id)

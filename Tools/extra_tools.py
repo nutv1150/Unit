@@ -15,6 +15,10 @@ from Tools.flag_detector import find_first_flag
 # =========================
 
 # ฟังก์ชันสำหรับ highlight คำใน textbox
+# หน้าที่: ค้นหาคำใน textbox และใส่ tag เพื่อไฮไลต์ตำแหน่งที่พบ
+# ที่มา: pages/data_hash.py::DataHashPage.search_output (เรียกตรง)
+# Input: textbox (CTkTextbox | tkinter.Text) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: keyword (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def highlight_text(textbox, keyword):
     """
     Highlight คำใน textbox (CustomTkinter / Tkinter)
@@ -58,6 +62,9 @@ def highlight_text(textbox, keyword):
 # =========================
 
 # ฟังก์ชัน parse input เป็น bytes พร้อมบอกชนิด
+# หน้าที่: ตรวจรูปแบบข้อความ CTF แล้วแปลง Hex, array, escape หรือข้อความเป็น bytes
+# ที่มา: Tools/extra_tools.py::bitwise_mask (เรียกตรง)
+# Input: raw (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _parse_input_bytes(raw: str) -> tuple:
     """
     Smart CTF byte parser.
@@ -200,6 +207,9 @@ def _parse_input_bytes(raw: str) -> tuple:
     except Exception:
         raise ValueError("❌ Invalid input")
 
+# หน้าที่: ค้นหาค่า key ที่ฝังใน snippet และคืนข้อมูล key ที่ตรวจพบ
+# ที่มา: pages/data_hash.py::DataHashPage._compute_snapshot (เรียกตรง)
+# Input: raw (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def detect_embedded_key(raw: str):
     """
     Detect key ที่ฝังอยู่ใน CTF snippets.
@@ -284,6 +294,9 @@ def detect_embedded_key(raw: str):
 
 
 # ฟังก์ชัน parse key
+# หน้าที่: แปลง key ในรูปตัวเลข Hex หรือข้อความเป็น bytes สำหรับ bitwise
+# ที่มา: Tools/extra_tools.py::bitwise_mask (เรียกตรง)
+# Input: key_str (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _parse_key_bytes(key_str: str) -> tuple:
     """
     Parse XOR/bitwise key.
@@ -362,6 +375,10 @@ def _parse_key_bytes(key_str: str) -> tuple:
 
 
 # ทำ key ให้ยาวเท่าข้อมูล
+# หน้าที่: วน bytes ของ key ให้มีความยาวเท่าข้อมูลที่จะประมวลผล
+# ที่มา: Tools/extra_tools.py::bitwise_mask (เรียกตรง)
+# Input: key_bytes (bytes) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: length (int) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _repeat_key(key_bytes: bytes, length: int) -> bytes:
 
     # ถ้า key ว่าง → error
@@ -373,6 +390,9 @@ def _repeat_key(key_bytes: bytes, length: int) -> bytes:
 
 
 # ตรวจว่า printable ไหม
+# หน้าที่: ตรวจ bytes ว่าแสดงเป็น ASCII หรือ whitespace ที่ยอมรับได้หรือไม่
+# ที่มา: Tools/extra_tools.py::_format_output (เรียกตรง)
+# Input: b (bytes) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _is_printable(b: bytes) -> bool:
 
     # เช็คทุก byte ว่าอยู่ในช่วง printable ASCII หรือ whitespace
@@ -380,6 +400,9 @@ def _is_printable(b: bytes) -> bool:
 
 
 # ตรวจ flag pattern
+# หน้าที่: ค้นหา flag ใน bytes ผลลัพธ์เพื่อใช้เป็นข้อความบอกใบ้
+# ที่มา: Tools/extra_tools.py::_format_output (เรียกตรง)
+# Input: b (bytes) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _flag_hint(b: bytes) -> str:
     flag = find_first_flag(b)
 
@@ -390,6 +413,14 @@ def _flag_hint(b: bytes) -> str:
 
 
 # ฟังก์ชัน format output
+# หน้าที่: จัดรูปแบบรายงาน bitwise พร้อม Hex ข้อความ และข้อมูลรูปแบบ input/key
+# ที่มา: Tools/extra_tools.py::bitwise_mask (เรียกตรง)
+# Input: result (bytes) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: op_label (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: data_fmt (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: key_raw (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: key_fmt (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: key_bytes (bytes) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _format_output(result: bytes, op_label: str, data_fmt: str,
                    key_raw: str, key_fmt: str, key_bytes: bytes) -> str:
 
@@ -432,6 +463,12 @@ def _format_output(result: bytes, op_label: str, data_fmt: str,
 
 
 # ฟังก์ชันหลัก mask
+# หน้าที่: parse ข้อมูลและ key แล้วทำ XOR, OR หรือ AND แบบ byte ต่อ byte
+# ที่มา: Tools/extra_tools.py::bitwise_unmask (เรียกตรง)
+# ที่มา: pages/data_hash.py::DataHashPage._compute_snapshot (เรียกตรง)
+# Input: data (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: key (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: mode (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def bitwise_mask(data: str, key: str, mode: str = "xor"):
 
     # parse input
@@ -467,6 +504,10 @@ def bitwise_mask(data: str, key: str, mode: str = "xor"):
 
 
 # XOR unmask (เหมือน XOR ซ้ำ)
+# หน้าที่: เรียก XOR ด้วย key เดิมเพื่อย้อนผล XOR และคืนรายงานผลลัพธ์
+# ที่มา: pages/data_hash.py::DataHashPage._compute_snapshot (เรียกตรง)
+# Input: data (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: key (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def bitwise_unmask(data: str, key: str):
 
     # เรียก XOR mask อีกครั้ง
@@ -478,33 +519,57 @@ def bitwise_unmask(data: str, key: str):
 # =========================
 
 # URL encode
+# หน้าที่: แปลงข้อความเป็น URL percent encoding
+# ที่มา: API/helper ของโมดูลนี้; ผู้เรียกส่ง arguments หรือเรียกผ่าน callback/interface
+# Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def encode_url(text):
     return urllib.parse.quote(text)
 
 # URL decode
+# หน้าที่: ถอด URL percent encoding เป็นข้อความ
+# ที่มา: API/helper ของโมดูลนี้; ผู้เรียกส่ง arguments หรือเรียกผ่าน callback/interface
+# Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def decode_url(text):
     return urllib.parse.unquote(text)
 
 # Base64 encode
+# หน้าที่: แปลงข้อความ UTF-8 เป็น URL-safe Base64
+# ที่มา: API/helper ของโมดูลนี้; ผู้เรียกส่ง arguments หรือเรียกผ่าน callback/interface
+# Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def encode_urlsafe_base64(text):
     return base64.urlsafe_b64encode(text.encode()).decode()
 
 # Base64 decode
+# หน้าที่: ถอด URL-safe Base64 และแปลง bytes เป็นข้อความ
+# ที่มา: API/helper ของโมดูลนี้; ผู้เรียกส่ง arguments หรือเรียกผ่าน callback/interface
+# Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def decode_urlsafe_base64(text):
     return base64.urlsafe_b64decode(text).decode()
 
 # HTML encode
+# หน้าที่: escape อักขระพิเศษ HTML ในข้อความ
+# ที่มา: API/helper ของโมดูลนี้; ผู้เรียกส่ง arguments หรือเรียกผ่าน callback/interface
+# Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def encode_html_entities(text):
     return html.escape(text)
 
 # HTML decode
+# หน้าที่: ถอด HTML entities กลับเป็นข้อความ
+# ที่มา: API/helper ของโมดูลนี้; ผู้เรียกส่ง arguments หรือเรียกผ่าน callback/interface
+# Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def decode_html_entities(text):
     return html.unescape(text)
 
 # Unicode escape encode
+# หน้าที่: แปลงข้อความเป็นรูป Unicode escape ที่อ่านเป็น ASCII ได้
+# ที่มา: API/helper ของโมดูลนี้; ผู้เรียกส่ง arguments หรือเรียกผ่าน callback/interface
+# Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def encode_unicode_escape(text):
     return text.encode("unicode_escape").decode()
 
 # Unicode escape decode
+# หน้าที่: ถอดข้อความที่มี Unicode escape กลับเป็นข้อความ Unicode
+# ที่มา: API/helper ของโมดูลนี้; ผู้เรียกส่ง arguments หรือเรียกผ่าน callback/interface
+# Input: text (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def decode_unicode_escape(text):
     return text.encode().decode("unicode_escape")

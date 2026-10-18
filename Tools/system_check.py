@@ -6,6 +6,11 @@ from pathlib import Path
 from Tools.app_paths import RESOURCE_ROOT, writable_path
 
 
+# หน้าที่: ตรวจ executables ใน PATH จากรายการหลักและ Pipeline config แล้วสร้างรายงาน
+# ที่มา: Tools/system_check.py::main (เรียกตรง)
+# ที่มา: Tools/system_check.py::open_window.refresh (อ้างอิง/callback)
+# Input: ไม่มีพารามิเตอร์ที่ส่งเข้ามาโดยตรง
+# อ่านภายใน: PATH (str) จาก environment และ Pipeline/custom_tools.json (dict หลัง parse JSON)
 def report():
     path = writable_path('Pipeline/custom_tools.json')
     if not path.exists():
@@ -35,11 +40,18 @@ def report():
     return '\n'.join(lines)
 
 
+# หน้าที่: พิมพ์รายงาน System Check ทาง stdout
+# ที่มา: entry point ของ CLI/launcher; รับข้อมูลจาก command line หรือระบบ
+# Input: ไม่มีพารามิเตอร์ที่ส่งเข้ามาโดยตรง
+# อ่านภายใน: report() (str) จากการตรวจ PATH/config ของโปรแกรม
 def main():
     print(report())
     return 0
 
 
+# หน้าที่: เปิดหน้าต่างแสดง System Check พร้อมปุ่มรีเฟรช
+# ที่มา: pages/dashboard.py::DashboardPage._build_header (เรียกตรง)
+# Input: parent (tkinter.Misc (widget ของ Tk/CustomTkinter)) — หน้าต่างหรือ widget ที่ผู้เรียกสร้างไว้
 def open_window(parent):
     import customtkinter as ctk
     from Tools.text_view import background
@@ -49,8 +61,20 @@ def open_window(parent):
     fit_window(win, '1000x700')
     box = ctk.CTkTextbox(win, wrap='none')
     box.pack(fill='both', expand=True, padx=15, pady=15)
+    # หน้าที่: เริ่มงานตรวจ executables เบื้องหลังและปิดปุ่มชั่วคราว
+    # ที่มา: Tools/system_check.py::open_window (เรียกตรง)
+    # ที่มา: Tools/system_check.py::open_window (อ้างอิง/callback)
+    # Input: ไม่มีพารามิเตอร์ที่ส่งเข้ามาโดยตรง
+    # Closure: button (ctk.CTkButton) — รับจาก scope open_window
+    # Closure: win (ctk.CTkToplevel) — รับจาก scope open_window
     def refresh():
         button.configure(state='disabled')
+        # หน้าที่: นำรายงานหรือ error จากงานเบื้องหลังมาแสดงและเปิดปุ่มอีกครั้ง
+        # ที่มา: Tools/system_check.py::open_window.refresh (อ้างอิง/callback)
+        # Input: value (str | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+        # Input: error (Exception | None) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+        # Closure: box (ctk.CTkTextbox) — รับจาก scope open_window
+        # Closure: button (ctk.CTkButton) — รับจาก scope open_window
         def done(value, error):
             box.configure(state='normal')
             box.delete('1.0', 'end')

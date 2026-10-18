@@ -15,11 +15,19 @@ class ExtractionCancelled(Exception):
     """Raised when the caller requests cancellation."""
 
 
+# หน้าที่: ตรวจ callback ยกเลิกและยุติการดึง strings ด้วย exception เมื่อถูกยกเลิก
+# ที่มา: Tools/inspection_stream.py::extract_strings (เรียกตรง)
+# Input: cancelled (Callable[[], bool]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def _cancel(cancelled: Callable[[], bool]) -> None:
     if cancelled and cancelled():
         raise ExtractionCancelled()
 
 
+# หน้าที่: อ่านไฟล์เป็นช่วงแล้วเขียน UTF-8 หรือ printable ASCII runs ลงไฟล์ผลลัพธ์
+# ที่มา: pages/file_inspection.py::FileInspectionPage.extract_all_strings (เรียกตรง)
+# Input: source (Path) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
+# Input: destination (Path) — path ที่ผู้เรียกส่งจากการเลือกไฟล์/config หรือค่าเริ่มต้นของฟังก์ชัน
+# Input: cancelled (Callable[[], bool]) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
 def extract_strings(source: Path, destination: Path,
                     cancelled: Callable[[], bool] = lambda: False) -> None:
     """Extract strings from *source* to *destination* using bounded memory.
