@@ -72,4 +72,33 @@ def validate_saved_pipelines(data):
             for option in step.get("options", []):
                 if not isinstance(option, dict) or not isinstance(option.get("flag"), str) or option.get("type") not in ("checkbox", "text", "file"):
                     raise ValueError("Invalid step option")
+            if "run_settings" in step:
+                validate_run_settings(step["run_settings"])
     return data
+
+
+def validate_run_settings(settings):
+    """Optional executed values; legacy pipelines have only option definitions."""
+    if not isinstance(settings, dict):
+        raise ValueError("Invalid saved run settings")
+    if settings.get("input_source", "previous") not in ("previous", "original", "manual"):
+        raise ValueError("Invalid saved input source")
+    for key in ("before_enabled", "after_enabled"):
+        if not isinstance(settings.get(key, False), bool):
+            raise ValueError("Invalid manual option switch")
+    for key in ("option_values", "before_rows", "after_rows"):
+        rows = settings.get(key, [])
+        if not isinstance(rows, list):
+            raise ValueError("Invalid saved option values")
+        for row in rows:
+            if not isinstance(row, dict) or not isinstance(row.get("flag"), str):
+                raise ValueError("Invalid saved option flag")
+            kind = row.get("type")
+            if kind not in ("checkbox", "text", "file"):
+                raise ValueError("Invalid saved option type")
+            value = row.get("value")
+            if key == "option_values" and kind == "checkbox":
+                if not isinstance(value, bool):
+                    raise ValueError("Invalid saved checkbox value")
+            elif not isinstance(value, str):
+                raise ValueError("Invalid saved option value")

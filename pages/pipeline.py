@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 from Tools.app_paths import writable_path
 import customtkinter as ctk
 import tkinter as tk
@@ -6,6 +7,8 @@ from tkinter import filedialog
 from tkinter import messagebox
 from Pipeline.pipeline_engine import PipelineEngine
 from Pipeline.config_store import read_json, write_json, saved_pipelines, validate_saved_pipelines
+from Pipeline.saved_runs import step_recipe, completed_steps, delete_recipe
+from pages.pipeline_saved import SavedPipelineDialog
 import tempfile
 import os
 import shlex
@@ -54,6 +57,7 @@ class PipelinePage(ctk.CTkFrame):
         self._pipeline_running = False
         self.pipeline_mode = "Auto"
         self._mode_workspaces = {}
+        self._completed_recipe = None
         # P0.4B - Original File Routing
         self.original_file_path = None
 
@@ -111,6 +115,9 @@ class PipelinePage(ctk.CTkFrame):
 
             # 3. แสดงรายชื่อ Tool
             for tool in tools:
+                if cat in ["Pipelines", "Saved Pipelines"]:
+                    self.add_saved_pipeline_row(tool)
+                    continue
                 lbl = ctk.CTkLabel(
                     self.tools_panel,
                     text=f"  • {tool}",
@@ -155,6 +162,13 @@ class PipelinePage(ctk.CTkFrame):
         # --- Top Controls ---
         self.controls = ctk.CTkFrame(self.work_area, fg_color="transparent")
         self.controls.pack(fill="x", padx=15, pady=15)
+
+        self.completed_panel = ctk.CTkFrame(self.work_area, fg_color=CARD_COLOR)
+        ctk.CTkLabel(self.completed_panel, text="✓ Pipeline complete",
+                     text_color=ACCENT_GREEN).pack(side="left", padx=12, pady=10)
+        ctk.CTkButton(self.completed_panel, text="Save Pipeline",
+                      command=lambda: self.open_save_pipeline(self._completed_recipe),
+                      fg_color=ACCENT_CYAN, text_color="black").pack(side="right", padx=12, pady=10)
 
         # Auto retains the existing prepared-pipeline workflow.
         self.mode_btn = ctk.CTkButton(
@@ -363,6 +377,7 @@ class PipelinePage(ctk.CTkFrame):
             return True
         if self.canvas_busy():
             return False
+        self.set_completed_recipe(None)
         # Keep each mode's nodes, original input and temporary artifacts separate.
         positions = [
             {axis: node['frame']._reverse_widget_scaling(float(node['frame'].place_info()[axis]))
@@ -416,6 +431,7 @@ class PipelinePage(ctk.CTkFrame):
     # Input: user_desc (str) — argument จากจุดเรียก/ตัวเชื่อม callback ที่ระบุด้านบน
     def _append_tool_node(self, tool_name, user_desc=""):
         """Internal append; the Step runner may append while canvas edits are locked."""
+        self.set_completed_recipe(None)
         self.node_count += 1
 
         node = ctk.CTkFrame(self.line_canvas, fg_color=CARD_COLOR, corner_radius=4,
@@ -492,6 +508,7 @@ class PipelinePage(ctk.CTkFrame):
     # ที่มา: pages/pipeline.py::PipelinePage.on_node_drag (เรียกตรง)
     # Input: self (PipelinePage) — Python ส่ง instance ของคลาสเมื่อเรียกเมธอด
     def reorder_nodes_by_position(self):
+        self.set_completed_recipe(None)
         self.nodes.sort(key=lambda n: n['frame'].winfo_x())
 
     
@@ -546,6 +563,9 @@ class PipelinePage(ctk.CTkFrame):
     def run_pipeline(self):
         if self.canvas_busy():
             return
+        self.set_completed_recipe(None)
+        for node in self.nodes:
+            node.pop("_successful_step", None)
         self._pipeline_running = True
         self._history_group_id = uuid.uuid4().hex
         self.mode_btn.configure(state="disabled")
@@ -591,6 +611,7 @@ class PipelinePage(ctk.CTkFrame):
                                       history_id=decision.get('history_id')))
             next_tool = decision['next_tool']
             if next_tool is None:
+                self.set_completed_recipe(completed_steps(self.nodes))
                 return
             current_data = decision['output']
             self._append_tool_node(next_tool)
@@ -633,6 +654,8 @@ class PipelinePage(ctk.CTkFrame):
 
             current_data = output
 
+        self.set_completed_recipe(completed_steps(self.nodes))
+
     # ล้าง pipeline
     # หน้าที่: ล้าง nodes, input และ artifacts ของ workspace เมื่อไม่ได้กำลังรัน
     # ที่มา: pages/pipeline.py::PipelinePage.load_template (เรียกตรง)
@@ -643,6 +666,7 @@ class PipelinePage(ctk.CTkFrame):
     def clear_pipeline(self):
         if self.canvas_busy():
             return
+        self.set_completed_recipe(None)
         print("Clearing pipeline...")
         for node in self.nodes:
             node['frame'].destroy()
@@ -682,6 +706,9 @@ class PipelinePage(ctk.CTkFrame):
     def open_step_window(self, node, previous_output, original_data, logs, is_last, step_index=1, total_steps=1, step_mode=False):
 
         tool_name = node["name"]
+        saved_settings = node.get("run_settings", {})
+        routing = {"source": saved_settings.get(
+            "input_source", "previous" if step_index > 1 else "manual"), "value": ""}
         history_group = getattr(self, '_history_group_id', None) if self._pipeline_running else None
         history_group = history_group or uuid.uuid4().hex
         input_source = {'text': None, 'id': None}
@@ -852,6 +879,13 @@ class PipelinePage(ctk.CTkFrame):
         result = {"output": None, "run": None, "selected_file": None, "decision": None, "history_id": None}
 
         continuation_panel = ctk.CTkFrame(output_footer, fg_color=CARD_COLOR)
+        save_panel = ctk.CTkFrame(output_footer, fg_color=CARD_COLOR)
+        ctk.CTkLabel(save_panel, text="✓ Pipeline complete", text_color=ACCENT_GREEN).pack(
+            side="left", padx=10, pady=10)
+        ctk.CTkButton(
+            save_panel, text="Save Pipeline", fg_color=ACCENT_CYAN, text_color="black",
+            command=lambda: self.open_save_pipeline(completed_steps(self.nodes), parent=win),
+        ).pack(side="right", padx=10, pady=10)
 
         output_box.insert("end", ">>> original input\n")
 
@@ -1082,6 +1116,7 @@ class PipelinePage(ctk.CTkFrame):
                         f"[+] {path}\n"
                     )
 
+                routing.update(source="manual", value=input_entry.get())
                 update_preview()
 
         ctk.CTkButton(
@@ -1287,6 +1322,7 @@ class PipelinePage(ctk.CTkFrame):
                     input_entry,
                     previous_file_path
                 )
+                routing.update(source="previous", value=input_entry.get())
 
                 output_box.insert(
                     "end",
@@ -1322,6 +1358,7 @@ class PipelinePage(ctk.CTkFrame):
                     input_entry,
                     original
                 )
+                routing.update(source="original", value=input_entry.get())
 
                 output_box.insert(
                     "end",
@@ -1372,6 +1409,7 @@ class PipelinePage(ctk.CTkFrame):
                     path
                 )
 
+                routing.update(source="original", value=input_entry.get())
                 original_status.configure(
                     text=(
                         "ORIGINAL: "
@@ -1527,6 +1565,7 @@ class PipelinePage(ctk.CTkFrame):
         def update_preview(*args):
             if not preview_ready:
                 return
+            sync_successful_step()
             try:
                 path = input_entry.get().strip() if tool_name in self.engine.file_tools else None
                 preview = shlex.join(command_for(path))
@@ -1540,6 +1579,8 @@ class PipelinePage(ctk.CTkFrame):
             except ValueError as error:
                 preview_label.configure(text=f"Invalid arguments: {error}")
 
+        saved_values = {(opt["flag"], opt["type"]): opt["value"]
+                        for opt in saved_settings.get("option_values", [])}
         for opt in tool_options:
             flag = opt["flag"]
             desc = opt.get("description", "").strip()
@@ -1552,7 +1593,7 @@ class PipelinePage(ctk.CTkFrame):
             row.pack(fill="x", pady=2)
 
             if opt_type == "checkbox":
-                var = tk.BooleanVar()
+                var = tk.BooleanVar(value=saved_values.get((flag, opt_type), False))
                 chk = ctk.CTkCheckBox(
                     row, text=display_text, variable=var, command=update_preview,
                     text_color="white", fg_color=ACCENT_CYAN, hover_color="#00CCCC",
@@ -1563,11 +1604,11 @@ class PipelinePage(ctk.CTkFrame):
 
             elif opt_type in ["text", "file"]:
                 ctk.CTkLabel(row, text=f"{display_text}:", text_color=TEXT_DIM).pack(side="left", padx=(0, 5))
-                var = tk.StringVar()
+                var = tk.StringVar(value=saved_values.get((flag, opt_type), ""))
                 var.trace_add("write", update_preview)
                 ent = ctk.CTkEntry(row, textvariable=var, width=120, fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
                 ent.pack(side="left", fill="x", expand=True)
-                option_vars.append((flag, var, "text"))
+                option_vars.append((flag, var, opt_type))
 
         # =================================================================
         # -------- Advanced Options (ยุบ/ขยาย) --------
@@ -1600,7 +1641,7 @@ class PipelinePage(ctk.CTkFrame):
         # =================================================================
         # -------- สวิตช์และ Dynamic Rows (Before Input) --------
         # =================================================================
-        switch_before_var = ctk.BooleanVar(value=False)
+        switch_before_var = ctk.BooleanVar(value=saved_settings.get("before_enabled", False))
         before_container = ctk.CTkFrame(advanced_frame, fg_color="transparent")
         before_rows = []
 
@@ -1639,7 +1680,7 @@ class PipelinePage(ctk.CTkFrame):
             flag_entry.configure(textvariable=flag_var)
 
             val_var = tk.StringVar()
-            if opt_type == "text":
+            if opt_type in ("text", "file"):
                 val_var.trace_add("write", update_preview)
                 val_entry = ctk.CTkEntry(row, placeholder_text="value", fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
                 val_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
@@ -1690,7 +1731,7 @@ class PipelinePage(ctk.CTkFrame):
         # =================================================================
         # -------- สวิตช์และ Dynamic Rows (After Input) --------
         # =================================================================
-        switch_after_var = ctk.BooleanVar(value=False)
+        switch_after_var = ctk.BooleanVar(value=saved_settings.get("after_enabled", False))
         after_container = ctk.CTkFrame(advanced_frame, fg_color="transparent")
         after_rows = []
 
@@ -1729,7 +1770,7 @@ class PipelinePage(ctk.CTkFrame):
             flag_entry.configure(textvariable=flag_var)
 
             val_var = tk.StringVar()
-            if opt_type == "text":
+            if opt_type in ("text", "file"):
                 val_var.trace_add("write", update_preview)
                 val_entry = ctk.CTkEntry(row, placeholder_text="value", fg_color=INPUT_BG, border_color=BORDER_COLOR, text_color="white")
                 val_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
@@ -1777,7 +1818,16 @@ class PipelinePage(ctk.CTkFrame):
         switch_after = ctk.CTkSwitch(advanced_frame, text="Add Additional Arguments (After Input)", variable=switch_after_var, command=toggle_after, progress_color=ACCENT_GREEN, text_color="white", button_color=TEXT_DIM)
         switch_after.pack(anchor="w", pady=(10, 0))
 
-        if not tool_options:
+        for side, rows, add_row in (
+            ("before", before_rows, add_before_row), ("after", after_rows, add_after_row)
+        ):
+            for saved_row in saved_settings.get(side + "_rows", []):
+                add_row(saved_row["type"])
+                rows[-1]["flag"].set(saved_row["flag"])
+                rows[-1]["val"].set(saved_row["value"])
+        toggle_before()
+        toggle_after()
+        if not tool_options or switch_before_var.get() or switch_after_var.get():
             # tool นี้ไม่มี option สำเร็จรูปเลย (เช่น openssl enc) ต้องพึ่ง manual options
             # อย่างเดียว เลยเปิด Advanced ให้อัตโนมัติจะได้ไม่ต้องเดา
             toggle_advanced()
@@ -1791,14 +1841,54 @@ class PipelinePage(ctk.CTkFrame):
         preview_label = ctk.CTkLabel(right, text=tool_name, text_color=ACCENT_GREEN, font=ctk.CTkFont(family="Consolas", size=13), wraplength=320)
         preview_label.pack(anchor="w", padx=20, pady=5)
 
+        # A recipe stores a source choice, never a previous run's input/temp path.
+        if saved_settings.get("input_source") == "original":
+            input_entry.delete(0, "end")
+            original = self.get_original_file()
+            if original:
+                input_entry.insert(0, original)
+            routing["source"] = "original"
+        elif saved_settings.get("input_source") == "manual":
+            input_entry.delete(0, "end")
+            routing["source"] = "manual"
+        routing["value"] = input_entry.get()
+
+        def capture_settings():
+            return {
+                "input_source": routing["source"],
+                "option_values": [{"flag": flag, "type": kind, "value": var.get()}
+                                  for flag, var, kind in option_vars],
+                "before_enabled": switch_before_var.get(),
+                "after_enabled": switch_after_var.get(),
+                "before_rows": [{"flag": row["flag"].get(), "type": row["type"],
+                                 "value": row["val"].get()} for row in before_rows],
+                "after_rows": [{"flag": row["flag"].get(), "type": row["type"],
+                                "value": row["val"].get()} for row in after_rows],
+            }
+
+        def sync_successful_step():
+            snapshot = result.get("recipe")
+            current = step_recipe(node, capture_settings())
+            valid = (result["run"] is not None and result["run"].succeeded
+                     and current == snapshot and input_entry.get() == result.get("input_value"))
+            if valid:
+                node["_successful_step"] = deepcopy(snapshot)
+            else:
+                node.pop("_successful_step", None)
+            save_panel.pack_forget()
+            if valid and is_last and not step_mode and completed_steps(self.nodes):
+                save_panel.pack(fill="x", padx=10, pady=10)
+
         # Observe all edits, including Send to Input, paste and file selection.
-        if logs and (previous_output or forwarded_file is not None):
+        if routing["source"] == "previous" and logs and (previous_output or forwarded_file is not None):
             input_source.update(text=input_entry.get(), id=logs[-1].get('history_id'))
         # หน้าที่: ล้างการอ้างอิง source เดิมเมื่อแก้ input และปรับ preview
         # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
         # Input: *args (tuple[str, ...] (arguments ของ Tk variable trace)) — Tk trace_add ส่งชื่อ variable/index/operation เมื่อค่าเปลี่ยน
         # Closure: input_source (dict) — รับจาก scope PipelinePage.open_step_window
         def input_changed(*args):
+            if input_entry.get() != routing["value"]:
+                routing.update(source="manual", value=input_entry.get())
             input_source.update(text=None, id=None)
             update_preview()
         input_var.trace_add("write", input_changed)
@@ -1827,6 +1917,9 @@ class PipelinePage(ctk.CTkFrame):
             # เรียก PipelineEngine
             # แสดง output
             update_preview()
+            if (saved_settings.get("input_source") == "original"
+                    and routing["source"] == "original" and not input_entry.get().strip()):
+                raise ValueError("Select the original file before running this saved step")
 
             if tool_name in self.engine.file_tools:
                 # =====================================================
@@ -1839,7 +1932,10 @@ class PipelinePage(ctk.CTkFrame):
 
                 # ถ้าช่อง path ว่าง
                 # ลอง route previous_output อัตโนมัติอีกครั้ง
-                if not path and previous_output:
+                if not path and previous_output and not (
+                    saved_settings.get("input_source") in ("manual", "original")
+                    and routing["source"] != "previous"
+                ):
 
                     try:
                         resolved = resolve_file_input(previous_output)
@@ -1856,6 +1952,7 @@ class PipelinePage(ctk.CTkFrame):
                             # แสดงให้ user เห็นว่า UNIT เลือกอะไรให้
                             input_entry.delete(0, "end")
                             input_entry.insert(0, path)
+                            routing.update(source="previous", value=input_entry.get())
 
                     except Exception as e:
                         output_box.insert(
@@ -1881,7 +1978,11 @@ class PipelinePage(ctk.CTkFrame):
 
                 inp_data = input_entry.get()
 
-                if not inp_data and forwarded_file is not None:
+                if routing["source"] == "original":
+                    input_bytes = Path(inp_data)
+                elif saved_settings.get("input_source") == "manual" and routing["source"] == "manual":
+                    input_bytes = inp_data.encode("utf-8")
+                elif not inp_data and forwarded_file is not None:
                     input_bytes = forwarded_file
                 elif not inp_data and previous_output:
                     input_bytes = previous_output
@@ -1949,6 +2050,7 @@ class PipelinePage(ctk.CTkFrame):
                 tag = 'history_' + result['history_id']
                 output_box.tag_add(tag, start, 'end-1c')
                 history_tags[tag] = result['history_id']
+            sync_successful_step()
 
         # หน้าที่: ตรวจ input เก็บ snapshot/History และเริ่ม worker รันคำสั่งโดยไม่บล็อก UI
         # ที่มา: pages/pipeline.py::PipelinePage.open_step_window (อ้างอิง/callback)
@@ -1966,6 +2068,8 @@ class PipelinePage(ctk.CTkFrame):
                 return
             # A retry must never forward a file or stdout from the previous run.
             result.update(output=None, run=None, selected_file=None, decision=None)
+            node.pop("_successful_step", None)
+            save_panel.pack_forget()
             continuation_panel.pack_forget()
             file_selection.set("")
             file_choices.clear()
@@ -1982,6 +2086,9 @@ class PipelinePage(ctk.CTkFrame):
                 output_box.insert("end", f"\n[Failed] {error}\n")
                 output_box.see("end")
                 return
+            # Freeze exactly what this invocation used, before the worker starts.
+            result["recipe"] = step_recipe(node, capture_settings())
+            result["input_value"] = input_entry.get()
             parent_id = input_source['id'] if input_source['text'] == input_entry.get() else None
             source_files = [input_path] if input_path else ([str(forwarded_file)] if forwarded_file is not None and not input_entry.get() else [])
             result['history_id'] = history_hooks.begin(self.app_root, category='Pipeline', tool=tool_name,
@@ -2041,6 +2148,8 @@ class PipelinePage(ctk.CTkFrame):
                     history_hooks.finish(self.app_root, result['history_id'],
                         'Success' if outcome.succeeded else 'Failed', output_data=outcome.stdout,
                         error=outcome.stderr, files=source_files + [str(p) for p in outcome.files])
+                    if outcome.succeeded:
+                        node["run_settings"] = deepcopy(result["recipe"]["run_settings"])
                     show_result(outcome)
                 if closing[0]:
                     result["output"] = None
@@ -2094,6 +2203,7 @@ class PipelinePage(ctk.CTkFrame):
         def next_step(): # ปิด window แล้วส่ง output กลับ pipeline
             if running[0]:
                 return
+            sync_successful_step()
             selected = result["selected_file"]
             if selected is not None:
                 if not selected.is_file():
@@ -2132,6 +2242,7 @@ class PipelinePage(ctk.CTkFrame):
             def complete_step(finish=False):
                 if running[0] or result['run'] is None or not result['run'].succeeded:
                     return
+                sync_successful_step()
                 next_tool = None if finish else next_tool_menu.get().strip()
                 if not finish and next_tool not in self.engine.file_tools and next_tool not in self.engine.text_tools:
                     decision_status.configure(text="Please select a tool from the list.")
@@ -2239,6 +2350,57 @@ class PipelinePage(ctk.CTkFrame):
 
         return categories
 
+    def set_completed_recipe(self, steps):
+        self._completed_recipe = deepcopy(steps)
+        self.completed_panel.pack_forget()
+        if steps:
+            self.completed_panel.pack(fill="x", padx=15, pady=(0, 10), after=self.controls)
+
+    def open_save_pipeline(self, steps, parent=None):
+        if steps:
+            return SavedPipelineDialog(self, steps, parent=parent)
+
+    def add_saved_pipeline_row(self, name):
+        row = ctk.CTkFrame(self.tools_panel, fg_color="transparent")
+        row.pack(fill="x", padx=10, pady=2)
+        ctk.CTkButton(row, text="🗑️", width=30, fg_color="transparent",
+                      text_color=ALERT_RED, hover_color=CARD_COLOR,
+                      command=lambda: self.delete_saved_pipeline(name)).pack(side="right")
+        ctk.CTkButton(row, text="🔨", width=30, fg_color="transparent",
+                      text_color=ACCENT_CYAN, hover_color=CARD_COLOR,
+                      command=lambda: self.edit_saved_pipeline(name)).pack(side="right")
+        label = ctk.CTkLabel(row, text=f"• {name}", anchor="w", wraplength=140,
+                            text_color=TEXT_DIM, cursor="hand2")
+        label.pack(side="left", fill="x", expand=True)
+        label.bind("<Button-1>", lambda event: self.load_saved_pipeline_to_canvas(name))
+
+    def edit_saved_pipeline(self, name):
+        if self.canvas_busy():
+            return
+        try:
+            entries = saved_pipelines(writable_path("Pipeline/saved_pipelines.json"))["saved_pipelines"]
+            entry = next(p for p in entries if p["pipeline_name"] == name)
+            if not entry["steps"]:
+                raise ValueError("This pipeline has no steps to edit")
+            dialog = SavedPipelineDialog(self, entry["steps"], name, editing=True)
+            dialog.expected = deepcopy(entry)
+            return dialog
+        except (OSError, ValueError, TypeError, StopIteration) as error:
+            messagebox.showerror("Edit Pipeline", f"Cannot edit pipeline: {error}", parent=self)
+
+    def delete_saved_pipeline(self, name):
+        if self.canvas_busy():
+            return
+        try:
+            entries = saved_pipelines(writable_path("Pipeline/saved_pipelines.json"))["saved_pipelines"]
+            entry = next(p for p in entries if p["pipeline_name"] == name)
+            if not messagebox.askyesno("Delete Pipeline", f'Delete saved pipeline "{name}"?', parent=self):
+                return
+            delete_recipe(writable_path("Pipeline/saved_pipelines.json"), name, expected=entry)
+            self.refresh_tools_panel()
+        except (OSError, ValueError, TypeError, StopIteration) as error:
+            messagebox.showerror("Delete Pipeline", f"Delete failed: {error}", parent=self)
+
     #refresh panel tool 
     # หน้าที่: วาดรายการ tools และ Saved Pipelines ในแผงเลือกเครื่องมือใหม่
     # ที่มา: pages/pipeline.py::PipelinePage.finalize_wizard_pipeline (เรียกตรง)
@@ -2265,6 +2427,9 @@ class PipelinePage(ctk.CTkFrame):
             ).pack(side="left")
 
             for tool in tools:
+                if cat in ["Pipelines", "Saved Pipelines"]:
+                    self.add_saved_pipeline_row(tool)
+                    continue
                 lbl = ctk.CTkLabel(
                     self.tools_panel,
                     text=f"  • {tool}",
@@ -2290,6 +2455,12 @@ class PipelinePage(ctk.CTkFrame):
                     text_color=ACCENT_PURPLE,
                     hover_color=CARD_COLOR
                 ).pack(fill="x", padx=15, pady=(5, 10))
+
+        self.add_btn = ctk.CTkButton(
+            self.tools_panel, text="+ Add Tools", command=self.open_add_tool_window,
+            fg_color="transparent", border_width=1, border_color=ACCENT_CYAN,
+            text_color=ACCENT_CYAN, hover_color=CARD_COLOR)
+        self.add_btn.pack(fill="x", padx=15, pady=20)
 
     #เช็ค pipeline ที่เคย save
     # หน้าที่: ตรวจรายการที่บันทึกแล้วและเลือกแสดงตัวช่วยเริ่มต้น Pipeline
@@ -2806,6 +2977,8 @@ class PipelinePage(ctk.CTkFrame):
                         "user_description": step.get("user_description", ""),
                         "options": step.get("options", [])
                     }
+                    if "run_settings" in step:
+                        node_data["run_settings"] = deepcopy(step["run_settings"])
                     self.nodes.append(node_data)
 
                     for item in [node, lbl]:
