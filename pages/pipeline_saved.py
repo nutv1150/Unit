@@ -33,18 +33,20 @@ class SavedPipelineDialog(ctk.CTkToplevel):
         self.original_name = name if editing else None
         self.expected = None
         self.index = 0
+        self._activation_job = None
+        self._modal_active = False
         self.title("Edit Saved Pipeline" if editing else "Save Pipeline")
         self.configure(fg_color=BG)
         fit_window(self, "680x720" if editing else "620x520")
         self.transient(parent or page.winfo_toplevel())
         self.attributes("-topmost", True)
-        self.grab_set()
 
         ctk.CTkLabel(self, text=self.title(), text_color=CYAN,
                     font=ctk.CTkFont(size=20, weight="bold")).pack(padx=20, pady=(15, 5), anchor="w")
         ctk.CTkLabel(self, text="Pipeline name", text_color=DIM).pack(padx=20, anchor="w")
         self.name_var = tk.StringVar(value=name)
-        ctk.CTkEntry(self, textvariable=self.name_var).pack(fill="x", padx=20, pady=(0, 12))
+        self.name_entry = ctk.CTkEntry(self, textvariable=self.name_var)
+        self.name_entry.pack(fill="x", padx=20, pady=(0, 12))
         buttons = ctk.CTkFrame(self, fg_color="transparent")
         buttons.pack(side="bottom", fill="x", padx=20, pady=15)
         ctk.CTkButton(buttons, text="Cancel", command=self.destroy,
@@ -84,7 +86,36 @@ class SavedPipelineDialog(ctk.CTkToplevel):
                 lines.append("Input: " + settings.get("input_source", "previous"))
                 ctk.CTkLabel(self.body, text="\n".join(lines), text_color=DIM,
                             justify="left", anchor="w", wraplength=500).pack(fill="x", padx=10, pady=(0, 10))
-        self.after(100, self.lift)
+        # Mapping is asynchronous under a window manager. Grabbing before the
+        # form exists can raise TclError and leave an empty Toplevel behind.
+        self.bind("<Map>", self._schedule_activation, add="+")
+        self._schedule_activation()
+
+    def _schedule_activation(self, event=None):
+        if event is not None and event.widget is not self:
+            return
+        if not self._modal_active and self._activation_job is None:
+            self._activation_job = self.after_idle(self._activate_modal)
+
+    def _activate_modal(self):
+        self._activation_job = None
+        if not self.winfo_viewable():
+            return  # The Map event will schedule activation once visible.
+        try:
+            self.grab_set()
+        except tk.TclError:
+            # Keep the completed form usable even if another window owns a grab.
+            self.status.configure(text="Window focus unavailable. You can still save or cancel.")
+            return
+        self._modal_active = True
+        self.lift()
+        self.name_entry.focus_set()
+
+    def destroy(self):
+        if self._activation_job is not None:
+            self.after_cancel(self._activation_job)
+            self._activation_job = None
+        super().destroy()
 
     def field(self, label, value):
         ctk.CTkLabel(self.body, text=label, text_color=DIM).pack(anchor="w", padx=10)

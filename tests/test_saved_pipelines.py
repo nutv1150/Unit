@@ -197,6 +197,47 @@ class SavedPipelineGuiTests(unittest.TestCase):
         self.button(win, "Run").invoke()
         self.wait_for(lambda: self.button(win, "Run").cget("state") == "normal")
 
+    def test_final_node_save_dialog_is_populated_and_visible_before_grab(self):
+        from Pipeline.output_files import CommandResult
+        from pages.pipeline_saved import SavedPipelineDialog
+        self.page.add_tool_node("grep")
+        real_grab = self.ctk.CTkToplevel.grab_set
+        activated = []
+
+        def checked_grab(dialog):
+            # Window managers may reject a grab before the new window is mapped.
+            self.assertTrue(dialog.winfo_viewable())
+            self.assertTrue(self.entry(dialog, "Pipeline name").winfo_ismapped())
+            self.assertTrue(self.button(dialog, "Save Pipeline").winfo_ismapped())
+            self.assertTrue(self.button(dialog, "Cancel").winfo_ismapped())
+            real_grab(dialog)
+            activated.append(dialog)
+
+        def drive(win):
+            self.set_entry(self.entry(win, ":"), "flag")
+            self.run_step(win)
+            self.button(win, "Save Pipeline").invoke()
+            dialogs = [w for w in win.winfo_children() if isinstance(w, SavedPipelineDialog)]
+            self.assertEqual(1, len(dialogs))
+            dialog = dialogs[0]
+            self.wait_for(lambda: dialog in activated)
+            self.assertEqual(dialog, dialog.grab_current())
+            dialog.name_var.set("Saved from final node")
+            self.button(dialog, "Save Pipeline").invoke()
+            self.assertFalse(dialog.winfo_exists())
+            self.assertIsNone(win.grab_current())
+            self.assertTrue(win.winfo_exists())
+            self.button(win, "Close").invoke()
+
+        with patch.object(SavedPipelineDialog, "grab_set", checked_grab), \
+                patch.object(self.page.engine, "_run_command",
+                             return_value=CommandResult(stdout=b"flag", returncode=0)), \
+                patch.object(self.page, "wait_window", side_effect=drive):
+            self.page.run_pipeline()
+        self.assertEqual("Saved from final node", saved_pipelines(self.path)["saved_pipelines"][0]["pipeline_name"])
+        self.assertEqual(b"flag", self.page.run_logs[-1]["output"])
+        self.assertIsNotNone(self.page._completed_recipe)
+
     def test_real_auto_save_load_replays_options_and_forwarding(self):
         """Real strings → grep, then reload and run the saved recipe again."""
         self.page.add_tool_node("strings")
