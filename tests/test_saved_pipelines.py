@@ -229,14 +229,61 @@ class SavedPipelineGuiTests(unittest.TestCase):
             self.assertTrue(win.winfo_exists())
             self.button(win, "Close").invoke()
 
+        failures = []
+
+        def drive_live_window():
+            windows = [w for w in self.page.winfo_children()
+                       if isinstance(w, self.ctk.CTkToplevel)]
+            try:
+                self.assertEqual(1, len(windows))
+                drive(windows[0])
+            except Exception as error:
+                failures.append(error)
+                for window in windows:
+                    if window.winfo_exists():
+                        window.destroy()
+
+        # Exercise the real nested Tk wait_window loop used by Run All.
+        self.root.after(100, drive_live_window)
         with patch.object(SavedPipelineDialog, "grab_set", checked_grab), \
                 patch.object(self.page.engine, "_run_command",
-                             return_value=CommandResult(stdout=b"flag", returncode=0)), \
-                patch.object(self.page, "wait_window", side_effect=drive):
+                             return_value=CommandResult(stdout=b"flag", returncode=0)):
             self.page.run_pipeline()
+        self.assertEqual([], failures)
         self.assertEqual("Saved from final node", saved_pipelines(self.path)["saved_pipelines"][0]["pipeline_name"])
         self.assertEqual(b"flag", self.page.run_logs[-1]["output"])
         self.assertIsNotNone(self.page._completed_recipe)
+
+    def test_save_dialog_grab_failure_keeps_form_usable(self):
+        import tkinter as tk
+        from pages.pipeline_saved import SavedPipelineDialog
+        with patch.object(SavedPipelineDialog, "grab_set",
+                          side_effect=tk.TclError("grab failed: window not viewable")):
+            dialog = self.page.open_save_pipeline(recipe()["steps"])
+            self.wait_for(lambda: bool(dialog.status.cget("text")))
+            self.assertTrue(dialog.name_entry.winfo_ismapped())
+            self.assertTrue(self.button(dialog, "Save Pipeline").winfo_ismapped())
+            self.assertTrue(self.button(dialog, "Cancel").winfo_ismapped())
+            dialog.name_var.set("Saved despite focus error")
+            self.button(dialog, "Save Pipeline").invoke()
+        self.assertFalse(dialog.winfo_exists())
+        self.assertEqual("Saved despite focus error",
+                         saved_pipelines(self.path)["saved_pipelines"][0]["pipeline_name"])
+
+    def test_save_cancel_releases_grab_and_early_close_cancels_activation(self):
+        dialog = self.page.open_save_pipeline(recipe()["steps"])
+        self.wait_for(lambda: dialog._modal_active)
+        self.assertEqual(dialog, self.root.grab_current())
+        self.button(dialog, "Cancel").invoke()
+        self.assertIsNone(self.root.grab_current())
+        self.assertFalse(self.path.exists())
+        dialog = self.page.open_save_pipeline(recipe()["steps"])
+        pending = dialog._activation_job
+        self.assertIsNotNone(pending)
+        dialog.destroy()
+        self.assertNotIn(pending, self.root.tk.call("after", "info"))
+        self.root.update()
+        self.assertIsNone(self.root.grab_current())
 
     def test_real_auto_save_load_replays_options_and_forwarding(self):
         """Real strings → grep, then reload and run the saved recipe again."""
